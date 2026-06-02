@@ -1,0 +1,13 @@
+name: Sanity Check
+
+on:
+  push:
+    branches: [ "main", "dev"]
+
+jobs:
+  ping-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run a basic shell command
+        run: echo "GitHub Actions Works!"
