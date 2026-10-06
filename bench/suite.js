@@ -116,7 +116,10 @@ export const READ_OPS = [
     params: () => [],
     js: (s) => {
       const out = [];
-      for (let id = 0; id < 10000; id++) out.push(s.byId.get(id).slice());
+      for (let id = 0; id < 10000; id++) {
+        const r = s.byId.get(id);
+        if (r) out.push(r.slice());
+      }
       return out;
     },
   },
