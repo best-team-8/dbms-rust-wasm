@@ -195,18 +195,26 @@ export async function createServer(options = {}) {
     return json(res, 404, { error: 'not found' });
   }
 
+  // URL prefix -> directory. Everything else is served from web/.
+  const STATIC_DIRS = [
+    ['/pkg/', join(ROOT, 'pkg')],
+    ['/bridge/', join(ROOT, 'bridge')],
+    ['/bench/', join(ROOT, 'bench')],
+    ['/vendor/sql.js/', join(ROOT, 'node_modules', 'sql.js', 'dist')],
+  ];
+
   async function handleStatic(req, res, url) {
     let path = decodeURIComponent(url.pathname);
     if (path === '/') path = '/index.html';
-    // /pkg/* and /bridge/* come from the repository root, everything else from web/.
-    const base = path.startsWith('/pkg/') || path.startsWith('/bridge/') ? ROOT : join(ROOT, 'web');
-    const file = normalize(join(base, path));
-    if (!file.startsWith(base + sep) && file !== base) return send(res, 403, 'forbidden');
+    const [prefix, base] = STATIC_DIRS.find(([p]) => path.startsWith(p)) ?? ['/', join(ROOT, 'web')];
+    const file = normalize(join(base, path.slice(prefix.length)));
+    // The resolved file must stay inside the directory mapped to the prefix.
+    if (!file.startsWith(base + sep)) return send(res, 403, 'forbidden');
     try {
       const info = await stat(file);
       if (!info.isFile()) return send(res, 404, 'not found');
       const data = await readFile(file);
-      return send(res, 200, data, {
+      return send(res, 200, req.method === 'HEAD' ? '' : data, {
         'content-type': MIME[extname(file)] ?? 'application/octet-stream',
         'cache-control': 'no-cache',
       });

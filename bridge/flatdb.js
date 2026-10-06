@@ -228,5 +228,6 @@ export class FlatDB extends EventTarget {
     await this.flush();
     this.#closed = true;
     this.#db.free();
+    await this.#store.close?.();
   }
 }

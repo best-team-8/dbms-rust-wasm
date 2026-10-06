@@ -180,8 +180,12 @@ test('static files and wasm are served with correct types', async () => {
     assert.equal(wasm.headers.get('content-type'), 'application/wasm');
     const bridge = await fetch(`${srv.url}/bridge/index.js`);
     assert.equal(bridge.status, 200);
-    const traversal = await fetch(`${srv.url}/..%2f..%2fCargo.toml`);
-    assert.notEqual(traversal.status, 200);
+    for (const path of ['/..%2f..%2fCargo.toml', '/pkg/..%2fCargo.toml', '/bridge/..%2f..%2fpackage.json', '/vendor/sql.js/..%2f..%2f..%2fpackage.json']) {
+      const traversal = await fetch(`${srv.url}${path}`);
+      assert.notEqual(traversal.status, 200, path);
+    }
+    const app = await fetch(`${srv.url}/`);
+    assert.match(await app.text(), /Flat-SQL/);
   } finally {
     await srv.close();
   }

@@ -66,12 +66,30 @@ export class IndexedDbStore {
           db.createObjectStore('wal', { autoIncrement: true });
           db.createObjectStore('meta');
         };
-        req.onsuccess = () => resolve(req.result);
+        req.onsuccess = () => {
+          const db = req.result;
+          // Let other connections delete or upgrade the database instead of
+          // blocking them forever.
+          db.onversionchange = () => {
+            db.close();
+            this.#db = null;
+          };
+          resolve(db);
+        };
         req.onerror = () => reject(req.error);
         req.onblocked = () => reject(new Error(`IndexedDB "${this.dbName}" is blocked by another tab`));
       });
     }
     return this.#db;
+  }
+
+  /** Closes the connection (it is reopened on the next operation). */
+  async close() {
+    if (this.#db) {
+      const db = await this.#db;
+      this.#db = null;
+      db.close();
+    }
   }
 
   #tx(db, stores, mode) {
@@ -131,10 +149,7 @@ export class IndexedDbStore {
 
   /** Deletes the whole IndexedDB database. */
   async destroy() {
-    if (this.#db) {
-      (await this.#db).close();
-      this.#db = null;
-    }
+    await this.close();
     await request(indexedDB.deleteDatabase(this.dbName));
     this.walSize = 0;
     this.snapshotSize = 0;

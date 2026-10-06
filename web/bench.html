@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flat-SQL – benchmark</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="28" height="28">
+      <div>
+        <h1>Benchmark w przeglądarce</h1>
+        <p>Flat-SQL (WASM) · SQLite (sql.js, WASM) · czysty JavaScript</p>
+      </div>
+    </div>
+    <a class="link" href="./">← Konsola</a>
+  </header>
+
+  <main class="bench-main">
+    <section class="panel">
+      <div class="bench-controls">
+        <label>Wiersze
+          <select id="rows">
+            <option value="10000">10 000</option>
+            <option value="50000">50 000</option>
+            <option value="100000" selected>100 000</option>
+          </select>
+        </label>
+        <label><input type="checkbox" name="engine" value="flatsql" checked> Flat-SQL</label>
+        <label><input type="checkbox" name="engine" value="json" checked> Flat-SQL (JSON)</label>
+        <label><input type="checkbox" name="engine" value="sqljs" checked> sql.js</label>
+        <label><input type="checkbox" name="engine" value="js" checked> JavaScript</label>
+        <label><input type="checkbox" id="opt-durability" checked> Trwałość (IndexedDB)</label>
+        <label><input type="checkbox" id="opt-network" checked> Sieć (cloud API)</label>
+        <button id="btn-start">Start</button>
+        <button id="btn-download" class="secondary" disabled>Pobierz JSON</button>
+      </div>
+      <div class="progress" id="progress">Gotowe do uruchomienia. Zamknij inne karty, żeby ograniczyć szum pomiarowy.</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Operacje na danych w pamięci</h2></div>
+      <div class="result" id="results"><p class="muted">brak wyników</p></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Trwały zapis w przeglądarce</h2></div>
+      <div class="result" id="durability"><p class="muted">brak wyników</p></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Local-First vs Cloud-First (PK lookup)</h2></div>
+      <div class="result" id="network"><p class="muted">brak wyników</p></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Moduły WebAssembly</h2></div>
+      <div class="result" id="wasm"><p class="muted">brak wyników</p></div>
+    </section>
+  </main>
+
+  <script src="vendor/sql.js/sql-wasm-browser.js"></script>
+  <script type="module" src="bench-page.js"></script>
+</body>
+</html>
