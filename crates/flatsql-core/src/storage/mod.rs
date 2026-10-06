@@ -71,8 +71,10 @@ impl<S: Storage> Persistent<S> {
         let (snapshot, wal) = storage.load()?;
         let db = Database::restore(snapshot.as_deref(), &wal, node_id)?;
         let mut p = Persistent { db, storage, checkpoint_bytes: Self::DEFAULT_CHECKPOINT_BYTES };
-        // A torn tail must not stay in front of frames appended later.
-        if p.db.recovery_report().is_some_and(|r| r.torn_bytes > 0) {
+        // A torn tail must not stay in front of frames appended later, and a
+        // database without a snapshot gets one right away so its node id
+        // (stored in the snapshot header) stays the same across restarts.
+        if snapshot.is_none() || p.db.recovery_report().is_some_and(|r| r.torn_bytes > 0) {
             p.checkpoint()?;
         }
         Ok(p)

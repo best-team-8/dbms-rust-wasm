@@ -131,6 +131,15 @@ fn persistent_memory_storage_checkpoints() {
 }
 
 #[test]
+fn node_id_is_stable_across_reopens() {
+    let mut p = Persistent::open(MemoryStorage::default(), 11).unwrap();
+    p.execute("CREATE TABLE t (id INT PRIMARY KEY)").unwrap();
+    let (_, storage) = p.into_parts();
+    let p = Persistent::open(storage, 99).unwrap();
+    assert_eq!(p.db().node_id(), 11);
+}
+
+#[test]
 fn file_storage_survives_reopen_and_torn_tail() {
     let dir = std::env::temp_dir().join(format!("flatsql-test-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
