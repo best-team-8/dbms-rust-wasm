@@ -25,6 +25,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "flatsql-cli"
+version = "0.1.0"
+dependencies = [
+ "flatsql-core",
+]
+
+[[package]]
 name = "flatsql-core"
 version = "0.1.0"
 

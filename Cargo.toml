@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/flatsql-core",
     "crates/flatsql-wasm",
+    "crates/flatsql-cli",
 ]
 
 [workspace.package]
