@@ -1,0 +1,22 @@
+# Rust
+/target/
+
+# wasm-pack output
+/pkg/
+
+# Node
+node_modules/
+
+# Local databases created by the CLI / sync server
+*.fsqldb/
+/server/data/
+
+# Benchmark raw output (curated results live in docs/)
+/bench/results/*.json
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

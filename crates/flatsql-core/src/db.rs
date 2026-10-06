@@ -1,0 +1,792 @@
+//! The database object: catalog, transactions, WAL production, crash
+//! recovery and the synchronisation API.
+//!
+//! The engine itself never performs I/O. Every committed transaction is
+//! encoded as a WAL frame into an internal buffer; the host (the native
+//! `Persistent` wrapper, or JavaScript in the browser) drains it with
+//! [`Database::take_wal`] and writes it to durable storage. A full image of
+//! the database is produced by [`Database::snapshot`] (checkpoint).
+
+use std::collections::BTreeMap;
+
+use crate::error::{Error, Result};
+use crate::exec;
+use crate::result::QueryResult;
+use crate::sql::{self, Statement};
+use crate::storage::codec::Writer;
+use crate::storage::snapshot;
+use crate::storage::wal::{self, LogOp, WalReader, OP_ACK, OP_CHANGE};
+use crate::sync::{
+    decode_batch, encode_batch, encode_change, encode_delete, encode_put, system_now_ms, ApplyReport, Change, Hlc,
+    Mutation, Outbox, OutboxItem, Stamp,
+};
+use crate::table::{Index, RowEntry, Table, TableSchema};
+use crate::value::Value;
+
+/// Table and index names are case-insensitive.
+pub(crate) fn catalog_key(name: &str) -> String {
+    name.to_lowercase()
+}
+
+fn no_table(name: &str) -> Error {
+    Error::Schema(format!("no such table '{name}'"))
+}
+
+/// What happened while opening a database from a snapshot + WAL.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RecoveryReport {
+    pub snapshot_bytes: usize,
+    pub snapshot_lsn: u64,
+    pub wal_bytes: usize,
+    pub frames_replayed: u64,
+    /// Frames already contained in the snapshot (crash between checkpoint and
+    /// WAL truncation).
+    pub frames_skipped: u64,
+    /// Bytes of a torn / corrupted WAL tail that were discarded.
+    pub torn_bytes: usize,
+    pub stop_reason: Option<String>,
+    pub ops_failed: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DbStats {
+    pub node_id: u32,
+    pub tables: usize,
+    pub rows: usize,
+    pub indexes: usize,
+    pub tombstones: usize,
+    pub lsn: u64,
+    pub wal_pending: usize,
+    pub outbox: usize,
+    pub next_seq: u64,
+    pub acked_seq: u64,
+    pub clock: u64,
+    pub in_transaction: bool,
+}
+
+/// A parsed statement that can be executed many times with different
+/// `?` parameters.
+#[derive(Debug, Clone)]
+pub struct Prepared {
+    stmt: Statement,
+    params: usize,
+}
+
+impl Prepared {
+    pub fn param_count(&self) -> usize {
+        self.params
+    }
+
+    pub fn statement(&self) -> &Statement {
+        &self.stmt
+    }
+}
+
+enum Undo {
+    /// Restores a row (or its absence) and the tombstone that existed before.
+    Row {
+        table: String,
+        key: Value,
+        prev: Option<RowEntry>,
+        prev_tomb: Option<Stamp>,
+    },
+    CreateTable(String),
+    DropTable(Box<Table>),
+    CreateIndex {
+        table: String,
+        name: String,
+    },
+    DropIndex {
+        table: String,
+        pos: usize,
+        index: Index,
+    },
+}
+
+#[derive(Default)]
+struct Txn {
+    explicit: bool,
+    seq_start: u64,
+    undo: Vec<Undo>,
+    /// Encoded WAL ops, written as a single frame on commit.
+    ops: Vec<u8>,
+    op_count: u64,
+    /// Outbox entries, published on commit.
+    outbox: Vec<(u64, OutboxItem)>,
+}
+
+/// Savepoint used for statement level atomicity.
+#[derive(Clone, Copy)]
+struct Mark {
+    undo: usize,
+    ops: usize,
+    op_count: u64,
+    outbox: usize,
+    next_seq: u64,
+}
+
+pub struct Database {
+    pub(crate) tables: BTreeMap<String, Table>,
+    pub(crate) node_id: u32,
+    pub(crate) clock: Hlc,
+    pub(crate) lsn: u64,
+    pub(crate) next_seq: u64,
+    pub(crate) acked_seq: u64,
+    pub(crate) outbox: Outbox,
+    wal_out: Vec<u8>,
+    txn: Option<Txn>,
+    recovery: Option<RecoveryReport>,
+}
+
+impl Database {
+    /// Creates an empty database. `node_id` identifies this replica in sync
+    /// stamps and should be random and unique per device.
+    pub fn new(node_id: u32) -> Self {
+        Database {
+            tables: BTreeMap::new(),
+            node_id,
+            clock: Hlc::new(system_now_ms),
+            lsn: 0,
+            next_seq: 1,
+            acked_seq: 0,
+            outbox: Outbox::default(),
+            wal_out: Vec::new(),
+            txn: None,
+            recovery: None,
+        }
+    }
+
+    /// Replaces the wall clock used for stamps (required on wasm32).
+    pub fn set_clock(&mut self, now_ms: fn() -> u64) {
+        self.clock.set_source(now_ms);
+    }
+
+    pub fn node_id(&self) -> u32 {
+        self.node_id
+    }
+
+    // ------------------------------------------------------------------
+    // Query API
+    // ------------------------------------------------------------------
+
+    /// Executes one or more statements and returns the result of the last one.
+    /// Statements run in autocommit mode unless wrapped in BEGIN / COMMIT.
+    pub fn execute(&mut self, sql: &str) -> Result<QueryResult> {
+        let mut last = QueryResult::command("OK");
+        for stmt in sql::parse(sql)? {
+            last = self.execute_statement(&stmt, &[])?;
+        }
+        Ok(last)
+    }
+
+    /// Like [`execute`](Self::execute) but returns every statement's result.
+    pub fn execute_all(&mut self, sql: &str) -> Result<Vec<QueryResult>> {
+        let stmts = sql::parse(sql)?;
+        let mut out = Vec::with_capacity(stmts.len());
+        for stmt in &stmts {
+            out.push(self.execute_statement(stmt, &[])?);
+        }
+        Ok(out)
+    }
+
+    pub fn prepare(&self, sql: &str) -> Result<Prepared> {
+        let stmt = sql::parse_one(sql)?;
+        let params = sql::param_count(&stmt);
+        Ok(Prepared { stmt, params })
+    }
+
+    pub fn execute_prepared(&mut self, p: &Prepared, params: &[Value]) -> Result<QueryResult> {
+        if params.len() != p.params {
+            return Err(Error::Eval(format!("statement expects {} parameter(s), {} supplied", p.params, params.len())));
+        }
+        self.execute_statement(&p.stmt, params)
+    }
+
+    pub fn execute_statement(&mut self, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
+        match stmt {
+            Statement::Begin => {
+                if self.txn.is_some() {
+                    return Err(Error::Transaction("a transaction is already active".into()));
+                }
+                self.txn = Some(Txn { explicit: true, seq_start: self.next_seq, ..Default::default() });
+                return Ok(QueryResult::command("BEGIN"));
+            }
+            Statement::Commit => {
+                if !self.txn.as_ref().is_some_and(|t| t.explicit) {
+                    return Err(Error::Transaction("no active transaction".into()));
+                }
+                self.commit();
+                return Ok(QueryResult::command("COMMIT"));
+            }
+            Statement::Rollback => {
+                let Some(start) = self.txn.as_ref().filter(|t| t.explicit).map(|t| t.seq_start) else {
+                    return Err(Error::Transaction("no active transaction".into()));
+                };
+                self.rollback_to(Mark { undo: 0, ops: 0, op_count: 0, outbox: 0, next_seq: start });
+                self.txn = None;
+                return Ok(QueryResult::command("ROLLBACK"));
+            }
+            _ => {}
+        }
+
+        if stmt.is_read_only() {
+            return exec::run_read(self, stmt, params);
+        }
+
+        let implicit = self.txn.is_none();
+        if implicit {
+            self.txn = Some(Txn { seq_start: self.next_seq, ..Default::default() });
+        }
+        let mark = self.mark();
+        match exec::run_write(self, stmt, params) {
+            Ok(r) => {
+                if implicit {
+                    self.commit();
+                }
+                Ok(r)
+            }
+            Err(e) => {
+                // Statement level atomicity: undo everything this statement did.
+                self.rollback_to(mark);
+                if implicit {
+                    self.txn = None;
+                }
+                Err(e)
+            }
+        }
+    }
+
+    pub fn in_transaction(&self) -> bool {
+        self.txn.is_some()
+    }
+
+    // ------------------------------------------------------------------
+    // Catalog access
+    // ------------------------------------------------------------------
+
+    pub(crate) fn table(&self, name: &str) -> Result<&Table> {
+        self.tables.get(&catalog_key(name)).ok_or_else(|| no_table(name))
+    }
+
+    pub fn table_names(&self) -> Vec<String> {
+        self.tables.values().map(|t| t.schema.name.clone()).collect()
+    }
+
+    pub fn table_schema(&self, name: &str) -> Option<&TableSchema> {
+        self.tables.get(&catalog_key(name)).map(|t| &t.schema)
+    }
+
+    pub fn row_count(&self, name: &str) -> Option<usize> {
+        self.tables.get(&catalog_key(name)).map(|t| t.rows.len())
+    }
+
+    /// Finds the table owning an index (index names are unique per database).
+    pub(crate) fn find_index(&self, name: &str) -> Option<(String, usize)> {
+        self.tables.iter().find_map(|(k, t)| t.index_named(name).map(|i| (k.clone(), i)))
+    }
+
+    pub fn stats(&self) -> DbStats {
+        DbStats {
+            node_id: self.node_id,
+            tables: self.tables.len(),
+            rows: self.tables.values().map(|t| t.rows.len()).sum(),
+            indexes: self.tables.values().map(|t| t.indexes.len()).sum(),
+            tombstones: self.tables.values().map(|t| t.tombstones.len()).sum(),
+            lsn: self.lsn,
+            wal_pending: self.wal_out.len(),
+            outbox: self.outbox.len(),
+            next_seq: self.next_seq,
+            acked_seq: self.acked_seq,
+            clock: self.clock.last(),
+            in_transaction: self.txn.is_some(),
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Transactions
+    // ------------------------------------------------------------------
+
+    fn mark(&self) -> Mark {
+        let t = self.txn.as_ref().expect("mark outside of a transaction");
+        Mark {
+            undo: t.undo.len(),
+            ops: t.ops.len(),
+            op_count: t.op_count,
+            outbox: t.outbox.len(),
+            next_seq: self.next_seq,
+        }
+    }
+
+    fn rollback_to(&mut self, m: Mark) {
+        let Database { txn, tables, next_seq, .. } = self;
+        let txn = txn.as_mut().expect("rollback outside of a transaction");
+        while txn.undo.len() > m.undo {
+            apply_undo(tables, txn.undo.pop().unwrap());
+        }
+        txn.ops.truncate(m.ops);
+        txn.op_count = m.op_count;
+        txn.outbox.truncate(m.outbox);
+        *next_seq = m.next_seq;
+    }
+
+    fn commit(&mut self) {
+        let Some(txn) = self.txn.take() else { return };
+        if txn.op_count == 0 {
+            return;
+        }
+        self.lsn += 1;
+        wal::write_frame(&mut self.wal_out, self.lsn, txn.op_count, &txn.ops);
+        for (seq, item) in txn.outbox {
+            self.outbox.insert(seq, item);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Mutations (all writes go through these, inside a transaction)
+    // ------------------------------------------------------------------
+
+    pub(crate) fn new_stamp(&mut self) -> Stamp {
+        Stamp { time: self.clock.tick(), node: self.node_id }
+    }
+
+    fn next_seq_for(&mut self, local: bool) -> u64 {
+        if local {
+            let s = self.next_seq;
+            self.next_seq += 1;
+            s
+        } else {
+            0
+        }
+    }
+
+    /// Stores a validated row. `local == false` for changes from other replicas.
+    pub(crate) fn write_put(&mut self, tkey: &str, values: Vec<Value>, stamp: Stamp, local: bool) -> Result<()> {
+        let seq = self.next_seq_for(local);
+        let Database { tables, txn, .. } = self;
+        let txn = txn.as_mut().expect("write outside of a transaction");
+        let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
+        let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
+        w.u8(OP_CHANGE);
+        w.var(seq);
+        encode_put(&mut w, stamp, &t.schema.name, &values);
+        txn.ops = w.buf;
+        txn.op_count += 1;
+        let key = values[t.schema.pk].clone();
+        let (prev, prev_tomb) = t.put(values, stamp);
+        if local {
+            txn.outbox.push((seq, OutboxItem::Row { table: tkey.to_string(), key: key.clone() }));
+        }
+        txn.undo.push(Undo::Row { table: tkey.to_string(), key, prev, prev_tomb });
+        Ok(())
+    }
+
+    pub(crate) fn write_delete(&mut self, tkey: &str, key: Value, stamp: Stamp, local: bool) -> Result<()> {
+        let seq = self.next_seq_for(local);
+        let Database { tables, txn, .. } = self;
+        let txn = txn.as_mut().expect("write outside of a transaction");
+        let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
+        let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
+        w.u8(OP_CHANGE);
+        w.var(seq);
+        encode_delete(&mut w, stamp, &t.schema.name, &key);
+        txn.ops = w.buf;
+        txn.op_count += 1;
+        let (prev, prev_tomb) = t.delete(&key, stamp);
+        if local {
+            txn.outbox.push((seq, OutboxItem::Row { table: tkey.to_string(), key: key.clone() }));
+        }
+        txn.undo.push(Undo::Row { table: tkey.to_string(), key, prev, prev_tomb });
+        Ok(())
+    }
+
+    /// Applies a schema change (CREATE/DROP TABLE/INDEX).
+    pub(crate) fn write_schema(&mut self, change: Change, local: bool) -> Result<()> {
+        let undo = apply_schema(&mut self.tables, &change)?;
+        let seq = self.next_seq_for(local);
+        let txn = self.txn.as_mut().expect("write outside of a transaction");
+        let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
+        w.u8(OP_CHANGE);
+        w.var(seq);
+        encode_change(&mut w, &change);
+        txn.ops = w.buf;
+        txn.op_count += 1;
+        txn.undo.push(undo);
+        if local {
+            txn.outbox.push((seq, OutboxItem::Schema(change)));
+        }
+        Ok(())
+    }
+
+    // ------------------------------------------------------------------
+    // Persistence
+    // ------------------------------------------------------------------
+
+    /// Drains the WAL bytes of all transactions committed since the last call.
+    pub fn take_wal(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.wal_out)
+    }
+
+    /// Puts WAL bytes back in front of the buffer (used when a write failed).
+    pub fn unshift_wal(&mut self, mut bytes: Vec<u8>) {
+        bytes.extend_from_slice(&self.wal_out);
+        self.wal_out = bytes;
+    }
+
+    pub fn wal_pending(&self) -> usize {
+        self.wal_out.len()
+    }
+
+    /// Last committed log sequence number.
+    pub fn lsn(&self) -> u64 {
+        self.lsn
+    }
+
+    /// Full binary image of the committed state (checkpoint). WAL frames with
+    /// an LSN lower or equal to the snapshot's LSN are skipped on recovery.
+    pub fn snapshot(&self) -> Result<Vec<u8>> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot take a snapshot inside an open transaction".into()));
+        }
+        Ok(snapshot::encode(self))
+    }
+
+    /// Opens a database from an optional snapshot and a WAL. A torn or
+    /// corrupted tail of the WAL is reported and ignored.
+    pub fn restore(snapshot: Option<&[u8]>, wal: &[u8], node_id: u32) -> Result<Database> {
+        let mut db = match snapshot {
+            Some(s) if !s.is_empty() => snapshot::decode(s)?,
+            _ => Database::new(node_id),
+        };
+        let mut report = RecoveryReport {
+            snapshot_bytes: snapshot.map_or(0, |s| s.len()),
+            snapshot_lsn: db.lsn,
+            wal_bytes: wal.len(),
+            ..Default::default()
+        };
+        let mut reader = WalReader::new(wal);
+        for frame in reader.by_ref() {
+            if frame.lsn <= db.lsn {
+                report.frames_skipped += 1;
+                continue;
+            }
+            for op in frame.ops {
+                match op {
+                    LogOp::Change { seq, change } => {
+                        if db.replay_change(seq, change).is_err() {
+                            report.ops_failed += 1;
+                        }
+                    }
+                    LogOp::Ack(upto) => db.apply_ack(upto),
+                }
+            }
+            db.lsn = frame.lsn;
+            report.frames_replayed += 1;
+        }
+        report.torn_bytes = reader.torn_bytes();
+        report.stop_reason = reader.stop_reason.take();
+        db.recovery = Some(report);
+        Ok(db)
+    }
+
+    pub fn recovery_report(&self) -> Option<&RecoveryReport> {
+        self.recovery.as_ref()
+    }
+
+    fn replay_change(&mut self, seq: u64, change: Change) -> Result<()> {
+        let stamp = change.stamp;
+        self.clock.observe(stamp.time);
+        if seq > 0 {
+            self.next_seq = self.next_seq.max(seq + 1);
+        }
+        let item = match change.mutation {
+            Mutation::Put { table, values } => {
+                let tkey = catalog_key(&table);
+                let t = self.tables.get_mut(&tkey).ok_or_else(|| no_table(&table))?;
+                let values = t.schema.check_row(values)?;
+                let key = values[t.schema.pk].clone();
+                t.put(values, stamp);
+                OutboxItem::Row { table: tkey, key }
+            }
+            Mutation::Delete { table, key } => {
+                let tkey = catalog_key(&table);
+                let t = self.tables.get_mut(&tkey).ok_or_else(|| no_table(&table))?;
+                t.delete(&key, stamp);
+                OutboxItem::Row { table: tkey, key }
+            }
+            mutation => {
+                let change = Change { stamp, mutation };
+                apply_schema(&mut self.tables, &change)?;
+                OutboxItem::Schema(change)
+            }
+        };
+        if seq > 0 {
+            self.outbox.insert(seq, item);
+        }
+        Ok(())
+    }
+
+    fn apply_ack(&mut self, upto: u64) {
+        self.outbox.ack(upto);
+        self.acked_seq = self.acked_seq.max(upto);
+    }
+
+    // ------------------------------------------------------------------
+    // Synchronisation
+    // ------------------------------------------------------------------
+
+    /// Number of local changes not yet acknowledged by the sync server.
+    pub fn outbox_len(&self) -> usize {
+        self.outbox.len()
+    }
+
+    /// Encodes up to `max` pending local changes as a batch. Returns the batch
+    /// and the sequence number to pass to [`ack_outbox`](Self::ack_outbox)
+    /// once the server confirmed it (0 when the outbox is empty).
+    pub fn export_outbox(&self, max: usize) -> Result<(Vec<u8>, u64)> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot export changes inside an open transaction".into()));
+        }
+        let mut changes = Vec::new();
+        let mut last = 0;
+        for (&seq, item) in self.outbox.by_seq.iter().take(max) {
+            last = seq;
+            match item {
+                OutboxItem::Schema(c) => changes.push(c.clone()),
+                OutboxItem::Row { table, key } => {
+                    // The current state of the row is sent, so several updates of
+                    // one row collapse into a single change.
+                    let Some(t) = self.tables.get(table) else { continue };
+                    if let Some(row) = t.rows.get(key) {
+                        changes.push(Change {
+                            stamp: row.stamp,
+                            mutation: Mutation::Put { table: t.schema.name.clone(), values: row.values.clone() },
+                        });
+                    } else if let Some(ts) = t.tombstones.get(key) {
+                        changes.push(Change {
+                            stamp: *ts,
+                            mutation: Mutation::Delete { table: t.schema.name.clone(), key: key.clone() },
+                        });
+                    }
+                }
+            }
+        }
+        Ok((encode_batch(&changes), last))
+    }
+
+    /// Marks outbox entries up to `upto` as delivered. The acknowledgement is
+    /// logged, so delivered changes are not re-sent after a restart.
+    pub fn ack_outbox(&mut self, upto: u64) {
+        if upto == 0 || upto <= self.acked_seq {
+            return;
+        }
+        self.apply_ack(upto);
+        let mut w = Writer::new();
+        w.u8(OP_ACK);
+        w.var(upto);
+        self.lsn += 1;
+        wal::write_frame(&mut self.wal_out, self.lsn, 1, &w.buf);
+    }
+
+    /// Applies changes received from other replicas using last-writer-wins.
+    /// The whole batch is committed as one transaction.
+    pub fn apply_changes(&mut self, batch: &[u8]) -> Result<ApplyReport> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot apply remote changes inside an open transaction".into()));
+        }
+        let changes = decode_batch(batch)?;
+        self.txn = Some(Txn { seq_start: self.next_seq, ..Default::default() });
+        let mut report = ApplyReport::default();
+        let mut accepted = Vec::new();
+        for change in changes {
+            self.clock.observe(change.stamp.time);
+            match self.apply_remote(&change) {
+                Ok(true) => {
+                    report.applied += 1;
+                    accepted.push(change);
+                }
+                Ok(false) => report.ignored += 1,
+                Err(e) => {
+                    report.rejected += 1;
+                    if report.errors.len() < 5 {
+                        report.errors.push(e.to_string());
+                    }
+                }
+            }
+        }
+        self.commit();
+        report.accepted = encode_batch(&accepted);
+        Ok(report)
+    }
+
+    /// Returns `Ok(true)` if the change won and was applied, `Ok(false)` if
+    /// the local state is newer.
+    fn apply_remote(&mut self, change: &Change) -> Result<bool> {
+        let stamp = change.stamp;
+        match &change.mutation {
+            Mutation::Put { table, values } => {
+                let tkey = catalog_key(table);
+                let t = self.tables.get(&tkey).ok_or_else(|| no_table(table))?;
+                let values = t.schema.check_row(values.clone())?;
+                let key = &values[t.schema.pk];
+                if t.rows.get(key).is_some_and(|r| r.stamp >= stamp)
+                    || t.tombstones.get(key).is_some_and(|ts| *ts >= stamp)
+                {
+                    return Ok(false);
+                }
+                self.write_put(&tkey, values, stamp, false)?;
+                Ok(true)
+            }
+            Mutation::Delete { table, key } => {
+                let tkey = catalog_key(table);
+                let t = self.tables.get(&tkey).ok_or_else(|| no_table(table))?;
+                let key = key.clone().coerce(t.schema.pk_column().data_type)?;
+                let newer_local = match t.rows.get(&key) {
+                    Some(r) => r.stamp >= stamp,
+                    None => t.tombstones.get(&key).is_some_and(|ts| *ts >= stamp),
+                };
+                if newer_local {
+                    return Ok(false);
+                }
+                self.write_delete(&tkey, key, stamp, false)?;
+                Ok(true)
+            }
+            Mutation::CreateTable(schema) => {
+                if self.tables.contains_key(&catalog_key(&schema.name)) {
+                    return Ok(false);
+                }
+                self.write_schema(change.clone(), false)?;
+                Ok(true)
+            }
+            Mutation::DropTable(name) => match self.tables.get(&catalog_key(name)) {
+                Some(t) if t.created < stamp => {
+                    self.write_schema(change.clone(), false)?;
+                    Ok(true)
+                }
+                _ => Ok(false),
+            },
+            Mutation::CreateIndex { table, name, .. } => {
+                if !self.tables.contains_key(&catalog_key(table)) {
+                    return Err(no_table(table));
+                }
+                if self.find_index(name).is_some() {
+                    return Ok(false);
+                }
+                self.write_schema(change.clone(), false)?;
+                Ok(true)
+            }
+            Mutation::DropIndex { name, .. } => {
+                if self.find_index(name).is_none() {
+                    return Ok(false);
+                }
+                self.write_schema(change.clone(), false)?;
+                Ok(true)
+            }
+        }
+    }
+
+    /// The whole database as a change batch (schema, rows and tombstones).
+    /// Used to bootstrap a new replica or to compact a server log.
+    pub fn export_state(&self) -> Result<Vec<u8>> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot export state inside an open transaction".into()));
+        }
+        let mut changes = Vec::new();
+        for t in self.tables.values() {
+            changes.push(Change { stamp: t.created, mutation: Mutation::CreateTable(t.schema.clone()) });
+            for idx in &t.indexes {
+                changes.push(Change {
+                    stamp: t.created,
+                    mutation: Mutation::CreateIndex {
+                        table: t.schema.name.clone(),
+                        name: idx.name.clone(),
+                        column: t.schema.columns[idx.column].name.clone(),
+                    },
+                });
+            }
+        }
+        for t in self.tables.values() {
+            for row in t.rows.values() {
+                changes.push(Change {
+                    stamp: row.stamp,
+                    mutation: Mutation::Put { table: t.schema.name.clone(), values: row.values.clone() },
+                });
+            }
+            for (key, ts) in &t.tombstones {
+                changes.push(Change {
+                    stamp: *ts,
+                    mutation: Mutation::Delete { table: t.schema.name.clone(), key: key.clone() },
+                });
+            }
+        }
+        Ok(encode_batch(&changes))
+    }
+}
+
+/// Applies a schema change to the catalog and returns how to undo it.
+fn apply_schema(tables: &mut BTreeMap<String, Table>, change: &Change) -> Result<Undo> {
+    match &change.mutation {
+        Mutation::CreateTable(schema) => {
+            let key = catalog_key(&schema.name);
+            if tables.contains_key(&key) {
+                return Err(Error::Schema(format!("table '{}' already exists", schema.name)));
+            }
+            tables.insert(key.clone(), Table::new(schema.clone(), change.stamp));
+            Ok(Undo::CreateTable(key))
+        }
+        Mutation::DropTable(name) => {
+            let t = tables.remove(&catalog_key(name)).ok_or_else(|| no_table(name))?;
+            Ok(Undo::DropTable(Box::new(t)))
+        }
+        Mutation::CreateIndex { table, name, column } => {
+            if tables.values().any(|t| t.index_named(name).is_some()) {
+                return Err(Error::Schema(format!("index '{name}' already exists")));
+            }
+            let tkey = catalog_key(table);
+            let t = tables.get_mut(&tkey).ok_or_else(|| no_table(table))?;
+            let col = t.schema.require_column(column)?;
+            t.add_index(name.clone(), col);
+            Ok(Undo::CreateIndex { table: tkey, name: name.clone() })
+        }
+        Mutation::DropIndex { table, name } => {
+            let tkey = catalog_key(table);
+            let t = tables.get_mut(&tkey).ok_or_else(|| no_table(table))?;
+            let pos = t.index_named(name).ok_or_else(|| Error::Schema(format!("no such index '{name}'")))?;
+            let index = t.indexes.remove(pos);
+            Ok(Undo::DropIndex { table: tkey, pos, index })
+        }
+        Mutation::Put { .. } | Mutation::Delete { .. } => unreachable!("row change passed as schema change"),
+    }
+}
+
+fn apply_undo(tables: &mut BTreeMap<String, Table>, undo: Undo) {
+    match undo {
+        Undo::Row { table, key, prev, prev_tomb } => {
+            if let Some(t) = tables.get_mut(&table) {
+                t.remove_row(&key);
+                if let Some(p) = prev {
+                    t.restore_row(p);
+                }
+                t.set_tombstone(&key, prev_tomb);
+            }
+        }
+        Undo::CreateTable(key) => {
+            tables.remove(&key);
+        }
+        Undo::DropTable(t) => {
+            tables.insert(catalog_key(&t.schema.name), *t);
+        }
+        Undo::CreateIndex { table, name } => {
+            if let Some(t) = tables.get_mut(&table) {
+                if let Some(i) = t.index_named(&name) {
+                    t.indexes.remove(i);
+                }
+            }
+        }
+        Undo::DropIndex { table, pos, index } => {
+            if let Some(t) = tables.get_mut(&table) {
+                let pos = pos.min(t.indexes.len());
+                t.indexes.insert(pos, index);
+            }
+        }
+    }
+}
