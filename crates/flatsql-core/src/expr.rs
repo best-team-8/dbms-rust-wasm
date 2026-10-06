@@ -266,98 +266,142 @@ fn fold(b: BExpr) -> Result<BExpr> {
 
 /// Evaluates an expression against a row (and the aggregate values of the
 /// current group, if any).
+///
+/// Column references and literals – the leaves of almost every expression –
+/// are resolved inline without a function call; only composite nodes go
+/// through `eval_node`. Keeping the hot path out of the big `match` avoids a
+/// heavy stack frame per leaf, which made filters several times slower.
+#[inline(always)]
 pub fn eval<'a>(e: &'a BExpr, row: &'a [Value], aggs: &'a [Value]) -> Result<Cow<'a, Value>> {
-    Ok(match e {
-        BExpr::Lit(v) => Cow::Borrowed(v),
-        BExpr::Col(i) => Cow::Borrowed(&row[*i]),
-        BExpr::Agg(i) => Cow::Borrowed(&aggs[*i]),
-        BExpr::Neg(x) => Cow::Owned(match &*eval(x, row, aggs)? {
-            Value::Null => Value::Null,
-            Value::Int(i) => Value::Int(i.checked_neg().ok_or_else(overflow)?),
-            Value::Float(f) => Value::Float(-f),
-            other => return Err(Error::Type(format!("cannot negate {} value", other.type_name()))),
-        }),
-        BExpr::Not(x) => Cow::Owned(match truth(&*eval(x, row, aggs)?)? {
-            Some(b) => Value::Bool(!b),
-            None => Value::Null,
-        }),
-        BExpr::Bin(op, l, r) => Cow::Owned(eval_binary(*op, l, r, row, aggs)?),
-        BExpr::IsNull(x, negated) => Cow::Owned(Value::Bool(eval(x, row, aggs)?.is_null() != *negated)),
-        BExpr::InList(x, list, negated) => {
-            let v = eval(x, row, aggs)?;
-            if v.is_null() {
-                return Ok(Cow::Owned(Value::Null));
-            }
-            let mut saw_null = false;
-            for item in list {
-                let iv = eval(item, row, aggs)?;
-                if iv.is_null() {
-                    saw_null = true;
-                } else if sql_cmp(&v, &iv)? == Ordering::Equal {
-                    return Ok(Cow::Owned(Value::Bool(!negated)));
-                }
-            }
-            Cow::Owned(if saw_null { Value::Null } else { Value::Bool(*negated) })
-        }
-        BExpr::Between(x, lo, hi, negated) => {
-            let v = eval(x, row, aggs)?;
-            let ge = compare(BinaryOp::GtEq, &v, &*eval(lo, row, aggs)?)?;
-            let le = compare(BinaryOp::LtEq, &v, &*eval(hi, row, aggs)?)?;
-            let both = and3(truth(&ge)?, truth(&le)?);
-            Cow::Owned(match both {
-                Some(b) => Value::Bool(b != *negated),
-                None => Value::Null,
-            })
-        }
-        BExpr::Like { expr, pattern, negated, ci } => {
-            let v = eval(expr, row, aggs)?;
-            let p = eval(pattern, row, aggs)?;
-            Cow::Owned(match (&*v, &*p) {
-                (Value::Null, _) | (_, Value::Null) => Value::Null,
-                (Value::Text(s), Value::Text(pat)) => Value::Bool(like_match(s, pat, *ci) != *negated),
-                (a, _) => return Err(Error::Type(format!("LIKE requires TEXT, got {}", a.type_name()))),
-            })
-        }
-        BExpr::Func(f, args) => Cow::Owned(eval_func(*f, args, row, aggs)?),
-    })
+    match e {
+        BExpr::Lit(v) => Ok(Cow::Borrowed(v)),
+        BExpr::Col(i) => Ok(Cow::Borrowed(&row[*i])),
+        BExpr::Agg(i) => Ok(Cow::Borrowed(&aggs[*i])),
+        other => eval_node(other, row, aggs).map(Cow::Owned),
+    }
 }
 
-fn overflow() -> Error {
-    Error::Eval("integer overflow".into())
-}
-
-fn eval_binary(op: BinaryOp, l: &BExpr, r: &BExpr, row: &[Value], aggs: &[Value]) -> Result<Value> {
-    match op {
-        BinaryOp::And => {
-            let lv = truth(&*eval(l, row, aggs)?)?;
-            if lv == Some(false) {
-                return Ok(Value::Bool(false));
-            }
-            let rv = truth(&*eval(r, row, aggs)?)?;
-            Ok(opt_bool(and3(lv, rv)))
+#[inline(never)]
+fn eval_node(e: &BExpr, row: &[Value], aggs: &[Value]) -> Result<Value> {
+    match e {
+        BExpr::Lit(_) | BExpr::Col(_) | BExpr::Agg(_) => Ok(eval(e, row, aggs)?.into_owned()),
+        BExpr::Bin(BinaryOp::And | BinaryOp::Or, ..) | BExpr::Not(_) => Ok(opt_bool(eval_pred(e, row, aggs)?)),
+        BExpr::Bin(op, l, r) if op.is_comparison() => {
+            Ok(opt_bool(compare(*op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?)?))
         }
-        BinaryOp::Or => {
-            let lv = truth(&*eval(l, row, aggs)?)?;
-            if lv == Some(true) {
-                return Ok(Value::Bool(true));
-            }
-            let rv = truth(&*eval(r, row, aggs)?)?;
-            Ok(opt_bool(match (lv, rv) {
-                (_, Some(true)) => Some(true),
-                (Some(false), Some(false)) => Some(false),
-                _ => None,
-            }))
-        }
-        op if op.is_comparison() => compare(op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?),
-        BinaryOp::Concat => {
+        BExpr::Bin(BinaryOp::Concat, l, r) => {
             let (a, b) = (eval(l, row, aggs)?, eval(r, row, aggs)?);
             if a.is_null() || b.is_null() {
                 return Ok(Value::Null);
             }
             Ok(Value::Text(format!("{a}{b}")))
         }
-        op => arith(op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?),
+        BExpr::Bin(op, l, r) => arith(*op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?),
+        BExpr::Neg(x) => match &*eval(x, row, aggs)? {
+            Value::Null => Ok(Value::Null),
+            Value::Int(i) => i.checked_neg().map(Value::Int).ok_or_else(overflow),
+            Value::Float(f) => Ok(Value::Float(-f)),
+            other => Err(type_error(format!("cannot negate {} value", other.type_name()))),
+        },
+        BExpr::IsNull(x, negated) => Ok(Value::Bool(eval(x, row, aggs)?.is_null() != *negated)),
+        BExpr::InList(..) | BExpr::Between(..) | BExpr::Like { .. } => Ok(opt_bool(eval_pred(e, row, aggs)?)),
+        BExpr::Func(f, args) => eval_func(*f, args, row, aggs),
     }
+}
+
+/// Evaluates a boolean expression to SQL three-valued logic (`None` = NULL)
+/// without materialising intermediate `Value::Bool`s.
+pub fn eval_pred(e: &BExpr, row: &[Value], aggs: &[Value]) -> Result<Option<bool>> {
+    match e {
+        BExpr::Bin(BinaryOp::And, l, r) => {
+            let a = eval_pred(l, row, aggs)?;
+            if a == Some(false) {
+                return Ok(Some(false));
+            }
+            Ok(and3(a, eval_pred(r, row, aggs)?))
+        }
+        BExpr::Bin(BinaryOp::Or, l, r) => {
+            let a = eval_pred(l, row, aggs)?;
+            if a == Some(true) {
+                return Ok(Some(true));
+            }
+            Ok(match (a, eval_pred(r, row, aggs)?) {
+                (_, Some(true)) => Some(true),
+                (Some(false), Some(false)) => Some(false),
+                _ => None,
+            })
+        }
+        BExpr::Bin(op, l, r) if op.is_comparison() => compare(*op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?),
+        BExpr::Not(x) => Ok(eval_pred(x, row, aggs)?.map(|b| !b)),
+        BExpr::IsNull(x, negated) => Ok(Some(eval(x, row, aggs)?.is_null() != *negated)),
+        BExpr::InList(x, list, negated) => eval_in_list(x, list, *negated, row, aggs),
+        BExpr::Between(x, lo, hi, negated) => eval_between(x, lo, hi, *negated, row, aggs),
+        BExpr::Like { expr, pattern, negated, ci } => eval_like(expr, pattern, *negated, *ci, row, aggs),
+        other => truth(&*eval(other, row, aggs)?),
+    }
+}
+
+#[inline(never)]
+fn eval_between(
+    x: &BExpr,
+    lo: &BExpr,
+    hi: &BExpr,
+    negated: bool,
+    row: &[Value],
+    aggs: &[Value],
+) -> Result<Option<bool>> {
+    let v = eval(x, row, aggs)?;
+    let ge = compare(BinaryOp::GtEq, &v, &*eval(lo, row, aggs)?)?;
+    let le = compare(BinaryOp::LtEq, &v, &*eval(hi, row, aggs)?)?;
+    Ok(and3(ge, le).map(|b| b != negated))
+}
+
+#[inline(never)]
+fn eval_like(
+    x: &BExpr,
+    pattern: &BExpr,
+    negated: bool,
+    ci: bool,
+    row: &[Value],
+    aggs: &[Value],
+) -> Result<Option<bool>> {
+    let v = eval(x, row, aggs)?;
+    let p = eval(pattern, row, aggs)?;
+    match (&*v, &*p) {
+        (Value::Null, _) | (_, Value::Null) => Ok(None),
+        (Value::Text(s), Value::Text(pat)) => Ok(Some(like_match(s, pat, ci) != negated)),
+        (a, _) => Err(type_error(format!("LIKE requires TEXT, got {}", a.type_name()))),
+    }
+}
+
+#[inline(never)]
+fn eval_in_list(x: &BExpr, list: &[BExpr], negated: bool, row: &[Value], aggs: &[Value]) -> Result<Option<bool>> {
+    let v = eval(x, row, aggs)?;
+    if v.is_null() {
+        return Ok(None);
+    }
+    let mut saw_null = false;
+    for item in list {
+        let iv = eval(item, row, aggs)?;
+        if iv.is_null() {
+            saw_null = true;
+        } else if sql_cmp(&v, &iv)? == Ordering::Equal {
+            return Ok(Some(!negated));
+        }
+    }
+    Ok(if saw_null { None } else { Some(negated) })
+}
+
+#[cold]
+#[inline(never)]
+fn type_error(msg: String) -> Error {
+    Error::Type(msg)
+}
+
+#[cold]
+#[inline(never)]
+fn overflow() -> Error {
+    Error::Eval("integer overflow".into())
 }
 
 fn and3(a: Option<bool>, b: Option<bool>) -> Option<bool> {
@@ -379,34 +423,39 @@ pub fn truth(v: &Value) -> Result<Option<bool>> {
         Value::Bool(b) => Ok(Some(*b)),
         Value::Int(i) => Ok(Some(*i != 0)),
         Value::Float(f) => Ok(Some(*f != 0.0)),
-        Value::Text(_) => Err(Error::Type("expected a boolean condition, got TEXT".into())),
+        Value::Text(_) => Err(type_error("expected a boolean condition, got TEXT".into())),
     }
 }
 
 /// Evaluates a predicate; rows for which it is NULL do not qualify.
+#[inline]
 pub fn matches(filter: Option<&BExpr>, row: &[Value]) -> Result<bool> {
     match filter {
         None => Ok(true),
-        Some(f) => Ok(truth(&*eval(f, row, &[])?)? == Some(true)),
+        Some(f) => Ok(eval_pred(f, row, &[])? == Some(true)),
     }
 }
 
 /// Ordering of two non-NULL values for comparison operators.
+#[inline]
 pub fn sql_cmp(a: &Value, b: &Value) -> Result<Ordering> {
     match (a, b) {
+        (Value::Int(x), Value::Int(y)) => Ok(x.cmp(y)),
         (Value::Bool(x), Value::Int(_) | Value::Float(_)) => Ok(Value::Int(*x as i64).cmp(b)),
         (Value::Int(_) | Value::Float(_), Value::Bool(y)) => Ok(a.cmp(&Value::Int(*y as i64))),
         _ if a.comparable(b) => Ok(a.cmp(b)),
-        _ => Err(Error::Type(format!("cannot compare {} with {}", a.type_name(), b.type_name()))),
+        _ => Err(type_error(format!("cannot compare {} with {}", a.type_name(), b.type_name()))),
     }
 }
 
-fn compare(op: BinaryOp, a: &Value, b: &Value) -> Result<Value> {
+/// Comparison operator in three-valued logic.
+#[inline]
+fn compare(op: BinaryOp, a: &Value, b: &Value) -> Result<Option<bool>> {
     if a.is_null() || b.is_null() {
-        return Ok(Value::Null);
+        return Ok(None);
     }
     let ord = sql_cmp(a, b)?;
-    Ok(Value::Bool(match op {
+    Ok(Some(match op {
         BinaryOp::Eq => ord == Ordering::Equal,
         BinaryOp::NotEq => ord != Ordering::Equal,
         BinaryOp::Lt => ord == Ordering::Less,

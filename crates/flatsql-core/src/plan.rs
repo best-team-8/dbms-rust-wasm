@@ -282,5 +282,5 @@ pub fn scan<'a>(t: &'a Table, access: &'a Access, reverse: bool) -> RowIter<'a> 
 
 /// Text of the WHERE clause for EXPLAIN.
 pub fn describe_filter(t: Option<&Table>, filter: &BExpr) -> String {
-    describe(filter, t.map(|t| &t.schema), &[])
+    describe(filter, t.map(|t| &*t.schema), &[])
 }

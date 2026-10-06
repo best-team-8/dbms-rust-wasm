@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::storage::codec::{crc32, Reader, Writer};
@@ -285,14 +286,14 @@ pub struct ApplyReport {
 /// schema change stored verbatim.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum OutboxItem {
-    Row { table: String, key: Value },
+    Row { table: Arc<str>, key: Value },
     Schema(Change),
 }
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Outbox {
     pub(crate) by_seq: BTreeMap<u64, OutboxItem>,
-    row_seq: BTreeMap<(String, Value), u64>,
+    row_seq: BTreeMap<(Arc<str>, Value), u64>,
 }
 
 impl Outbox {

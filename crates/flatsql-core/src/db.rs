@@ -7,7 +7,9 @@
 //! [`Database::take_wal`] and writes it to durable storage. A full image of
 //! the database is produced by [`Database::snapshot`] (checkpoint).
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::exec;
@@ -23,9 +25,14 @@ use crate::sync::{
 use crate::table::{Index, RowEntry, Table, TableSchema};
 use crate::value::Value;
 
-/// Table and index names are case-insensitive.
-pub(crate) fn catalog_key(name: &str) -> String {
-    name.to_lowercase()
+/// Table and index names are case-insensitive. Already lower-case names
+/// (the common case) are used without allocating.
+pub(crate) fn catalog_key(name: &str) -> Cow<'_, str> {
+    if name.chars().any(char::is_uppercase) {
+        Cow::Owned(name.to_lowercase())
+    } else {
+        Cow::Borrowed(name)
+    }
 }
 
 fn no_table(name: &str) -> Error {
@@ -85,7 +92,7 @@ impl Prepared {
 enum Undo {
     /// Restores a row (or its absence) and the tombstone that existed before.
     Row {
-        table: String,
+        table: Arc<str>,
         key: Value,
         prev: Option<RowEntry>,
         prev_tomb: Option<Stamp>,
@@ -265,7 +272,7 @@ impl Database {
     // ------------------------------------------------------------------
 
     pub(crate) fn table(&self, name: &str) -> Result<&Table> {
-        self.tables.get(&catalog_key(name)).ok_or_else(|| no_table(name))
+        self.tables.get(&*catalog_key(name)).ok_or_else(|| no_table(name))
     }
 
     pub fn table_names(&self) -> Vec<String> {
@@ -273,11 +280,11 @@ impl Database {
     }
 
     pub fn table_schema(&self, name: &str) -> Option<&TableSchema> {
-        self.tables.get(&catalog_key(name)).map(|t| &t.schema)
+        self.tables.get(&*catalog_key(name)).map(|t| &*t.schema)
     }
 
     pub fn row_count(&self, name: &str) -> Option<usize> {
-        self.tables.get(&catalog_key(name)).map(|t| t.rows.len())
+        self.tables.get(&*catalog_key(name)).map(|t| t.rows.len())
     }
 
     /// Finds the table owning an index (index names are unique per database).
@@ -374,9 +381,9 @@ impl Database {
         let key = values[t.schema.pk].clone();
         let (prev, prev_tomb) = t.put(values, stamp);
         if local {
-            txn.outbox.push((seq, OutboxItem::Row { table: tkey.to_string(), key: key.clone() }));
+            txn.outbox.push((seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() }));
         }
-        txn.undo.push(Undo::Row { table: tkey.to_string(), key, prev, prev_tomb });
+        txn.undo.push(Undo::Row { table: t.key.clone(), key, prev, prev_tomb });
         Ok(())
     }
 
@@ -393,9 +400,9 @@ impl Database {
         txn.op_count += 1;
         let (prev, prev_tomb) = t.delete(&key, stamp);
         if local {
-            txn.outbox.push((seq, OutboxItem::Row { table: tkey.to_string(), key: key.clone() }));
+            txn.outbox.push((seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() }));
         }
-        txn.undo.push(Undo::Row { table: tkey.to_string(), key, prev, prev_tomb });
+        txn.undo.push(Undo::Row { table: t.key.clone(), key, prev, prev_tomb });
         Ok(())
     }
 
@@ -501,17 +508,17 @@ impl Database {
         let item = match change.mutation {
             Mutation::Put { table, values } => {
                 let tkey = catalog_key(&table);
-                let t = self.tables.get_mut(&tkey).ok_or_else(|| no_table(&table))?;
+                let t = self.tables.get_mut(&*tkey).ok_or_else(|| no_table(&table))?;
                 let values = t.schema.check_row(values)?;
                 let key = values[t.schema.pk].clone();
                 t.put(values, stamp);
-                OutboxItem::Row { table: tkey, key }
+                OutboxItem::Row { table: t.key.clone(), key }
             }
             Mutation::Delete { table, key } => {
                 let tkey = catalog_key(&table);
-                let t = self.tables.get_mut(&tkey).ok_or_else(|| no_table(&table))?;
+                let t = self.tables.get_mut(&*tkey).ok_or_else(|| no_table(&table))?;
                 t.delete(&key, stamp);
-                OutboxItem::Row { table: tkey, key }
+                OutboxItem::Row { table: t.key.clone(), key }
             }
             mutation => {
                 let change = Change { stamp, mutation };
@@ -555,7 +562,7 @@ impl Database {
                 OutboxItem::Row { table, key } => {
                     // The current state of the row is sent, so several updates of
                     // one row collapse into a single change.
-                    let Some(t) = self.tables.get(table) else { continue };
+                    let Some(t) = self.tables.get(&**table) else { continue };
                     if let Some(row) = t.rows.get(key) {
                         changes.push(Change {
                             stamp: row.stamp,
@@ -625,7 +632,7 @@ impl Database {
         match &change.mutation {
             Mutation::Put { table, values } => {
                 let tkey = catalog_key(table);
-                let t = self.tables.get(&tkey).ok_or_else(|| no_table(table))?;
+                let t = self.tables.get(&*tkey).ok_or_else(|| no_table(table))?;
                 let values = t.schema.check_row(values.clone())?;
                 let key = &values[t.schema.pk];
                 if t.rows.get(key).is_some_and(|r| r.stamp >= stamp)
@@ -638,7 +645,7 @@ impl Database {
             }
             Mutation::Delete { table, key } => {
                 let tkey = catalog_key(table);
-                let t = self.tables.get(&tkey).ok_or_else(|| no_table(table))?;
+                let t = self.tables.get(&*tkey).ok_or_else(|| no_table(table))?;
                 let key = key.clone().coerce(t.schema.pk_column().data_type)?;
                 let newer_local = match t.rows.get(&key) {
                     Some(r) => r.stamp >= stamp,
@@ -651,13 +658,13 @@ impl Database {
                 Ok(true)
             }
             Mutation::CreateTable(schema) => {
-                if self.tables.contains_key(&catalog_key(&schema.name)) {
+                if self.tables.contains_key(&*catalog_key(&schema.name)) {
                     return Ok(false);
                 }
                 self.write_schema(change.clone(), false)?;
                 Ok(true)
             }
-            Mutation::DropTable(name) => match self.tables.get(&catalog_key(name)) {
+            Mutation::DropTable(name) => match self.tables.get(&*catalog_key(name)) {
                 Some(t) if t.created < stamp => {
                     self.write_schema(change.clone(), false)?;
                     Ok(true)
@@ -665,7 +672,7 @@ impl Database {
                 _ => Ok(false),
             },
             Mutation::CreateIndex { table, name, .. } => {
-                if !self.tables.contains_key(&catalog_key(table)) {
+                if !self.tables.contains_key(&*catalog_key(table)) {
                     return Err(no_table(table));
                 }
                 if self.find_index(name).is_some() {
@@ -692,7 +699,7 @@ impl Database {
         }
         let mut changes = Vec::new();
         for t in self.tables.values() {
-            changes.push(Change { stamp: t.created, mutation: Mutation::CreateTable(t.schema.clone()) });
+            changes.push(Change { stamp: t.created, mutation: Mutation::CreateTable((*t.schema).clone()) });
             for idx in &t.indexes {
                 changes.push(Change {
                     stamp: t.created,
@@ -726,7 +733,7 @@ impl Database {
 fn apply_schema(tables: &mut BTreeMap<String, Table>, change: &Change) -> Result<Undo> {
     match &change.mutation {
         Mutation::CreateTable(schema) => {
-            let key = catalog_key(&schema.name);
+            let key = catalog_key(&schema.name).into_owned();
             if tables.contains_key(&key) {
                 return Err(Error::Schema(format!("table '{}' already exists", schema.name)));
             }
@@ -734,7 +741,7 @@ fn apply_schema(tables: &mut BTreeMap<String, Table>, change: &Change) -> Result
             Ok(Undo::CreateTable(key))
         }
         Mutation::DropTable(name) => {
-            let t = tables.remove(&catalog_key(name)).ok_or_else(|| no_table(name))?;
+            let t = tables.remove(&*catalog_key(name)).ok_or_else(|| no_table(name))?;
             Ok(Undo::DropTable(Box::new(t)))
         }
         Mutation::CreateIndex { table, name, column } => {
@@ -742,17 +749,17 @@ fn apply_schema(tables: &mut BTreeMap<String, Table>, change: &Change) -> Result
                 return Err(Error::Schema(format!("index '{name}' already exists")));
             }
             let tkey = catalog_key(table);
-            let t = tables.get_mut(&tkey).ok_or_else(|| no_table(table))?;
+            let t = tables.get_mut(&*tkey).ok_or_else(|| no_table(table))?;
             let col = t.schema.require_column(column)?;
             t.add_index(name.clone(), col);
-            Ok(Undo::CreateIndex { table: tkey, name: name.clone() })
+            Ok(Undo::CreateIndex { table: tkey.into_owned(), name: name.clone() })
         }
         Mutation::DropIndex { table, name } => {
             let tkey = catalog_key(table);
-            let t = tables.get_mut(&tkey).ok_or_else(|| no_table(table))?;
+            let t = tables.get_mut(&*tkey).ok_or_else(|| no_table(table))?;
             let pos = t.index_named(name).ok_or_else(|| Error::Schema(format!("no such index '{name}'")))?;
             let index = t.indexes.remove(pos);
-            Ok(Undo::DropIndex { table: tkey, pos, index })
+            Ok(Undo::DropIndex { table: tkey.into_owned(), pos, index })
         }
         Mutation::Put { .. } | Mutation::Delete { .. } => unreachable!("row change passed as schema change"),
     }
@@ -761,7 +768,7 @@ fn apply_schema(tables: &mut BTreeMap<String, Table>, change: &Change) -> Result
 fn apply_undo(tables: &mut BTreeMap<String, Table>, undo: Undo) {
     match undo {
         Undo::Row { table, key, prev, prev_tomb } => {
-            if let Some(t) = tables.get_mut(&table) {
+            if let Some(t) = tables.get_mut(&*table) {
                 t.remove_row(&key);
                 if let Some(p) = prev {
                     t.restore_row(p);
@@ -773,7 +780,7 @@ fn apply_undo(tables: &mut BTreeMap<String, Table>, undo: Undo) {
             tables.remove(&key);
         }
         Undo::DropTable(t) => {
-            tables.insert(catalog_key(&t.schema.name), *t);
+            tables.insert(catalog_key(&t.schema.name).into_owned(), *t);
         }
         Undo::CreateIndex { table, name } => {
             if let Some(t) = tables.get_mut(&table) {

@@ -1,12 +1,12 @@
 //! Statement execution.
 
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::db::{catalog_key, Database};
 use crate::error::{Error, Result};
-use crate::expr::{describe, eval, matches, truth, AggAcc, AggSpec, BExpr, Binder};
+use crate::expr::{describe, eval, eval_pred, matches, AggAcc, AggSpec, BExpr, Binder};
 use crate::plan::{self, Access};
 use crate::result::QueryResult;
 use crate::sql::{CreateTable, Delete, Expr, Insert, OnConflict, Select, SelectItem, Statement, Update};
@@ -90,7 +90,7 @@ fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<Sel
         Some(name) => Some(db.table(name)?),
         None => None,
     };
-    let schema = table.map(|t| &t.schema);
+    let schema = table.map(|t| &*t.schema);
     let binder = Binder::new(schema, params);
 
     let filter = match &s.selection {
@@ -204,9 +204,9 @@ fn project(proj: &[BExpr], row: &[Value], aggs: &[Value]) -> Result<Vec<Value>> 
     proj.iter().map(|e| eval(e, row, aggs).map(Cow::into_owned)).collect()
 }
 
-fn cmp_keys(a: &[Value], b: &[Value], dirs: &[(BExpr, bool)]) -> Ordering {
+fn cmp_keys<A: Borrow<Value>, B: Borrow<Value>>(a: &[A], b: &[B], dirs: &[(BExpr, bool)]) -> Ordering {
     for ((x, y), (_, desc)) in a.iter().zip(b).zip(dirs) {
-        let o = x.cmp(y);
+        let o = x.borrow().cmp(y.borrow());
         let o = if *desc { o.reverse() } else { o };
         if o != Ordering::Equal {
             return o;
@@ -232,6 +232,12 @@ fn sort_window<T>(items: &mut Vec<(Vec<Value>, usize, T)>, order: &[(BExpr, bool
     items.sort_unstable_by(cmp);
 }
 
+/// Group key -> (first row of the group, aggregate accumulators).
+type Groups<'a> = BTreeMap<Vec<Cow<'a, Value>>, (&'a [Value], Vec<AggAcc>)>;
+
+/// Largest LIMIT + OFFSET handled with the bounded top-k buffer.
+const TOP_K_BUFFER: usize = 1024;
+
 fn window<T>(rows: Vec<T>, offset: usize, limit: Option<usize>) -> Vec<T> {
     rows.into_iter().skip(offset).take(limit.unwrap_or(usize::MAX)).collect()
 }
@@ -243,7 +249,10 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
 
     let rows: Vec<Vec<Value>> = if p.aggregate {
         let null_row = vec![Value::Null; p.table.map_or(0, |t| t.schema.columns.len())];
-        let mut groups: BTreeMap<Vec<Value>, (&[Value], Vec<AggAcc>)> = BTreeMap::new();
+        // Group keys borrow column values from the table where possible; a key
+        // is only copied when a new group is created.
+        let mut groups: Groups = BTreeMap::new();
+        let mut key: Vec<Cow<Value>> = Vec::with_capacity(p.group.len());
         match p.table {
             Some(t) => {
                 for entry in plan::scan(t, &p.access, false) {
@@ -251,16 +260,20 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
                     if !matches(p.filter.as_ref(), &entry.values)? {
                         continue;
                     }
-                    let key = p
-                        .group
-                        .iter()
-                        .map(|g| eval(g, &entry.values, &[]).map(Cow::into_owned))
-                        .collect::<Result<Vec<_>>>()?;
-                    let slot = groups
-                        .entry(key)
-                        .or_insert_with(|| (&entry.values[..], p.aggs.iter().map(AggAcc::new).collect()));
-                    for (acc, spec) in slot.1.iter_mut().zip(&p.aggs) {
-                        acc.update(spec, &entry.values)?;
+                    key.clear();
+                    for g in &p.group {
+                        key.push(eval(g, &entry.values, &[])?);
+                    }
+                    if let Some(slot) = groups.get_mut(key.as_slice()) {
+                        for (acc, spec) in slot.1.iter_mut().zip(&p.aggs) {
+                            acc.update(spec, &entry.values)?;
+                        }
+                    } else {
+                        let mut accs: Vec<AggAcc> = p.aggs.iter().map(AggAcc::new).collect();
+                        for (acc, spec) in accs.iter_mut().zip(&p.aggs) {
+                            acc.update(spec, &entry.values)?;
+                        }
+                        groups.insert(key.clone(), (&entry.values[..], accs));
                     }
                 }
             }
@@ -278,7 +291,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
         for (i, (_, (row, accs))) in groups.into_iter().enumerate() {
             let agg_values: Vec<Value> = accs.iter().zip(&p.aggs).map(|(a, s)| a.finish(s)).collect();
             if let Some(h) = &p.having {
-                if truth(&*eval(h, row, &agg_values)?)? != Some(true) {
+                if eval_pred(h, row, &agg_values)? != Some(true) {
                     continue;
                 }
             }
@@ -334,19 +347,52 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
             Some(t) => Box::new(plan::scan(t, &p.access, false).map(|e| &e.values[..])),
             None => Box::new(std::iter::once(&empty_row[..])),
         };
-        for (i, row) in rows.enumerate() {
-            scanned += 1;
-            if !matches(p.filter.as_ref(), row)? {
-                continue;
+        match need {
+            // ORDER BY ... LIMIT k: keep a sorted buffer of the best k rows. Most
+            // rows lose against the current k-th one and are rejected without
+            // copying their sort key.
+            Some(k) if k <= TOP_K_BUFFER => {
+                let mut key: Vec<Cow<Value>> = Vec::with_capacity(p.order.len());
+                for (i, row) in rows.enumerate() {
+                    scanned += 1;
+                    if k == 0 {
+                        break;
+                    }
+                    if !matches(p.filter.as_ref(), row)? {
+                        continue;
+                    }
+                    key.clear();
+                    for (e, _) in &p.order {
+                        key.push(eval(e, row, &[])?);
+                    }
+                    // Equal keys keep scan order, so a tie with the k-th row loses.
+                    if cands.len() == k && cmp_keys(&key, &cands[k - 1].0, &p.order) != Ordering::Less {
+                        continue;
+                    }
+                    let pos = cands.partition_point(|c| cmp_keys(&c.0, &key, &p.order) != Ordering::Greater);
+                    cands.insert(pos, (key.iter().map(|v| v.clone().into_owned()).collect(), i, row));
+                    cands.truncate(k);
+                }
             }
-            let keys =
-                p.order.iter().map(|(e, _)| eval(e, row, &[]).map(Cow::into_owned)).collect::<Result<Vec<_>>>()?;
-            cands.push((keys, i, row));
+            _ => {
+                for (i, row) in rows.enumerate() {
+                    scanned += 1;
+                    if !matches(p.filter.as_ref(), row)? {
+                        continue;
+                    }
+                    let keys = p
+                        .order
+                        .iter()
+                        .map(|(e, _)| eval(e, row, &[]).map(Cow::into_owned))
+                        .collect::<Result<Vec<_>>>()?;
+                    cands.push((keys, i, row));
+                }
+                sort_window(&mut cands, &p.order, need);
+            }
         }
         if p.table.is_none() {
             scanned = 0;
         }
-        sort_window(&mut cands, &p.order, need);
         window(cands, p.offset, p.limit)
             .into_iter()
             .map(|(_, _, row)| project(&p.proj, row, &[]))
@@ -389,7 +435,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
 }
 
 fn explain_select(p: &SelectPlan) -> Vec<String> {
-    let schema = p.table.map(|t| &t.schema);
+    let schema = p.table.map(|t| &*t.schema);
     let d = |e: &BExpr| describe(e, schema, &p.aggs);
     let mut lines = Vec::new();
     match p.table {
@@ -530,7 +576,7 @@ fn describe_table(db: &Database, name: &str) -> Result<QueryResult> {
 // ----------------------------------------------------------------------
 
 fn create_table(db: &mut Database, ct: &CreateTable) -> Result<QueryResult> {
-    if db.tables.contains_key(&catalog_key(&ct.name)) {
+    if db.tables.contains_key(&*catalog_key(&ct.name)) {
         if ct.if_not_exists {
             return Ok(QueryResult::command("CREATE TABLE (already exists)"));
         }
@@ -566,7 +612,7 @@ fn create_table(db: &mut Database, ct: &CreateTable) -> Result<QueryResult> {
 }
 
 fn drop_table(db: &mut Database, name: &str, if_exists: bool) -> Result<QueryResult> {
-    let real = match db.tables.get(&catalog_key(name)) {
+    let real = match db.tables.get(&*catalog_key(name)) {
         Some(t) => t.schema.name.clone(),
         None if if_exists => return Ok(QueryResult::command("DROP TABLE (did not exist)")),
         None => return Err(Error::Schema(format!("no such table '{name}'"))),
@@ -605,7 +651,7 @@ fn drop_index(db: &mut Database, name: &str, if_exists: bool) -> Result<QueryRes
         }
         return Err(Error::Schema(format!("no such index '{name}'")));
     };
-    let t = &db.tables[&tkey];
+    let t = &db.tables[&*tkey];
     let mutation = Mutation::DropIndex { table: t.schema.name.clone(), name: t.indexes[pos].name.clone() };
     let stamp = db.new_stamp();
     db.write_schema(Change { stamp, mutation }, true)?;
@@ -664,7 +710,7 @@ fn insert(db: &mut Database, ins: &Insert, params: &[Value]) -> Result<QueryResu
             };
         }
         let values = schema.check_row(values)?;
-        if db.tables[&tkey].rows.contains_key(&values[schema.pk]) {
+        if db.tables[&*tkey].rows.contains_key(&values[schema.pk]) {
             match ins.on_conflict {
                 OnConflict::Abort => {
                     return Err(Error::Constraint(format!(
@@ -720,7 +766,7 @@ fn update(db: &mut Database, u: &Update, params: &[Value]) -> Result<QueryResult
     let affected = targets.len() as u64;
     for (old_key, new) in targets {
         if new[pk] != old_key {
-            if db.tables[&tkey].rows.contains_key(&new[pk]) {
+            if db.tables[&*tkey].rows.contains_key(&new[pk]) {
                 return Err(Error::Constraint(format!(
                     "duplicate primary key {} in table '{}'",
                     new[pk].to_sql(),

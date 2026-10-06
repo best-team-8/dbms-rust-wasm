@@ -112,15 +112,19 @@ pub(crate) fn decode(data: &[u8]) -> Result<Database> {
         }
         let mut table = Table::new(schema, created);
         let ncols = table.schema.columns.len();
-        for _ in 0..r.len()? {
+        let pk = table.schema.pk;
+        let n = r.len()?;
+        let mut rows = Vec::with_capacity(n.min(1 << 20));
+        for _ in 0..n {
             let stamp = r.stamp()?;
             let mut values = Vec::with_capacity(ncols);
             for _ in 0..ncols {
                 values.push(r.value()?);
             }
-            let key = values[table.schema.pk].clone();
-            table.rows.insert(key, RowEntry { values, stamp });
+            rows.push((values[pk].clone(), RowEntry { values, stamp }));
         }
+        // Rows are stored in key order, so the tree can be bulk-built.
+        table.rows = rows.into_iter().collect();
         for _ in 0..r.len()? {
             let key = r.value()?;
             let stamp = r.stamp()?;
@@ -130,7 +134,7 @@ pub(crate) fn decode(data: &[u8]) -> Result<Database> {
         for (name, column) in indexes {
             table.add_index(name, column);
         }
-        tables.insert(catalog_key(&table.schema.name), table);
+        tables.insert(catalog_key(&table.schema.name).into_owned(), table);
     }
     db.tables = tables;
 
@@ -138,7 +142,7 @@ pub(crate) fn decode(data: &[u8]) -> Result<Database> {
     for _ in 0..r.len()? {
         let seq = r.var()?;
         let item = match r.u8()? {
-            OUTBOX_ROW => OutboxItem::Row { table: r.str()?, key: r.value()? },
+            OUTBOX_ROW => OutboxItem::Row { table: r.str()?.into(), key: r.value()? },
             OUTBOX_SCHEMA => OutboxItem::Schema(decode_change(&mut r)?),
             t => return Err(Error::Storage(format!("unknown outbox entry kind {t}"))),
         };

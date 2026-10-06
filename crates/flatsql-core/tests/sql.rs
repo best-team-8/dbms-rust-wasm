@@ -278,6 +278,15 @@ fn top_k_ordering_matches_full_sort() {
     let full = q(&mut db, "SELECT id FROM t ORDER BY score DESC, id");
     let top = q(&mut db, "SELECT id FROM t ORDER BY score DESC, id LIMIT 10 OFFSET 5");
     assert_eq!(top.rows, full.rows[5..15].to_vec());
+    // Ties on the only sort key keep scan (primary key) order.
+    let full = q(&mut db, "SELECT id FROM t WHERE id % 3 = 0 ORDER BY score");
+    for (limit, offset) in [(1, 0), (7, 3), (50, 10), (1000, 0), (2000, 100)] {
+        let top =
+            q(&mut db, &format!("SELECT id FROM t WHERE id % 3 = 0 ORDER BY score LIMIT {limit} OFFSET {offset}"));
+        let end = (offset + limit).min(full.rows.len());
+        assert_eq!(top.rows, full.rows[offset.min(end)..end].to_vec(), "LIMIT {limit} OFFSET {offset}");
+    }
+    assert!(q(&mut db, "SELECT id FROM t ORDER BY score LIMIT 0").rows.is_empty());
 }
 
 #[test]

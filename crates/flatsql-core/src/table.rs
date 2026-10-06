@@ -2,6 +2,7 @@
 //! tombstones used by the Local-First synchronisation.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::sync::Stamp;
@@ -78,7 +79,15 @@ pub struct Index {
 
 impl Index {
     fn insert(&mut self, value: &Value, key: &Value) {
-        self.map.entry(value.clone()).or_default().insert(key.clone());
+        // Look up first so an existing value does not get cloned again.
+        match self.map.get_mut(value) {
+            Some(keys) => {
+                keys.insert(key.clone());
+            }
+            None => {
+                self.map.insert(value.clone(), BTreeSet::from([key.clone()]));
+            }
+        }
     }
 
     fn remove(&mut self, value: &Value, key: &Value) {
@@ -93,7 +102,10 @@ impl Index {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Table {
-    pub schema: TableSchema,
+    /// Shared so statements can hold the schema while mutating the table.
+    pub schema: Arc<TableSchema>,
+    /// Catalog key (lower-case name), shared by undo and outbox entries.
+    pub(crate) key: Arc<str>,
     pub rows: BTreeMap<Value, RowEntry>,
     pub indexes: Vec<Index>,
     /// Keys deleted so far, with the stamp of the delete. Needed so a stale
@@ -105,7 +117,15 @@ pub struct Table {
 
 impl Table {
     pub fn new(schema: TableSchema, created: Stamp) -> Self {
-        Table { schema, rows: BTreeMap::new(), indexes: Vec::new(), tombstones: BTreeMap::new(), created }
+        let key = Arc::from(schema.name.to_lowercase());
+        Table {
+            schema: Arc::new(schema),
+            key,
+            rows: BTreeMap::new(),
+            indexes: Vec::new(),
+            tombstones: BTreeMap::new(),
+            created,
+        }
     }
 
     pub fn name(&self) -> &str {
