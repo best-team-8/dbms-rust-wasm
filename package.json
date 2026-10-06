@@ -13,6 +13,11 @@
     "test": "node --test \"test/**/*.test.js\"",
     "test:rust": "cargo test --workspace",
     "start": "node server/server.js",
-    "start:persistent": "node server/server.js --data server/data"
+    "start:persistent": "node server/server.js --data server/data",
+    "bench": "node bench/run.js",
+    "bench:full": "cargo build --release -p flatsql-cli && node bench/run.js --native"
+  },
+  "devDependencies": {
+    "sql.js": "^1.14.2"
   }
 }

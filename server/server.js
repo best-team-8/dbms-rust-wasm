@@ -36,6 +36,15 @@ const COMPACT_AFTER = 2000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Simulated network latency. setTimeout alone is too coarse on Windows
+// (~15.6 ms ticks turn 20 ms into 31 ms), so the last part is awaited by
+// yielding to the event loop until the deadline.
+async function simulateLatency(ms) {
+  const deadline = performance.now() + ms;
+  if (ms > 20) await sleep(ms - 17);
+  while (performance.now() < deadline) await new Promise((r) => setImmediate(r));
+}
+
 function concat(chunks) {
   const size = chunks.reduce((n, c) => n + c.length, 0);
   const out = new Uint8Array(size);
@@ -106,7 +115,7 @@ export async function createServer(options = {}) {
 
   async function handleApi(req, res, url) {
     const delay = Math.min(Number(url.searchParams.get('latency') ?? latency) || 0, 5000);
-    if (delay > 0) await sleep(delay);
+    if (delay > 0) await simulateLatency(delay);
     const t0 = performance.now();
 
     if (url.pathname === '/api/status' && req.method === 'GET') {
@@ -118,7 +127,14 @@ export async function createServer(options = {}) {
       stats.queries++;
       try {
         const result = db.execJson(sql);
-        publishLocalWrites();
+        if (url.searchParams.get('publish') === '0') {
+          // Benchmark data: keep it out of the sync log.
+          const batch = db.exportOutbox();
+          db.ackOutbox(batch.lastSeq);
+          batch.free();
+        } else {
+          publishLocalWrites();
+        }
         await db.flush();
         return send(res, 200, result, {
           'content-type': MIME['.json'],

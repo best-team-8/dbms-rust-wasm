@@ -112,6 +112,13 @@ export class FlatDB extends EventTarget {
     return r;
   }
 
+  /** Executes a prepared write and returns the number of affected rows. */
+  execute(statement, params = []) {
+    const n = this.#db.execute(statement, params);
+    this.#afterWrite();
+    return n;
+  }
+
   runJson(statement, params = []) {
     const r = this.#db.runJson(statement, params);
     this.#afterWrite();

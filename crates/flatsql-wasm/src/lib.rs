@@ -201,6 +201,14 @@ impl Database {
         Ok(result_to_js(&r))
     }
 
+    /// Executes a prepared statement and returns only the number of affected
+    /// rows – no result object is built, which matters for bulk writes.
+    pub fn execute(&mut self, stmt: &PreparedStatement, params: Option<Array>) -> Result<f64, JsValue> {
+        let params = params_from_js(params)?;
+        let r = self.inner.execute_prepared(&stmt.inner, &params).map_err(js_error)?;
+        Ok(r.rows_affected as f64)
+    }
+
     #[wasm_bindgen(js_name = runJson)]
     pub fn run_json(&mut self, stmt: &PreparedStatement, params: Option<Array>) -> Result<String, JsValue> {
         let params = params_from_js(params)?;

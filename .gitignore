@@ -12,7 +12,7 @@ node_modules/
 /server/data/
 
 # Benchmark raw output (curated results live in docs/)
-/bench/results/*.json
+/bench/results/
 
 # Editors / OS
 .vscode/
