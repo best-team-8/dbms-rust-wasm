@@ -1,13 +1,39 @@
-# Flat-SQL – silnik bazy danych SQL w Rust kompilowany do WebAssembly
+# Project Specification: WASM Database Engine for Edge Computing & Local-First Architecture
 
-Prototyp silnika bazy danych realizującego paradygmat **Edge Computing / Local-First**: zapytania SQL wykonują się bezpośrednio na urządzeniu użytkownika (w przeglądarce lub na węźle brzegowym) jako moduł WebAssembly, dane są trwale zapisywane lokalnie (IndexedDB, pliki), a stan jest asynchronicznie synchronizowany z serwerem, gdy sieć jest dostępna.
+## 1. Concept and Core Principles
 
-- **Latencja ~0 ms** – zapytanie po kluczu głównym trwa ok. 10 µs lokalnie, wobec 20–100 ms przy architekturze Cloud-First ([wyniki](docs/research/benchmark-results.md)).
-- **Privacy by Design** – dane są przetwarzane w izolowanym środowisku przeglądarki; na serwer trafiają tylko zmiany, które aplikacja sama synchronizuje.
-- **Local-First** – pełna funkcjonalność offline (Service Worker + IndexedDB), trwały outbox zmian, synchronizacja z rozwiązywaniem konfliktów (last-writer-wins na zegarze hybrydowym).
-- **Flat-SQL** – autorski dialekt: składnia SQL, model danych NoSQL (płaskie tabele adresowane kluczem, bez JOIN-ów i relacji).
+The primary objective is to implement the **Edge Computing** paradigm by shifting database operations directly to the end-user device.
 
-> Projekt inżynierski: „Projekt i implementacja silnika bazy danych SQL kompilowanego do WebAssembly z panelem administracyjnym w WinUI”. Ten etap obejmuje: analizę porównawczą silników baz danych WASM i scenariusz badawczy, implementację warstwy lokalnego składowania danych, benchmarki wydajnościowe oraz walidację architektury Local-First w warunkach offline. Panel WinUI jest kolejnym etapem (patrz [Dalsze prace](#ograniczenia-i-dalsze-prace)).
+### Key Project Assumptions:
+
+* **0 ms Latency:** Elimination of network delays (typical of *Cloud-First* architectures) through local processing of SQL queries.
+* **Privacy by Design:** Processing sensitive data within an isolated browser environment without transmitting it to a server.
+* **Local-First Architecture:** Ensuring full offline functionality combined with asynchronous state synchronization.
+
+## Practical Applications of a WASM-Compiled Database
+
+1. **Browser Games:**
+   Local storage of inventory, character statistics, and match history. Enables instantaneous read operations during gameplay without network lag.
+
+2. **Video & Graphic Editors:**
+   Cataloging thousands of assets (images, fonts) and fast filtering using SQL directly inside the application (e.g., in a web-based alternative to Adobe Premiere or Canva).
+
+3. **Data Analytics:**
+   A user loads a 500 MB CSV file into the browser, and the WASM database enables sub-second queries without uploading the file to a server.
+
+4. **Crypto Wallets:**
+   A local database for indexing transaction history and managing cryptographic keys within a secure, isolated WASM sandbox.
+
+## 2. Scope of Work and Detailed Objectives
+
+1. **Comparative Analysis & Research Scenario:**
+   Comparative analysis of WASM database engines and the development of a testing scenario.
+
+2. **Storage Layer Implementation:**
+   Implementation of the local data storage layer on the end device.
+
+3. **Benchmarking & Validation:**
+   Conducting performance benchmarks and validating the *Local-First* architecture under offline conditions.
 
 ## Spis treści
 
