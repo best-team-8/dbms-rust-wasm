@@ -111,7 +111,7 @@ Zastrzeżenie dotyczy tego, co zbieżność kosztuje. Gray i in. [C9] opisali to
 
 | Scenariusz offline | Wynik | Rozwiązania w literaturze i praktyce |
 |---|---|---|
-| A zmienia `qty`, B zmienia `player` w tym samym wierszu | zostaje cały wiersz z późniejszym znacznikiem, druga zmiana ginie bez śladu | LWW per kolumna: CRR [L24], cr-sqlite, Teilen-SQL [X5] – [todo.md 3.1](../todo.md) |
+| A zmienia `qty`, B zmienia `player` w tym samym wierszu | zostaje cały wiersz z późniejszym znacznikiem, druga zmiana ginie bez śladu | LWW per kolumna: CRR [L24], cr-sqlite, Teilen-SQL [X5] – [todo_future.md 12.3](../todo_future.md) |
 | A i B zwiększają licznik o 1 | wynik +1 zamiast +2 | aktualizacje przemienne [C9], licznik CRDT [L2], kolumny addytywne [L8] – [todo_future.md 2.5](../todo_future.md) |
 | wspólna edycja pola tekstowego | wygrywa jedna wersja | CRDT tekstu poza silnikiem [L1] – [todo_future.md 6.3](../todo_future.md) |
 
@@ -123,14 +123,14 @@ Lokalnie transakcja jest atomowa (undo log, jedna ramka WAL). W synchronizacji t
 
 Literatura daje tu dwie odpowiedzi. Bailis i in. [C8] pokazują, że **Monotonic Atomic View** (widoczne wszystkie albo żadne zapisy transakcji) da się zapewnić bez koordynacji. Z drugiej strony Helland [C7] przyjmuje atomowość jednej encji, a Simba [L27] – system synchronizacji tabel dla aplikacji mobilnych – świadomie daje atomowość tylko pojedynczego wiersza, bo atomowa synchronizacja wielu wierszy okazała się dla większości aplikacji zbędna i kosztowna. Flat-SQL daje dziś dokładnie gwarancję Simby.
 
-**Rekomendacja:** udokumentować gwarancję wprost („transakcje są atomowe lokalnie; między replikami atomowa jest zmiana pojedynczego wiersza”) i dopiero przy konkretnej potrzebie grupować outbox po transakcjach ([todo.md 3.5](../todo.md)).
+**Rekomendacja:** udokumentować gwarancję wprost („transakcje są atomowe lokalnie; między replikami atomowa jest zmiana pojedynczego wiersza”) i dopiero przy konkretnej potrzebie grupować outbox po transakcjach ([todo_future.md 12.7](../todo_future.md)).
 
 ### 4.4 Usunięcia, tombstone'y i unikalność klucza
 
 - Tombstone ze znacznikiem chroni przed „wskrzeszeniem” wiersza przez spóźniony `UPDATE` – zgodne z [L2]. Antidote SQL [L8] pozwala wybrać per tabela semantykę update-wins lub delete-wins; Flat-SQL stosuje czysty porządek znaczników, co przy braku kluczy obcych jest spójne.
 - CRR [L24] zamiast tombstone'a ze znacznikiem używa „długości przyczynowej” – licznika wstawień i usunięć (nieparzysta = wiersz istnieje, scalanie = maksimum), więc ponowne wstawienie po usunięciu nie zależy od zegarów.
-- Tombstone'y nie są usuwane. Bezpieczne kryterium to stabilność przyczynowa – usunięcie, gdy wszystkie repliki potwierdziły znacznik [L28]. Przy serwerze centralnym wystarczy minimalny potwierdzony kursor aktywnych klientów; klienci nieaktywni dłużej niż próg dostają pełny stan ([todo.md 3.4](../todo.md)).
-- **Unikalność klucza głównego jest lokalna.** Dwa urządzenia offline wstawiające wiersz o tym samym `id` nie dostaną błędu – po synchronizacji jeden wiersz po cichu zastąpi drugi. [P1, rozdz. 9]: ograniczenia unikalności między replikami wymagają konsensusu. CRR [L24] wykrywa takie naruszenie przy scalaniu i cofa przegrywającą zmianę, Simba [L27] zgłasza konflikty aplikacji, a Coda [C10] unikała kolizji tymczasowymi identyfikatorami zastępowanymi przy reintegracji. **Rekomendacja:** klucze bez kolizji w [flat-sql.md](../flat-sql.md) ([todo.md 0.3](../todo.md)) i raport konfliktów ([todo.md 3.3](../todo.md)).
+- Tombstone'y nie są usuwane. Bezpieczne kryterium to stabilność przyczynowa – usunięcie, gdy wszystkie repliki potwierdziły znacznik [L28]. Przy serwerze centralnym wystarczy minimalny potwierdzony kursor aktywnych klientów; klienci nieaktywni dłużej niż próg dostają pełny stan ([todo_future.md 12.6](../todo_future.md)).
+- **Unikalność klucza głównego jest lokalna.** Dwa urządzenia offline wstawiające wiersz o tym samym `id` nie dostaną błędu – po synchronizacji jeden wiersz po cichu zastąpi drugi. [P1, rozdz. 9]: ograniczenia unikalności między replikami wymagają konsensusu. CRR [L24] wykrywa takie naruszenie przy scalaniu i cofa przegrywającą zmianę, Simba [L27] zgłasza konflikty aplikacji, a Coda [C10] unikała kolizji tymczasowymi identyfikatorami zastępowanymi przy reintegracji. **Rekomendacja:** klucze bez kolizji w [flat-sql.md](../flat-sql.md) ([todo_future.md 12.1](../todo_future.md)) i raport konfliktów ([todo_future.md 12.5](../todo_future.md)).
 
 ### 4.5 Protokół synchronizacji
 
@@ -140,7 +140,7 @@ Literatura daje tu dwie odpowiedzi. Bailis i in. [C8] pokazują, że **Monotonic
 | outbox w WAL, przetrwa restart; kolejne zmiany wiersza scalane w jedną | Coda [C10]: trwały log zmian offline, nowszy zapis unieważnia wcześniejsze wpisy; delta-state [L28] | zgodne |
 | ponowne dostarczenie paczki nie zmienia stanu | idempotencja wiadomości [C7], argument end-to-end [P1, rozdz. 12]; Coda odtwarza log w jednej transakcji [C10] | zgodne |
 | kursor klienta, epoka serwera, pełny stan przy nieznanym kursorze | offsety konsumentów i CDC ze snapshotem początkowym [P1, rozdz. 11] | zgodne |
-| log serwera tylko w pamięci, epoka losowana przy starcie | trwały log z offsetami [P1, rozdz. 11] | **luka** – każdy restart wysyła wszystkim pełny stan ([todo.md 3.2](../todo.md)) |
+| log serwera tylko w pamięci, epoka losowana przy starcie | trwały log z offsetami [P1, rozdz. 11] | **luka** – każdy restart wysyła wszystkim pełny stan ([todo_future.md 12.4](../todo_future.md)) |
 | pull z wykładniczym odstępem | [P1, rozdz. 12]: model push dla klientów reagujących na zmiany | częściowo – push w [todo_future.md 6.2](../todo_future.md) |
 | serwer przyjmuje każdą zmianę | Gray i in. [C9]: właściciel kopii głównej zatwierdza zmiany wstępne według kryterium akceptacji; Bayou [C3]: sprawdzanie zależności | luka prototypu ([todo_future.md §2, 4.1](../todo_future.md)) |
 | każdy klient dostaje całą bazę | Cimbiosys [C11]: replikacja częściowa z filtrem klienta i usuwaniem lokalnym wierszy spoza filtra | luka (rozszerzenie – [todo_future.md 3.2](../todo_future.md)) |
@@ -239,9 +239,9 @@ Uwaga metodyczna: symulacja opóźnienia w [benchmark-scenario.md](../research/b
 | Przebiegi zimne i gorące [B3] | raportowane przebiegi po rozgrzewce | częściowo | osobna tabela „zimny start” ([todo.md 4.3](../todo.md)) |
 | Niepoprawne wyniki [B3] | porównanie liczby wierszy | częściowo | suma kontrolna wyników ([todo.md 4.6](../todo.md)) |
 | Wiele uruchomień, przedziały ufności [B1] | jeden przebieg na konfigurację; szum ±30% opisany | częściowo | ≥ 10 uruchomień procesu ([todo.md 4.2](../todo.md)) |
-| Realistyczny rozkład dostępu [B5] | klucze losowane równomiernie | częściowo | YCSB z rozkładem Zipfa i scenariusz demo ([todo.md 4.5](../todo.md)) |
+| Realistyczny rozkład dostępu [B5] | klucze losowane równomiernie | częściowo | YCSB z rozkładem Zipfa i scenariusz demo ([todo_future.md 12.8](../todo_future.md)) |
 | Ogony latencji, nie tylko średnie | percentyle operacji; brak pomiaru pauz | częściowo | pauza checkpointu na tle 16 ms ([todo.md 4.10](../todo.md), [S10], [D4]) |
-| Rozdzielczość zegara [Q5] | 100 µs w przeglądarce, opisane | zgodne | strona benchmarku z COOP/COEP daje 5 µs ([todo.md 4.8](../todo.md)) |
+| Rozdzielczość zegara [Q5] | 100 µs w przeglądarce, opisane | zgodne | strona benchmarku z COOP/COEP daje 5 µs ([todo_future.md 12.9](../todo_future.md)) |
 
 ## 9. Rekomendacje
 
@@ -257,11 +257,11 @@ Pełna lista z nakładem: [todo.md](../todo.md) (optymalizacja prototypu) i [tod
 
 **Priorytet 2 – ulepszenia istniejącej synchronizacji i składowania:**
 
-6. LWW per kolumna (§4.2) – todo 3.1.
-7. Trwały log serwera (§4.5) – todo 3.2.
-8. Jawne konflikty schematu i klucza głównego, klucze bez kolizji (§4.4, §4.6) – todo 1.7, 3.3, 0.3.
+6. LWW per kolumna (§4.2) – future 12.3.
+7. Trwały log serwera (§4.5) – future 12.4.
+8. Jawne konflikty schematu i klucza głównego, klucze bez kolizji (§4.4, §4.6) – todo 1.7; future 12.5, 12.1.
 9. Checkpoint bez przestoju (§6.3) – todo 2.6.
-10. Usuwanie tombstone'ów (§4.4) – todo 3.4.
+10. Usuwanie tombstone'ów (§4.4) – future 12.6.
 
 **Priorytet 3 – rozszerzenia (do rozdziału „kierunki rozwoju”):**
 

@@ -104,7 +104,7 @@ Identyfikatory w nawiasach (np. [W1]) odsyłają do wpisów w [README.md](README
 - Według definicji [E1] urządzenie użytkownika jest brzegiem sieci – Flat-SQL wykonuje zapytania właśnie tam.
 - **Stan prototypu:** jest jeden serwer ([server/server.js](../../server/server.js)) pełniący trzy role – hub synchronizacji (`/sync/push`, `/sync/pull`), API „Cloud-First” do porównań w H1 (`/api/query` z symulowanym opóźnieniem) i hosting dema. Ten serwer **jest** bazą główną: nie łączy się z żadną bazą wyżej, a jego log zmian jest tylko w pamięci. To, że działa w Node.js, nie jest ograniczeniem – węzeł edge też może być procesem Node.js w kilku regionach; brakuje **układu połączeń** i wdrożenia na platformach edge.
 - **Założenie z prezentacji:** przeglądarki ↔ węzły edge ↔ baza główna. W literaturze to replikacja dwuwarstwowa z węzłami bazowymi ([C9]) albo multi-leader w topologii drzewa ([P1] rozdz. 5) i scenariusz CRR [L24]. Zbieżność LWW na HLC nie zależy od topologii, o ile każda zmiana w końcu dotrze wszędzie ([L2]), ale liczba utraconych aktualizacji rośnie z liczbą węzłów zapisujących ([C9]) – dla danych ryzykownych (np. unieważnianie sesji) potrzebny jest tryb jednego zapisującego.
-- **Czego brakuje:** przekazywania w górę zmian przyjętych od klientów, rozsyłania w dół zmian z bazy głównej bez „echa”, trwałego logu i kursorów, uwierzytelniania między węzłami i testów w układzie klienci ↔ węzły ↔ centrala ([../todo.md 3.2](../todo.md), [../todo_future.md §7](../todo_future.md)).
+- **Czego brakuje:** przekazywania w górę zmian przyjętych od klientów, rozsyłania w dół zmian z bazy głównej bez „echa”, trwałego logu i kursorów, uwierzytelniania między węzłami i testów w układzie klienci ↔ węzły ↔ centrala ([../todo_future.md 12.4](../todo_future.md), [../todo_future.md §7](../todo_future.md)).
 - Na platformach typu Cloudflare Workers jednowątkowy obiekt ze stanem i trwałym magazynem (Durable Object) odpowiada modelowi wykonania Flat-SQL, a brak I/O w rdzeniu pozwala dopisać dla niego backend `Storage`.
 - Lokalne zapytanie (11 µs) mieści się w budżecie 16 ms na klatkę z dużym zapasem; zapytanie przez sieć z RTT 20 ms już go przekracza ([D4], H1).
 
@@ -123,7 +123,7 @@ Przewyższenie wszystkich rozwiązań we wszystkim nie jest możliwe – pełny 
 | Trwałe zatwierdzenie | 0,34 ms | Flat-SQL (wobec sql.js) | utrzymać, porównać z SQLite + OPFS | todo 4.1 |
 | Najdłuższa pauza (checkpoint) | 35–49 ms | – | < 16 ms (jedna klatka) | todo 2.6, 4.10 |
 | Rozmiar modułu | 206 KiB | Flat-SQL | < 150 KiB | todo 2.5 |
-| Synchronizacja bez cichej utraty danych | LWW per wiersz | brak wbudowanej w silnikach SQL w przeglądarce | LWW per kolumna, `MERGE ADD`, jawne konflikty | todo 3.1, 3.3; future 2.5 |
+| Synchronizacja bez cichej utraty danych | LWW per wiersz | brak wbudowanej w silnikach SQL w przeglądarce | LWW per kolumna, `MERGE ADD`, jawne konflikty | future 2.5, 12.3, 12.5 |
 | Zero konfiguracji | tak | Flat-SQL | utrzymać, dodać obsługę wielu kart | future 1.1 |
 | Zapytania reaktywne | brak | Riffle/SKDB [D4] | aktualizacja przyrostowa w µs | future 5.1 |
 
@@ -138,7 +138,7 @@ Katalog zastosowań z ocenami i warunkami: [../use-cases.md](../use-cases.md); d
 | Zbieranie danych w terenie offline | mocne | replikacja częściowa, uwierzytelnianie, reguły serwera, eksport do PostgreSQL (future 3.2, 4.1, §2, 11.1) |
 | Aplikacje osobiste na wielu urządzeniach | mocne (architektura jak w Actual Budget) | baza na użytkownika, uwierzytelnianie, szyfrowanie (future 3.1, 4.1, 4.3) |
 | Pamięć podręczna danych serwera (SaaS) | mocne | wiele kart, tabele serwera, tryb pamięci podręcznej, replikacja częściowa (future 1.1, 2.1, 1.2, 3.2) |
-| Gry przeglądarkowe – zapis i ekwipunek | słabe–średnie (zapisy w chmurze) | checkpoint bez przestoju (todo 2.6), LWW per kolumna (todo 3.1), `MERGE ADD` (future 2.5); w grach wieloosobowych serwer jako autorytet (future 2.1) |
+| Gry przeglądarkowe – zapis i ekwipunek | słabe–średnie (zapisy w chmurze) | checkpoint bez przestoju (todo 2.6), LWW per kolumna (future 12.3), `MERGE ADD` (future 2.5); w grach wieloosobowych serwer jako autorytet (future 2.1) |
 | Kasy i sprzedaż offline | średnie | tabele serwera i zamiary zatwierdzane przez serwer (future 2.1, 2.4) |
 | Repliki konfiguracji na edge (flagi, personalizacja) | średnie | węzły edge z bazą główną (future §7) |
 
@@ -147,7 +147,7 @@ Katalog zastosowań z ocenami i warunkami: [../use-cases.md](../use-cases.md); d
 ## 6. Wnioski z samego przeglądu literatury
 
 - Pierwotny zbiór (77 PDF-ów) pokrywał dobrze WebAssembly, CRDT i składowanie, ale miał luki dokładnie tam, gdzie leżą atuty i plany projektu: praca offline klientów mobilnych, replikacja częściowa, synchronizacja tabel w aplikacjach, przewidywalność ograniczonego języka zapytań, checkpointy stanu w pamięci, utrzymanie widoków ([search-methodology.md §3](search-methodology.md#3-audyt-pokrycia-atutów-projektu)). Uzupełniono je ośmioma pracami.
-- Rdzeń liczy 38 pozycji: 30 z pierwotnego zbioru i 8 nowych; 46 pozycji przeniesiono poza rdzeń z uzasadnieniem ([README.md §13](README.md#13-pozycje-poza-rdzeniem)).
+- Rdzeń liczy 39 pozycji: 31 z pierwotnego zbioru (w tym [S5], przywrócona 21.10.2026) i 8 nowych; 45 pozycji przeniesiono poza rdzeń z uzasadnieniem ([README.md §13](README.md#13-pozycje-poza-rdzeniem)).
 - Trzy ważne pozycje pozostają niedostępne: książka [P1] (płatna), Teilen-SQL [X5] (tylko streszczenie), artykuł Niinikoski i Fagerholm [X6].
 - Nadal nie ma recenzowanych badań wydajności IndexedDB i OPFS ani kosztu granicy JS↔WASM w silnikach baz – pomiary projektu częściowo wypełniają tę lukę.
 - Notatka do [P1] powstała bez dostępu do tekstu książki – przed cytowaniem trzeba ją zweryfikować z egzemplarzem.

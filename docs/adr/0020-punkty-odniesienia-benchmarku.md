@@ -30,7 +30,7 @@ Projekt ma porównać Flat-SQL z istniejącymi silnikami WASM i zweryfikować hi
 ## Konsekwencje
 
 - Przewaga w trwałości dotyczy sql.js, nie SQLite ogólnie – teza „szybszy niż sql.js” (todo 0.1), uzupełnienie o SQLite z OPFS, PGlite i Zeta-Lite (todo 4.1).
-- Do uzupełnienia według literatury: wiele uruchomień [B1], przebiegi zimne [B3], rozkład Zipfa [B5], pamięć, pauzy checkpointu, pomiar na telefonie (todo 4.2–4.11).
+- Do uzupełnienia według literatury: wiele uruchomień [B1], przebiegi zimne [B3], rozkład Zipfa [B5], pamięć, pauzy checkpointu, pomiar na telefonie (todo 4.2–4.10, future 12.8).
 
 ## Źródła
 

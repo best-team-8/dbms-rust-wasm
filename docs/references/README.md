@@ -9,8 +9,8 @@ Rdzeń literatury projektu: silnik SQL w Rust kompilowany do WebAssembly, płask
 | [search-methodology.md](search-methodology.md) | jak szukano, audyt pokrycia atutów projektu, kryteria doboru rdzenia, ograniczenia |
 | [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md) | notatka do pracy poleconej przez promotora [P2] |
 | [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md) | notatka do książki poleconej przez promotora [P1], z mapą rozdziałów na moduły |
-| `papers/` | 38 plików PDF rdzenia (lokalnie, wykluczone z gita w `.git/info/exclude`) |
-| `papers/_poza-rdzeniem/` | 46 plików PDF odrzuconych w rewizji (§13) – zachowane, nie usunięte |
+| `papers/` | 39 plików PDF rdzenia (lokalnie, wykluczone z gita w `.git/info/exclude`) |
+| `papers/_poza-rdzeniem/` | 45 plików PDF odrzuconych w rewizji (§13) – zachowane, nie usunięte |
 
 > **Prawa autorskie.** Pliki w `papers/` służą do własnej nauki. Wiele z nich to wersje autorskie z dopiskiem „for personal use, not for redistribution” albo kopie z serwisów kursów uniwersyteckich, dlatego katalog jest wykluczony z repozytorium i nie należy go publikować. W pracy dyplomowej cytuje się wersję wydawniczą (DOI), nie lokalną kopię.
 
@@ -18,7 +18,7 @@ Rdzeń literatury projektu: silnik SQL w Rust kompilowany do WebAssembly, płask
 
 Każdy wpis ma identyfikator używany w pozostałych dokumentach, opis bibliograficzny, plik, streszczenie i odpowiedź na pytanie, **co z pracy wynika dla Flat-SQL**, oraz zadania, które się na nią powołują ([todo.md](../todo.md) – optymalizacja prototypu, [todo_future.md](../todo_future.md) – rozszerzenia). Hipotezy H1–H6 pochodzą z [benchmark-scenario.md](../research/benchmark-scenario.md).
 
-**Identyfikatory zachowano z poprzedniej wersji bazy**, żeby nie unieważniać odwołań; luki w numeracji to pozycje przeniesione poza rdzeń (§13). Nowe prace z rewizji: [C9]–[C11], [L27]–[L28], [M2]–[M3], [S10].
+**Identyfikatory zachowano z poprzedniej wersji bazy**, żeby nie unieważniać odwołań; luki w numeracji to pozycje przeniesione poza rdzeń (§13). Nowe prace z rewizji: [C9]–[C11], [L27]–[L28], [M2]–[M3], [S10]. 21.10.2026 przywrócono do rdzenia [S5] jako podstawę zadań todo 2.3 i 2.8 (rozbicie kosztu ścieżki zapisu).
 
 Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przeglądarce i porównywane silniki · [L] Local-First, CRDT, synchronizacja · [C] replikacja, zegary, praca offline · [S] składowanie i odtwarzanie · [M] model danych i zapytania · [E] edge computing · [B] metodyka pomiarów · [V] prywatność · [X] do pobrania · [Q] dokumentacja platform i źródła branżowe.
 
@@ -38,6 +38,7 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 | Ewolucja schematu w replikach | [L26] Cambria |
 | Mały moduł WASM, ten sam rdzeń wszędzie | [P2] Haas, [W1] Jangda, [W11] Yan |
 | Granica JS↔WASM (H3) | [D1] DuckDB-Wasm (Arrow IPC); brak badań recenzowanych – wkład własny |
+| Koszt ścieżki zapisu w silniku w pamięci (H4) | [S4] Stonebraker, [S5] Harizopoulos, [S6] Malviya |
 | Lokalne zapytania zamiast sieci (H1) | [L1] Local-first, [D4] Riffle (budżet 16 ms), [E1] Shi |
 | Hybryda: lokalny silnik + serwer koordynujący | [L20] Niinikoski, [C9] Gray (two-tier), [C3] Bayou |
 | Privacy by Design | [V1] Cavoukian, [L1], [W2] Lehmann, [L11] Kuessner |
@@ -51,7 +52,7 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 - **[P1]** Kleppmann M. *Designing Data-Intensive Applications: The Big Ideas Behind Reliable, Scalable, and Maintainable Systems.* O'Reilly Media, 2017. ISBN 978-1-449-37332-0.
   Wydanie polskie: *Przetwarzanie danych w dużej skali. Niezawodność, skalowalność i łatwość konserwacji systemów*, Helion, Gliwice 2018 (ISBN wg Goodreads 978-83-283-4065-7, wg katalogu TUM 978-83-283-4066-4 – sprawdzić na egzemplarzu). Wydanie 2: Kleppmann M., Riccomini C., O'Reilly, 2026.
   **Plik:** brak (książka komercyjna). Bezpłatne uzupełnienie autora: notatki do wykładu *Distributed Systems*, University of Cambridge 2021/22 – [papers/kleppmann-distributed-systems-lecture-notes.pdf](papers/kleppmann-distributed-systems-lecture-notes.pdf) (zegary, rozgłaszanie, replikacja, CRDT). Bibliografie rozdziałów: [github.com/ept/ddia-references](https://github.com/ept/ddia-references). Notatka: [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md).
-  — Podręcznik systemów danych: bazy w pamięci, log i snapshot (rozdz. 3), kodowanie i ewolucja formatów (4), klienci offline jako replikacja multi-leader i LWW (5), wykonanie szeregowe (7), zawodność zegarów (8), granice spójności ostatecznej (9), CDC i kompaktowanie logu (11), klienci ze stanem i model push (12). **Dla projektu:** teoretyczna podstawa niemal każdej decyzji z [architecture.md](../architecture.md). **Zadania:** todo 0.2, 0.3, 1.1, 2.1, 3.2; future 6.1, 6.2, §7, 11.2.
+  — Podręcznik systemów danych: bazy w pamięci, log i snapshot (rozdz. 3), kodowanie i ewolucja formatów (4), klienci offline jako replikacja multi-leader i LWW (5), wykonanie szeregowe (7), zawodność zegarów (8), granice spójności ostatecznej (9), CDC i kompaktowanie logu (11), klienci ze stanem i model push (12). **Dla projektu:** teoretyczna podstawa niemal każdej decyzji z [architecture.md](../architecture.md). **Zadania:** todo 0.2, 1.1, 2.1; future 6.1, 6.2, §7, 11.2, 12.1, 12.4.
 
 - **[P2]** Haas A., Rossberg A., Schuff D. L., Titzer B. L., Holman M., Gohman D., Wagner L., Zakai A., Bastien J. F. *Bringing the Web up to Speed with WebAssembly.* PLDI 2017, ACM, s. 185–200. DOI: [10.1145/3062341.3062363](https://doi.org/10.1145/3062341.3062363). Wersja skrócona: Rossberg A. i in., Communications of the ACM 61(12), 2018, s. 107–115, DOI: [10.1145/3282510](https://doi.org/10.1145/3282510).
   **Plik:** [papers/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf](papers/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf); wersja CACM: [papers/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf](papers/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf). Notatka: [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md).
@@ -113,7 +114,7 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 
 - **[L24]** Yu W., Ignat C.-L. *Conflict-Free Replicated Relations for Multi-Synchronous Database Management at Edge.* IEEE SMDS 2020. HAL: [hal-02983557](https://hal.science/hal-02983557).
   **Plik:** [papers/2020-yu-ignat-conflict-free-replicated-relations.pdf](papers/2020-yu-ignat-conflict-free-replicated-relations.pdf).
-  — CRDT dla relacyjnej bazy na urządzeniach brzegowych: każdy atrybut to rejestr LWW z własnym znacznikiem, wiersz ma „długość przyczynową” (licznik wstawień i usunięć zamiast tombstone'a), kolumny liczbowe mogą być licznikami CRDT; naruszenia więzów (unikalność, klucze obce) wykrywane przy scalaniu i naprawiane cofnięciem przegrywającej zmiany. **Dla projektu:** najbliższa praca naukowa do synchronizacji Flat-SQL – wzór LWW per kolumna, raportu konfliktów klucza i kompensacji. **Zadania:** todo 3.1, 3.3; future 2.3, §7.
+  — CRDT dla relacyjnej bazy na urządzeniach brzegowych: każdy atrybut to rejestr LWW z własnym znacznikiem, wiersz ma „długość przyczynową” (licznik wstawień i usunięć zamiast tombstone'a), kolumny liczbowe mogą być licznikami CRDT; naruszenia więzów (unikalność, klucze obce) wykrywane przy scalaniu i naprawiane cofnięciem przegrywającej zmiany. **Dla projektu:** najbliższa praca naukowa do synchronizacji Flat-SQL – wzór LWW per kolumna, raportu konfliktów klucza i kompensacji. **Zadania:** future 2.3, §7, 12.3, 12.5.
 
 - **[L26]** Litt G., van Hardenberg P., Henry O. *Cambria: Schema Evolution in Distributed Systems with Edit Lenses.* PaPoC 2021. DOI: [10.1145/3447865.3457963](https://doi.org/10.1145/3447865.3457963).
   **Plik:** [papers/2021-litt-cambria-schema-evolution.pdf](papers/2021-litt-cambria-schema-evolution.pdf) (CC BY 4.0).
@@ -121,11 +122,11 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 
 - **[L27]** Go Y., Agrawal N., Aranya A., Ungureanu C. *Reliable, Consistent, and Efficient Data Sync for Mobile Apps.* USENIX FAST 2015, s. 359–372. *(nowa)*
   **Plik:** [papers/2015-go-simba-data-sync-mobile-apps.pdf](papers/2015-go-simba-data-sync-mobile-apps.pdf) (otwarty dostęp USENIX).
-  — Badanie popularnych aplikacji mobilnych z usługami synchronizacji (Dropbox, Parse, Kinvey): przy przerwie w sieci, zamknięciu aplikacji lub zaniku zasilania aplikacje tracą lub psują dane. Simba: tabela (`sTable`) z wierszem jako jednostką spójności i atomowości – lokalnie i w synchronizacji; polityka synchronizacji per tabela; konflikty zgłaszane aplikacji. Autorzy świadomie **nie** dają atomowej synchronizacji wielu wierszy, uznając ją dla większości aplikacji za zbędną i kosztowną. **Dla projektu:** empiryczne uzasadnienie wbudowanej synchronizacji z trwałym outboksem oraz gwarancji „atomowy wiersz między replikami”. **Zadania:** todo 0.1, 3.3, 3.5.
+  — Badanie popularnych aplikacji mobilnych z usługami synchronizacji (Dropbox, Parse, Kinvey): przy przerwie w sieci, zamknięciu aplikacji lub zaniku zasilania aplikacje tracą lub psują dane. Simba: tabela (`sTable`) z wierszem jako jednostką spójności i atomowości – lokalnie i w synchronizacji; polityka synchronizacji per tabela; konflikty zgłaszane aplikacji. Autorzy świadomie **nie** dają atomowej synchronizacji wielu wierszy, uznając ją dla większości aplikacji za zbędną i kosztowną. **Dla projektu:** empiryczne uzasadnienie wbudowanej synchronizacji z trwałym outboksem oraz gwarancji „atomowy wiersz między replikami”. **Zadania:** todo 0.1; future 12.5, 12.7.
 
 - **[L28]** Almeida P. S. *Approaches to Conflict-free Replicated Data Types.* ACM Computing Surveys 57(2), art. 51, 2024. DOI: [10.1145/3695249](https://doi.org/10.1145/3695249); arXiv:2310.18220. *(nowa)*
   **Plik:** [papers/2024-almeida-approaches-to-crdts.pdf](papers/2024-almeida-approaches-to-crdts.pdf).
-  — Aktualny przegląd podejść do CRDT: oparte na stanie, na operacjach, delta-state i „czysto operacyjne”, z kompaktowaniem po osiągnięciu stabilności przyczynowej. **Dla projektu:** jedno recenzowane źródło dla trzech tez: outbox wysyłający bieżący stan zmienionych wierszy to synchronizacja delta-state; tombstone można usunąć po stabilności przyczynowej; zbieżność wynika z łączności, przemienności i idempotencji scalania. Zastępuje cztery wcześniejsze pozycje (§13). **Zadania:** todo 3.4; future 6.3.
+  — Aktualny przegląd podejść do CRDT: oparte na stanie, na operacjach, delta-state i „czysto operacyjne”, z kompaktowaniem po osiągnięciu stabilności przyczynowej. **Dla projektu:** jedno recenzowane źródło dla trzech tez: outbox wysyłający bieżący stan zmienionych wierszy to synchronizacja delta-state; tombstone można usunąć po stabilności przyczynowej; zbieżność wynika z łączności, przemienności i idempotencji scalania. Zastępuje cztery wcześniejsze pozycje (§13). **Zadania:** future 6.3, 12.6.
 
 ## 5. Replikacja, zegary i praca offline
 
@@ -143,15 +144,15 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 
 - **[C8]** Bailis P., Davidson A., Fekete A., Ghodsi A., Hellerstein J. M., Stoica I. *Highly Available Transactions: Virtues and Limitations.* PVLDB 7(3), 2013, s. 181–192.
   **Plik:** [papers/2014-bailis-highly-available-transactions.pdf](papers/2014-bailis-highly-available-transactions.pdf).
-  — Które gwarancje da się zapewnić bez koordynacji: m.in. Read Committed i Monotonic Atomic View (wszystkie albo żadne zapisy transakcji) tak, zapobieganie utraconym aktualizacjom – nie. **Dla projektu:** język do opisu gwarancji po synchronizacji; MAV jest osiągalne, gdyby atomowość per wiersz okazała się za słaba. **Zadania:** todo 3.5.
+  — Które gwarancje da się zapewnić bez koordynacji: m.in. Read Committed i Monotonic Atomic View (wszystkie albo żadne zapisy transakcji) tak, zapobieganie utraconym aktualizacjom – nie. **Dla projektu:** język do opisu gwarancji po synchronizacji; MAV jest osiągalne, gdyby atomowość per wiersz okazała się za słaba. **Zadania:** future 12.7.
 
 - **[C9]** Gray J., Helland P., O'Neil P., Shasha D. *The Dangers of Replication and a Solution.* ACM SIGMOD 1996, s. 173–182. DOI: [10.1145/233269.233330](https://doi.org/10.1145/233269.233330). *(nowa)*
   **Plik:** [papers/1996-gray-dangers-of-replication.pdf](papers/1996-gray-dangers-of-replication.pdf) (kopia z grupy czytelniczej Boston University).
-  — Replikacja „zapis wszędzie” jest niestabilna przy wzroście skali (10× więcej węzłów i ruchu daje 1000× więcej zakleszczeń lub uzgodnień). Schemat ze znacznikami czasu („nowszy znacznik wygrywa”) zbiega się, ale **gubi aktualizacje**; aktualizacje przemienne (np. dodawanie stałej do liczby) tego problemu nie mają. Rozwiązanie: replikacja dwuwarstwowa – węzły mobilne wykonują transakcje wstępne na lokalnej kopii, a węzły bazowe, właściciele kopii głównych, wykonują je ponownie jako transakcje bazowe z kryterium akceptacji i informują o odrzuceniu. **Dla projektu:** w jednej pracy uzasadnienie i granica LWW (utracone aktualizacje), argument za licznikami `MERGE ADD`, model tabel prowadzonych przez serwer, zamiarów zatwierdzanych przez serwer i węzłów edge jako warstwy bazowej. **Zadania:** todo 3.1; future 2.1–2.5, §7, 7.2.
+  — Replikacja „zapis wszędzie” jest niestabilna przy wzroście skali (10× więcej węzłów i ruchu daje 1000× więcej zakleszczeń lub uzgodnień). Schemat ze znacznikami czasu („nowszy znacznik wygrywa”) zbiega się, ale **gubi aktualizacje**; aktualizacje przemienne (np. dodawanie stałej do liczby) tego problemu nie mają. Rozwiązanie: replikacja dwuwarstwowa – węzły mobilne wykonują transakcje wstępne na lokalnej kopii, a węzły bazowe, właściciele kopii głównych, wykonują je ponownie jako transakcje bazowe z kryterium akceptacji i informują o odrzuceniu. **Dla projektu:** w jednej pracy uzasadnienie i granica LWW (utracone aktualizacje), argument za licznikami `MERGE ADD`, model tabel prowadzonych przez serwer, zamiarów zatwierdzanych przez serwer i węzłów edge jako warstwy bazowej. **Zadania:** future 2.1–2.5, §7, 7.2, 12.3.
 
 - **[C10]** Kistler J. J., Satyanarayanan M. *Disconnected Operation in the Coda File System.* ACM TOCS 10(1), 1992, s. 3–25. DOI: [10.1145/146941.146942](https://doi.org/10.1145/146941.146942) (wersja konferencyjna: SOSP 1991). *(nowa)*
   **Plik:** [papers/1991-kistler-satyanarayanan-coda-disconnected-operation.pdf](papers/1991-kistler-satyanarayanan-coda-disconnected-operation.pdf) (wersja SOSP, kopia z kursu University of Michigan).
-  — Klasyczna praca o pracy bez połączenia: klient gromadzi zawczasu potrzebne dane (hoarding, z priorytetami i wymianą w pamięci podręcznej), offline zapisuje zmiany w trwałym logu (w pamięci odtwarzalnej z WAL), log skraca – nowszy zapis pliku unieważnia wcześniejsze wpisy – a po połączeniu odtwarza go na serwerze w jednej transakcji z wykrywaniem konfliktów; tymczasowe identyfikatory obiektów zastępowane są przy reintegracji stałymi. W praktyce konfliktów prawie nie było. **Dla projektu:** akademicki odpowiednik outboksu (scalanie kolejnych zmian wiersza, trwałość po restarcie, idempotentna reintegracja), wzór trybu pamięci podręcznej i obsługi kluczy tworzonych offline. **Zadania:** todo 0.3, 3.2; future 1.2, 7.1.
+  — Klasyczna praca o pracy bez połączenia: klient gromadzi zawczasu potrzebne dane (hoarding, z priorytetami i wymianą w pamięci podręcznej), offline zapisuje zmiany w trwałym logu (w pamięci odtwarzalnej z WAL), log skraca – nowszy zapis pliku unieważnia wcześniejsze wpisy – a po połączeniu odtwarza go na serwerze w jednej transakcji z wykrywaniem konfliktów; tymczasowe identyfikatory obiektów zastępowane są przy reintegracji stałymi. W praktyce konfliktów prawie nie było. **Dla projektu:** akademicki odpowiednik outboksu (scalanie kolejnych zmian wiersza, trwałość po restarcie, idempotentna reintegracja), wzór trybu pamięci podręcznej i obsługi kluczy tworzonych offline. **Zadania:** future 1.2, 7.1, 12.1, 12.4.
 
 - **[C11]** Ramasubramanian V., Rodeheffer T. L., Terry D. B., Walraed-Sullivan M., Wobber T., Marshall C. C., Vahdat A. *Cimbiosys: A Platform for Content-based Partial Replication.* USENIX NSDI 2009. *(nowa)*
   **Plik:** [papers/2009-ramasubramanian-cimbiosys-partial-replication.pdf](papers/2009-ramasubramanian-cimbiosys-partial-replication.pdf) (Microsoft Research).
@@ -166,6 +167,10 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 - **[S4]** Stonebraker M., Madden S., Abadi D. J., Harizopoulos S., Hachem N., Helland P. *The End of an Architectural Era (It's Time for a Complete Rewrite).* VLDB 2007, s. 1150–1160.
   **Plik:** [papers/2007-stonebraker-end-of-an-architectural-era.pdf](papers/2007-stonebraker-end-of-an-architectural-era.pdf).
   — H-Store: dane w pamięci, wykonanie jednowątkowe, specjalizacja zamiast „jednego rozmiaru dla wszystkich”; logowanie, blokady, latche i bufor stron to większość pracy klasycznego silnika. **Dla projektu:** uzasadnienie wąsko wyspecjalizowanego, jednowątkowego silnika w pamięci; Flat-SQL nie płaci za blokady i bufor stron, płaci za logowanie (undo log + WAL + outbox – H4).
+
+- **[S5]** Harizopoulos S., Abadi D. J., Madden S., Stonebraker M. *OLTP Through the Looking Glass, and What We Found There.* SIGMOD 2008, s. 981–992. DOI: [10.1145/1376616.1376713](https://doi.org/10.1145/1376616.1376713). *(przywrócona do rdzenia 21.10.2026)*
+  **Plik:** [papers/2008-harizopoulos-oltp-through-the-looking-glass.pdf](papers/2008-harizopoulos-oltp-through-the-looking-glass.pdf).
+  — Autorzy stopniowo usuwali z silnika Shore kolejne mechanizmy (logowanie, blokady, latche, menedżer bufora, optymalizacje kodu) i po każdym kroku mierzyli liczbę instrukcji na transakcję TPC-C New Order: od ok. 640 do ok. 12 700 transakcji na sekundę, czyli ok. 20×. Koszt rozkłada się na kilka składników (m.in. logowanie ok. 12%, blokady ok. 16%, latche ok. 14% instrukcji) – nie ma jednego dominującego. **Dla projektu:** metoda rozbicia kosztu ścieżki zapisu „usuń składnik i zmierz” oraz punkt odniesienia dla kosztu logowania we Flat-SQL (undo log, WAL, outbox – H4); [S4] podaje tylko wniosek. **Zadania:** todo 2.3, 2.8.
 
 - **[S6]** Malviya N., Weisberg A., Madden S., Stonebraker M. *Rethinking Main Memory OLTP Recovery.* ICDE 2014, s. 604–615.
   **Plik:** [papers/2014-malviya-rethinking-main-memory-oltp-recovery.pdf](papers/2014-malviya-rethinking-main-memory-oltp-recovery.pdf).
@@ -211,7 +216,7 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 
 - **[B5]** Cooper B. F., Silberstein A., Tam E., Ramakrishnan R., Sears R. *Benchmarking Cloud Serving Systems with YCSB.* SoCC 2010, s. 143–154.
   **Plik:** [papers/2010-cooper-ycsb.pdf](papers/2010-cooper-ycsb.pdf).
-  — Standardowe obciążenia dla magazynów adresowanych kluczem (proporcje odczyt/zapis, rozkład Zipfa). **Dla projektu:** Flat-SQL jest właśnie takim magazynem – obecny benchmark losuje klucze równomiernie. **Zadania:** todo 4.5.
+  — Standardowe obciążenia dla magazynów adresowanych kluczem (proporcje odczyt/zapis, rozkład Zipfa). **Dla projektu:** Flat-SQL jest właśnie takim magazynem – obecny benchmark losuje klucze równomiernie. **Zadania:** future 12.8.
 
 ## 10. Prywatność
 
@@ -287,7 +292,6 @@ Pliki przeniesiono do `papers/_poza-rdzeniem/`. Kryteria wyłączenia: [search-m
 | [C6] | Bigtable, OSDI 2006 | atomowość per wiersz pokrywają [C7] i [L27] |
 | [S2] | ARIES, TODS 1992 | WAL opisany w [P1] rozdz. 3 i 7; Flat-SQL ma log tylko-redo |
 | [S3] | LSM-tree, 1996 | kierunek dla checkpointu lepiej pokrywa [S10] |
-| [S5] | Harizopoulos i in., OLTP, SIGMOD 2008 | wniosek zawarty w [S4] |
 | [S7] | SiloR, OSDI 2014 | równoległe odtwarzanie wymaga wątków, czyli COOP/COEP – sprzeczne z atutem |
 | [S9] | Zheng i in., awarie zasilania, OSDI 2014 | model awarii pokrywa [S8] |
 | [E2] | Satyanarayanan, 2017 | definicję edge daje [E1] |

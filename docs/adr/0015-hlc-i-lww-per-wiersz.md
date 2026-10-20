@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-06 (silnik, [architecture.md §5.1](../architecture.md)) |
 | Rodzaj | architektura |
-| Powiązane | ADR-0002, ADR-0004, ADR-0016, ADR-0017, ADR-0018; todo 1.1, 1.9, 3.1, 3.3, 3.4; future 2.5 |
+| Powiązane | ADR-0002, ADR-0004, ADR-0016, ADR-0017, ADR-0018; todo 1.1, 1.9; future 2.5, 12.3, 12.5, 12.6 |
 
 ## Kontekst
 
@@ -31,10 +31,10 @@ Przy pracy offline (ADR-0002) każde urządzenie przyjmuje zapisy, więc konflik
 
 ## Konsekwencje
 
-- LWW zbiega się kosztem **utraconych aktualizacji**: współbieżna zmiana z mniejszym znacznikiem znika bez śladu [C9]. Dotyczy to zmian różnych kolumn jednego wiersza (todo 3.1 – LWW per kolumna) i liczników (future 2.5 – aktualizacje przemienne).
+- LWW zbiega się kosztem **utraconych aktualizacji**: współbieżna zmiana z mniejszym znacznikiem znika bez śladu [C9]. Dotyczy to zmian różnych kolumn jednego wiersza (future 12.3 – LWW per kolumna) i liczników (future 2.5 – aktualizacje przemienne).
 - Zegar urządzenia ustawiony w przyszłość wygrywa wszystkie konflikty – potrzebna reguła ignorowania znaczników spoza granicy dryfu [C2] (todo 1.1).
-- Unikalność klucza jest tylko lokalna – dwa wstawienia tego samego klucza offline nadpisują się po cichu (todo 0.3, 3.3).
-- Tombstone'y rosną – usuwanie po stabilności przyczynowej (todo 3.4).
+- Unikalność klucza jest tylko lokalna – dwa wstawienia tego samego klucza offline nadpisują się po cichu (future 12.1, 12.5).
+- Tombstone'y rosną – usuwanie po stabilności przyczynowej (future 12.6).
 
 ## Źródła
 

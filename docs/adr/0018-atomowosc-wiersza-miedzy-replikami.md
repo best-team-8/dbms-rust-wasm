@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-20 (rewizja literatury; zachowanie od 2026-10-06) |
 | Rodzaj | architektura |
-| Powiązane | ADR-0004, ADR-0008, ADR-0016; todo 0.1, 3.5 |
+| Powiązane | ADR-0004, ADR-0008, ADR-0016; todo 0.1; future 12.7 |
 
 ## Kontekst
 
@@ -25,7 +25,7 @@ Gwarancja między replikami: **pojedynczy wiersz dochodzi zawsze w całości** (
 
 ## Odrzucone alternatywy
 
-- **Monotonic Atomic View (wszystkie albo żadne zmiany transakcji) jako wymóg** – osiągalne przez eksport tylko pełnych transakcji [C8]; nie jest wymogiem, zostaje opcją (todo 3.5), gdy demo pokaże potrzebę.
+- **Monotonic Atomic View (wszystkie albo żadne zmiany transakcji) jako wymóg** – osiągalne przez eksport tylko pełnych transakcji [C8]; nie jest wymogiem, zostaje opcją (future 12.7), gdy demo pokaże potrzebę.
 
 ## Konsekwencje
 

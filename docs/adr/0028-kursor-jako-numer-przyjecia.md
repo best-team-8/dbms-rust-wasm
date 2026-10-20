@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-21 |
 | Rodzaj | architektura |
-| Powiązane | ADR-0015, ADR-0017, ADR-0023; todo 3.2, 3.4 |
+| Powiązane | ADR-0015, ADR-0017, ADR-0023; future 12.4, 12.6 |
 
 ## Kontekst
 
@@ -29,9 +29,9 @@ Urządzenie pobiera zmiany od swojego kursora (`/sync/pull?since=N`). W prototyp
 
 ## Konsekwencje
 
-- Log musi być trwały i numeracja nie może się cofać (todo 3.2); po utracie logu zmienia się epoka, a urządzenia dostają pełny stan.
+- Log musi być trwały i numeracja nie może się cofać (future 12.4); po utracie logu zmienia się epoka, a urządzenia dostają pełny stan.
 - Kompaktowanie zastępuje stare paczki punktem startowym, ale zachowuje numerację kolejnych paczek; urządzenie z kursorem sprzed kompaktowania dostaje pełny stan i resztę logu.
-- Usuwanie tombstone'ów może korzystać z najmniejszego potwierdzonego kursora aktywnych urządzeń (todo 3.4).
+- Usuwanie tombstone'ów może korzystać z najmniejszego potwierdzonego kursora aktywnych urządzeń (future 12.6).
 
 ## Źródła
 

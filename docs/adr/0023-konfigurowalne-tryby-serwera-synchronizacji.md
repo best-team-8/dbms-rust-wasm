@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-20 |
 | Rodzaj | architektura |
-| Powiązane | ADR-0002, ADR-0003, ADR-0015, ADR-0017 (zastępuje jej pkt 2); todo 3.2; future 2.1, 3.1, 4.3, 7.2, 10.1 |
+| Powiązane | ADR-0002, ADR-0003, ADR-0015, ADR-0017 (zastępuje jej pkt 2); future 2.1, 3.1, 4.3, 7.2, 10.1, 12.4 |
 
 ## Kontekst
 
@@ -35,7 +35,7 @@ Tryb z silnikiem jest nadbudową magazynu paczek: oba korzystają z tych samych 
 - **Magazyn paczek jako domyślny.** Najmocniej potwierdzone zastosowania z danymi jednej osoby (aplikacje osobiste, zapisy gier) nie potrzebują reguł serwera. Przestrzeń bez aktywnych klientów nie zajmuje pamięci, więc serwer skaluje się jak przechowywanie plików. Tylko w tym trybie możliwe jest szyfrowanie end-to-end (future 4.3), bo do rozstrzygnięcia LWW wystarczają jawne znaczniki [L11], [L1] – co przybliża spełnienie „Privacy by Design” (ADR-0003).
 - **Silnik jako opcja.** Filtrowanie danych według treści wiersza (replikacja częściowa, [C11]), walidacja i zamiary zatwierdzane przez serwer ([C9], [C3]) wymagają rozumienia wierszy – serwer z tym samym silnikiem nie wymaga osobnej implementacji scalania (uzasadnienie z ADR-0017).
 - **Wybór per przestrzeń.** Jedna aplikacja potrzebuje często obu trybów: w grze zapis gracza to magazyn paczek, a ranking – przestrzeń z silnikiem.
-- **Mało dodatkowej pracy.** Prototyp już ma serwer z silnikiem; tryb z silnikiem to jego przebudowa na bazę per przestrzeń, a wspólny fundament (przestrzenie, trwały log) i tak jest potrzebny (todo 3.2).
+- **Mało dodatkowej pracy.** Prototyp już ma serwer z silnikiem; tryb z silnikiem to jego przebudowa na bazę per przestrzeń, a wspólny fundament (przestrzenie, trwały log) i tak jest potrzebny (future 12.4).
 
 ## Odrzucone alternatywy
 
@@ -47,7 +47,7 @@ Tryb z silnikiem jest nadbudową magazynu paczek: oba korzystają z tych samych 
 ## Konsekwencje
 
 - Pkt 2 ADR-0017 („serwer utrzymuje własną replikę z tym samym silnikiem”) przestaje obowiązywać; obowiązuje tylko w trybie z silnikiem.
-- Kolejność prac: najpierw wspólny fundament – przestrzenie i trwały log per przestrzeń (todo 3.2 jako pierwszy krok), potem magazyn paczek, potem silnik per przestrzeń (future 3.1, 10.1), a na końcu reguły i tabele serwera (future 2.1–2.4) oraz tryb jednego zapisującego (future 7.2).
+- Kolejność prac: najpierw wspólny fundament – przestrzenie i trwały log per przestrzeń (future 12.4 jako pierwszy krok), potem magazyn paczek, potem silnik per przestrzeń (future 3.1, 10.1), a na końcu reguły i tabele serwera (future 2.1–2.4) oraz tryb jednego zapisującego (future 7.2).
 - Każda przestrzeń ma zapisany tryb; zmiana trybu istniejącej przestrzeni wymaga odtworzenia bazy z logu paczek (z magazynu na silnik) albo eksportu stanu (z silnika na magazyn).
 - W magazynie paczek kompaktowanie logu bez silnika wymaga, żeby klient wysłał punkt startowy (pełny stan); w przestrzeniach współdzielonych bezpieczniej kompaktuje tryb z silnikiem.
 - Uwierzytelnianie i wybór przestrzeni na podstawie tożsamości pozostają osobną, nierozstrzygniętą decyzją (future 4.1).

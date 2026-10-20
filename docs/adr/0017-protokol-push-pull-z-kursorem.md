@@ -5,7 +5,7 @@
 | Status | przyjęta; pkt 2 zastąpiony przez [ADR-0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) |
 | Data | 2026-10-06 (serwer i bridge, [architecture.md §5.3–5.4](../architecture.md)) |
 | Rodzaj | architektura |
-| Powiązane | ADR-0002, ADR-0016; todo 3.2; future 3.7, 6.2, §7 |
+| Powiązane | ADR-0002, ADR-0016; future 3.7, 6.2, §7, 12.4 |
 
 ## Kontekst
 
@@ -31,7 +31,7 @@ Klienci synchronizują się przez serwer (ADR-0002) przy przerywanej łącznośc
 
 ## Konsekwencje
 
-- Log serwera jest tylko w pamięci, a epoka losowana przy starcie, więc **każdy restart serwera** wysyła wszystkim klientom pełny stan – trwały log to todo 3.2.
+- Log serwera jest tylko w pamięci, a epoka losowana przy starcie, więc **każdy restart serwera** wysyła wszystkim klientom pełny stan – trwały log to future 12.4.
 - Serwer przyjmuje każdą poprawną zmianę – reguły i uwierzytelnianie to future §2 i 4.1.
 - Każdy klient dostaje całą bazę – replikacja częściowa to future 3.2.
 

@@ -181,7 +181,7 @@ Możliwa unikalna propozycja: **pamięć trzymana na urządzeniu, trwała przy k
 
 | Funkcja ([todo.md](todo.md), [todo_future.md](todo_future.md)) | Nowe zastosowania |
 |---|---|
-| LWW per kolumna i liczniki `MERGE ADD` (todo 3.1, future 2.5) | wspólne listy i tablice zadań, stany magazynowe liczone z wielu skanerów, wspólna skrzynia w grze, ekonomia gry na wielu urządzeniach |
+| LWW per kolumna i liczniki `MERGE ADD` (future 2.5, 12.3) | wspólne listy i tablice zadań, stany magazynowe liczone z wielu skanerów, wspólna skrzynia w grze, ekonomia gry na wielu urządzeniach |
 | Zapytania reaktywne (future 5.1) | interfejsy i pulpity aktualizowane bez ręcznego odświeżania |
 | Szyfrowanie end-to-end i lokalne (future 4.3, 4.4) | zdrowie, dzienniki, śledzenie wydatków, dokumenty firmowe – dopiero wtedy „Privacy by Design” jest w pełni prawdziwe |
 | Złączenia tylko do odczytu po kluczu (future 5.2) | proste CRM, katalogi z relacjami |

@@ -87,6 +87,8 @@ Kryteria wyłączenia:
 
 Wynik: **38 pozycji rdzenia** – 30 z rundy 1 i 8 nowych ([C9], [C10], [C11], [L27], [L28], [M2], [M3], [S10]); dwie pozycje rundy 1 dołączono do wpisów prac promotora (wersja CACM do [P2], notatki do wykładu do [P1]); **46 pozycji poza rdzeniem** z uzasadnieniem w [README.md §13](README.md#13-pozycje-poza-rdzeniem), pliki w `papers/_poza-rdzeniem/` (zachowane). Liczba 30 nie była limitem – nowe prace dodano, bo wypełniają luki w obszarach, w których leżą atuty i plany projektu.
 
+Uzupełnienie z 21.10.2026: [S5] (Harizopoulos i in., SIGMOD 2008) wróciła do rdzenia – po dodaniu zadania todo 2.8 jest podstawą zadania (kryterium z [ADR-0021](../adr/0021-rdzen-literatury.md)), a metody rozbicia kosztu ścieżki zapisu nie daje żadna inna pozycja; rdzeń liczy 39 pozycji, poza rdzeniem jest 45.
+
 Znalezione w rundzie 2 i **nie** włączone:
 
 | Pozycja | Powód |

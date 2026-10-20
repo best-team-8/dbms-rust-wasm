@@ -35,13 +35,14 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0019](0019-przekazywanie-wynikow-do-js.md) | Przekazywanie wyników do JS: JSON teraz, bufor binarny docelowo | architektura | przyjęta |
 | [0020](0020-punkty-odniesienia-benchmarku.md) | Punkty odniesienia i metodyka benchmarku | proces | przyjęta |
 | [0021](0021-rdzen-literatury.md) | Rdzeń literatury i kryteria doboru | proces | przyjęta |
-| [0022](0022-podzial-list-zadan.md) | Podział list zadań: optymalizacja i rozszerzenia | proces | przyjęta |
+| [0022](0022-podzial-list-zadan.md) | Podział list zadań: optymalizacja i rozszerzenia | proces | zastąpiona przez [ADR-0029](0029-listy-zadan-wedlug-zakresu-pracy.md) |
 | [0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) | Konfigurowalne tryby serwera synchronizacji | architektura | przyjęta |
 | [0024](0024-bez-wiazan-dla-pythona.md) | Bez wiązań dla Pythona i synchronizacji w procesie backendu | proces | przyjęta; zakres zawężony przez [ADR-0025](0025-serwer-synchronizacji-za-bramka-backendu.md) |
 | [0025](0025-serwer-synchronizacji-za-bramka-backendu.md) | Serwer synchronizacji za bramką backendu | architektura | przyjęta |
 | [0026](0026-reguly-w-backendzie-mechanizmy-w-serwerze.md) | Reguły w backendzie, mechanizmy w serwerze synchronizacji | architektura | przyjęta |
 | [0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) | Struktura tabel w kodzie aplikacji, między wersjami tylko dokładanie | architektura | przyjęta |
 | [0028](0028-kursor-jako-numer-przyjecia.md) | Kursor synchronizacji jako numer przyjęcia nadany przez serwer | architektura | przyjęta |
+| [0029](0029-listy-zadan-wedlug-zakresu-pracy.md) | Listy zadań według zakresu pracy inżynierskiej | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

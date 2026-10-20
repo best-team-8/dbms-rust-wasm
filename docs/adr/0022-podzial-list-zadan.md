@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | zastąpiona przez [ADR-0029](0029-listy-zadan-wedlug-zakresu-pracy.md) |
 | Data | 2026-10-20 |
 | Rodzaj | proces |
 | Powiązane | ADR-0021; [todo.md](../todo.md), [todo_future.md](../todo_future.md) |

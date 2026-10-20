@@ -32,7 +32,7 @@ README zakłada „pełną funkcjonalność offline połączoną z asynchroniczn
 
 - Konflikty są nieuniknione i potrzebna jest deterministyczna reguła ich rozstrzygania (ADR-0015).
 - Dane wspólne i operacje wymagające koordynacji realizuje się przez zapisy wstępne zatwierdzane przez serwer (future 2.1–2.4, wzór: replikacja dwuwarstwowa [C9]).
-- Serwer musi mieć trwały log (todo 3.2), reguły i uwierzytelnianie (future §2, 4.1).
+- Serwer musi mieć trwały log (future 12.4), reguły i uwierzytelnianie (future §2, 4.1).
 
 ## Źródła
 

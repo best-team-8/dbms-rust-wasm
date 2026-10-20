@@ -222,7 +222,7 @@ Serwer dopasowuje nazwę przestrzeni od bramki do wzorca, a bez dopasowania uży
 - **Limit 4 GiB pamięci WASM** (`wasm32`, ADR-0007) dotyczy jednego procesu w trybie z silnikiem – wszystkie otwarte bazy procesu dzielą tę pamięć. Magazynu paczek nie dotyczy. Obejścia: zwalnianie nieaktywnych baz (future 10.1), kilka procesów z przestrzeniami rozdzielonymi między nie (future 10.2), w razie potrzeby natywny silnik w Node.js zamiast WASM.
 - Pojedyncza przestrzeń musi mieścić się w pamięci – ten sam limit dotyczy urządzeń (dane w pamięci, ADR-0006); dla dużych przestrzeni wspólnych – replikacja częściowa (future 3.2).
 - Przy bramce cały ruch synchronizacji przechodzi przez backend.
-- LWW per wiersz gubi współbieżne zmiany różnych kolumn jednego wiersza (todo 3.1) i liczników (future 2.5); unikalność klucza głównego jest tylko lokalna (todo 0.3, 3.3).
+- LWW per wiersz gubi współbieżne zmiany różnych kolumn jednego wiersza (future 12.3) i liczników (future 2.5); unikalność klucza głównego jest tylko lokalna (future 12.1, 12.5).
 
 ## 13. Prototyp a projekt docelowy
 
@@ -230,7 +230,7 @@ Serwer dopasowuje nazwę przestrzeni od bramki do wzorca, a bez dopasowania uży
 |---|---|---|
 | Podział danych | jedna baza dla wszystkich klientów | przestrzenie |
 | Tryb | z silnikiem, jedna baza | magazyn paczek lub silnik, per przestrzeń |
-| Log | w pamięci; restart = pełny stan dla wszystkich | trwały, per przestrzeń (todo 3.2) |
+| Log | w pamięci; restart = pełny stan dla wszystkich | trwały, per przestrzeń (future 12.4) |
 | Dostęp | publiczny, bez uwierzytelniania | tylko przez bramkę z kluczem |
 | Reguły | brak | tabele tylko do odczytu, webhook |
 | Struktura tabel | rozsyłana jak dane | w kodzie aplikacji, tylko dokładanie |
@@ -260,4 +260,4 @@ Serwer dopasowuje nazwę przestrzeni od bramki do wzorca, a bez dopasowania uży
 
 ADR: [0002](../../adr/0002-local-first-z-serwerem-koordynujacym.md), [0015](../../adr/0015-hlc-i-lww-per-wiersz.md), [0016](../../adr/0016-outbox-w-wal.md), [0017](../../adr/0017-protokol-push-pull-z-kursorem.md), [0018](../../adr/0018-atomowosc-wiersza-miedzy-replikami.md), [0023](../../adr/0023-konfigurowalne-tryby-serwera-synchronizacji.md), [0024](../../adr/0024-bez-wiazan-dla-pythona.md), [0025](../../adr/0025-serwer-synchronizacji-za-bramka-backendu.md), [0026](../../adr/0026-reguly-w-backendzie-mechanizmy-w-serwerze.md), [0027](../../adr/0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md), [0028](../../adr/0028-kursor-jako-numer-przyjecia.md).
 
-Zadania: todo 1.1, 3.1–3.4; future 2.1–2.6, 3.2, 4.1–4.3, 6.1–6.2, §7, §8, 9.7, §10.
+Zadania: todo 1.1; future 2.1–2.6, 3.2, 4.1–4.3, 6.1–6.2, §7, §8, 9.7, §10, 12.3–12.6.

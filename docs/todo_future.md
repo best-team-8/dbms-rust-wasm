@@ -1,6 +1,6 @@
 # Rozszerzenia – droga do dojrzałego Flat-SQL
 
-Nowe możliwości, których prototyp nie ma, a bez których nie obsłuży zastosowań potwierdzonych analizą rzeczywistych wdrożeń ([research/real-world-usage.md](research/real-world-usage.md)). Optymalizacja tego, co już istnieje, jest w **[todo.md](todo.md)** – część rozszerzeń zakłada wykonanie zadań stamtąd (podano przy zadaniu). Wnioski: [references/conclusions.md](references/conclusions.md). Identyfikatory w nawiasach (np. [C9]) odsyłają do [indeksu literatury](references/README.md).
+Nowe możliwości, których prototyp nie ma, a bez których nie obsłuży zastosowań potwierdzonych analizą rzeczywistych wdrożeń ([research/real-world-usage.md](research/real-world-usage.md)). Lista obejmuje też optymalizacje istniejącego prototypu odłożone na po pracy inżynierskiej (§12); **[todo.md](todo.md)** zawiera tylko zakres pracy ([ADR-0029](adr/0029-listy-zadan-wedlug-zakresu-pracy.md)) – część rozszerzeń zakłada wykonanie zadań stamtąd (podano przy zadaniu). Wnioski: [references/conclusions.md](references/conclusions.md). Identyfikatory w nawiasach (np. [C9]) odsyłają do [indeksu literatury](references/README.md).
 
 Projekt docelowego serwera synchronizacji zebrany w jednym miejscu: [future/components/sync-server.md](future/components/sync-server.md).
 
@@ -67,7 +67,7 @@ Reguły biznesowe należą do backendu; serwer synchronizacji daje mu tylko mech
 - [ ] **2.2 Webhook do backendu** (średni) – opcjonalny adres backendu w konfiguracji przestrzeni; przed przyjęciem paczki serwer wysyła zmiany jako JSON (tabela, klucz, stan przed i po), jedno żądanie na paczkę, a backend odpowiada listą odrzuconych; odrzucone zmiany raportowane jak dziś `rejected`. Reguły pisze programista w backendzie, nie w serwerze ([ADR-0026](adr/0026-reguly-w-backendzie-mechanizmy-w-serwerze.md)). [C9].
 - [ ] **2.3 Kompensacja odrzuconych zmian** (średni) – serwer odsyła poprawną wartość z nowszym znacznikiem, żeby replika klienta wróciła do dozwolonego stanu (wzór: cofanie zmian naruszających więzy w CRR [L24]).
 - [ ] **2.4 Zamiary zatwierdzane przez backend** (średni) – klient dopisuje wiersz ze statusem „oczekujący” (zamówienie w kasie, ruch w grze turowej, zakup), backend sprawdza go kryterium akceptacji (webhook z 2.2 albo własny odczyt przez `/api/query`) i zmienia status na „zatwierdzony” albo „odrzucony” z powodem, a wynik zapisuje w tabeli z 2.1; interfejs pokazuje stan wstępny do czasu zatwierdzenia. To transakcje wstępne i bazowe z [C9]. Płatności zawsze zatwierdza serwer – tak działają wszystkie znalezione systemy kasowe.
-- [ ] **2.5 Scalanie deklarowane w SQL** (średni) – np. `qty INT MERGE ADD`: licznik sumowany zamiast nadpisywanego. Aktualizacje przemienne nie gubią zmian, w odróżnieniu od znaczników czasu [C9]; licznik CRDT [L2]; kolumny addytywne w Antidote SQL [L8]. Rozszerzenie: licznik z dolną granicą (np. saldo ≥ 0) przez przydział „do wydania offline” z góry – metoda escrow z licznikami ograniczonymi w [L8]. Wymaga [todo.md 3.1](todo.md).
+- [ ] **2.5 Scalanie deklarowane w SQL** (średni) – np. `qty INT MERGE ADD`: licznik sumowany zamiast nadpisywanego. Aktualizacje przemienne nie gubią zmian, w odróżnieniu od znaczników czasu [C9]; licznik CRDT [L2]; kolumny addytywne w Antidote SQL [L8]. Rozszerzenie: licznik z dolną granicą (np. saldo ≥ 0) przez przydział „do wydania offline” z góry – metoda escrow z licznikami ograniczonymi w [L8]. Wymaga 12.3.
 - [ ] **2.6 Blokada zmian struktury z synchronizacji** (mały) – serwer odrzuca w paczkach klientów polecenia `CREATE/DROP TABLE` i `INDEX`; strukturę buduje kod aplikacji ([ADR-0027](adr/0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md)); powiązane z [todo.md 1.7](todo.md) i 6.1.
 
 **Propozycja konfiguracji przestrzeni i webhooka** (do ustalenia przy 2.1–2.2 i 4.1; format przykładowy):
@@ -111,7 +111,7 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 - [ ] **3.4 Stopniowe pobieranie stanu początkowego** (średni) – pierwszy pełny stan w częściach (najpierw dane pierwszego ekranu, reszta w tle), z wznowieniem po przerwaniu; dziś `exportState` to jedna paczka całej bazy. Wzór: start aplikacji Linear; przy filtrach z 3.2 – pobranie zakresu [C11].
 - [ ] **3.5 Testy izolacji** (mały) – klient użytkownika A nigdy nie otrzymuje wierszy użytkownika B, także po kompaktowaniu logu, przy pełnym stanie i po zmianie zakresu.
 - [ ] **3.6 Pomiar przy wielu użytkownikach** (mały) – pamięć serwera, czas ładowania bazy użytkownika, czas pierwszej synchronizacji.
-- [ ] **3.7 Uzgadnianie zbiorów po utracie kursora** (duży, warunkowo) – zamiast pełnego `exportState` porównywanie odcisków zakresów kluczy (uzgadnianie zakresów, Meyer 2023 – praca poza rdzeniem bazy wiedzy). Tylko jeśli po trwałym logu ([todo.md 3.2](todo.md)) pełne pobrania nadal są problemem.
+- [ ] **3.7 Uzgadnianie zbiorów po utracie kursora** (duży, warunkowo) – zamiast pełnego `exportState` porównywanie odcisków zakresów kluczy (uzgadnianie zakresów, Meyer 2023 – praca poza rdzeniem bazy wiedzy). Tylko jeśli po trwałym logu (12.4) pełne pobrania nadal są problemem.
 
 ## 4. Bezpieczeństwo i prywatność
 
@@ -139,7 +139,7 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 
 Założenie z prezentacji: przeglądarki ↔ węzły edge blisko użytkowników ↔ baza główna. Dziś jest jeden serwer, który jest hubem i bazą główną naraz ([conclusions.md §3.6](references/conclusions.md#36-edge-computing)). W literaturze to replikacja multi-leader w topologii drzewa ([P1] rozdz. 5), scenariusz CRR [L24] i warstwa bazowa z replikacji dwuwarstwowej [C9]. Gray i in. ostrzegają, że replikacja „zapis wszędzie” traci stabilność z liczbą węzłów – przy LWW nie rosną uzgodnienia, ale rośnie liczba utraconych aktualizacji, dlatego dla danych ryzykownych potrzebny jest tryb jednego zapisującego (7.2).
 
-- [ ] **7.1 Węzły edge** (średni–duży) – pliki: `server/server.js`, `test/`, [architecture.md §5.4](architecture.md). Wymaga [todo.md 3.2](todo.md) (trwały log):
+- [ ] **7.1 Węzły edge** (średni–duży) – pliki: `server/server.js`, `test/`, [architecture.md §5.4](architecture.md). Wymaga 12.4 (trwały log):
   - [ ] opcja `--upstream <url>`: węzeł zachowuje własną replikę i log dla swoich klientów, a z bazą główną rozmawia tym samym protokołem `/sync/push` i `/sync/pull`;
   - [ ] przekazywanie w górę zmian przyjętych od klientów i zapisów z `/api/query` (dziś zmiany od klientów celowo nie trafiają do outboksu serwera), z kursorem przesuwanym dopiero po odpowiedzi 200;
   - [ ] pobieranie zmian z bazy głównej z kursorem i epoką, dopisywanie ich do logu węzła bez odsyłania w górę; obsługa pełnego stanu przy nieznanym kursorze;
@@ -192,6 +192,21 @@ Jeśli backend ma już własną bazę główną, Flat-SQL staje się warstwą sy
 - [ ] **11.2 Łącznik PostgreSQL ↔ Flat-SQL** (duży) – przechwytywanie zmian PostgreSQL (np. replikacja logiczna) i zapis do niego zmian klientów po walidacji (2.2). Wzorzec: Change Data Capture ([P1] rozdz. 11).
 - [ ] **11.3 Mapowanie typów i kluczy** (średni) – typy PostgreSQL na `INT/FLOAT/TEXT/BOOL`, klucze złożone na jednokolumnowe.
 - [ ] **11.4 Konflikty między źródłami** (średni) – znaczniki HLC dla zapisów pochodzących z PostgreSQL, żeby LWW rozstrzygało je spójnie z zapisami klientów [C2]; dla tabel z 2.1 PostgreSQL jest jedynym autorem i konfliktów nie ma.
+
+## 12. Optymalizacje prototypu po pracy inżynierskiej
+
+Zadania przeniesione z [todo.md](todo.md) ([ADR-0029](adr/0029-listy-zadan-wedlug-zakresu-pracy.md)): ulepszają to, co prototyp już ma, ale nie są potrzebne w pracy – obecna synchronizacja wystarcza do walidacji pracy offline, a obecny zestaw operacji do porównania w niszy. W nawiasach dawne numery z todo.md, nieużywane ponownie.
+
+- [ ] **12.1 Klucze dla wstawień offline** (mały; dawne todo 0.3) – w [flat-sql.md](flat-sql.md) zalecić klucze bez kolizji (UUID/ULID lub prefiks identyfikatora węzła) dla tabel zapisywanych offline; unikalność klucza głównego między replikami wymaga koordynacji ([P1] rozdz. 5 i 9), a Coda rozwiązywała to tymczasowymi identyfikatorami zastępowanymi przy reintegracji [C10].
+- [ ] **12.2 Odnośniki w README** (mały; dawne todo 0.4) – sekcja „Dokumentacja”: `docs/references/`, obie listy zadań, analiza wdrożeń.
+- [ ] **12.3 LWW per kolumna** (średni; dawne todo 3.1) – znacznik dla kolumny przechowywany tylko wtedy, gdy różni się od znacznika wiersza; współbieżne zmiany różnych kolumn jednego wiersza przestają ginąć. Schemat ze znacznikami gubi aktualizacje [C9], CRR stosuje rejestr LWW per atrybut [L24]. Protokół się nie zmienia (paczka niesie wiersz z wektorem znaczników); koszt rozmiaru zmierzyć w 12.10.
+- [ ] **12.4 Trwały log synchronizacji serwera** (średni; dawne todo 3.2) – dziś log jest tylko w pamięci, a epoka losowana przy starcie, więc **każdy restart serwera** wysyła wszystkim klientom pełny stan bazy. Zapis logu i kursorów w katalogu danych, epoka zmieniana tylko po utracie logu. Wzorzec: trwały log zmian z offsetami konsumentów ([P1] rozdz. 11), trwały log reintegracji w Coda [C10]. Kursor to numer przyjęcia nadany przez serwer, nie znacznik czasu ([ADR-0028](adr/0028-kursor-jako-numer-przyjecia.md)). Log prowadzony per przestrzeń – wspólny fundament obu trybów serwera ([ADR-0023](adr/0023-konfigurowalne-tryby-serwera-synchronizacji.md)). Plik: `server/server.js`.
+- [ ] **12.5 Raport konfliktów klucza głównego** (średni; dawne todo 3.3) – wykrywanie dwóch wstawień tego samego klucza z różnych replik i zwracanie ich w raporcie `apply_changes` / `/sync/push` zamiast cichego nadpisania. CRR wykrywa takie naruszenia przy scalaniu [L24], Simba zgłasza konflikty aplikacji [L27].
+- [ ] **12.6 Usuwanie tombstone'ów** (średni; dawne todo 3.4) – tombstone można usunąć po stabilności przyczynowej, gdy wszystkie repliki potwierdziły jego znacznik [L28]; przy serwerze centralnym wystarczy minimalny potwierdzony kursor aktywnych klientów, a klienci nieaktywni dłużej niż próg dostają pełny stan (już obsłużone). Wymaga 12.4.
+- [ ] **12.7 Granice transakcji w paczkach** (mały–średni; dawne todo 3.5) – najpierw udokumentować gwarancję „między replikami atomowy jest wiersz” (todo 0.1) – Simba świadomie poprzestaje na niej, uznając atomową synchronizację wielu wierszy za zbędną dla większości aplikacji [L27]. Opcjonalnie: outbox nie dzieli transakcji między paczki (Monotonic Atomic View, osiągalne bez koordynacji [C8]) – dopiero gdy demo pokaże potrzebę (np. wymiana przedmiotów między graczami). Pliki: `crates/flatsql-core/src/db.rs`, `bridge/sync.js`.
+- [ ] **12.8 Realistyczne obciążenie** (średni; dawne todo 4.5) – YCSB z rozkładem Zipfa (np. 95% odczytów) i scenariusz z aplikacji demo. [B5].
+- [ ] **12.9 Dokładniejszy zegar w przeglądarce** (mały; dawne todo 4.8) – strona benchmarku z nagłówkami COOP/COEP (5 µs zamiast 100 µs); dotyczy tylko strony pomiarowej, nie biblioteki. [Q5].
+- [ ] **12.10 Koszt LWW per kolumna** (mały; dawne todo 4.11) – rozmiar snapshotu, paczek i czas insertów przed i po 12.3.
 
 ## Kierunki na później (bez zadań)
 
