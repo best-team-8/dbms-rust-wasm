@@ -82,7 +82,7 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 
 ## 4. Bezpieczeństwo i prywatność
 
-- [ ] **4.1 Uwierzytelnianie przez bramkę backendu** (średni) – według [ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md): serwer synchronizacji nasłuchuje tylko w sieci wewnętrznej, przestrzeń bierze z nagłówka ustawionego przez backend i odrzuca żądania bez wspólnego klucza bramki; konta, hasła i logowanie zostają w backendzie aplikacji, który przekazuje `/sync/*` przez HTTP bez czytania paczek. Później, jako rozszerzenie: weryfikacja przepustek JWT przez sam serwer dla aplikacji bez backendu. Uwierzytelnianie między węzłami edge a bazą główną (7.1).
+- [ ] **4.1 Uwierzytelnianie przez bramkę backendu** (średni) – według [ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md): serwer synchronizacji nasłuchuje tylko w sieci wewnętrznej, przestrzeń bierze z nagłówka ustawionego przez backend i odrzuca żądania bez wspólnego klucza bramki; konta, hasła i logowanie zostają w backendzie aplikacji, który przekazuje `/sync/*` przez HTTP bez czytania paczek. Weryfikacja przepustek JWT przez sam serwer – zob. [Kierunki na później](#kierunki-na-później-bez-zadań). Uwierzytelnianie między węzłami edge a bazą główną (7.1).
 - [ ] **4.2 `/api/query` tylko dla backendu** (mały) – dostęp tylko z bramką i jej kluczem (4.1), wyłączanie endpointu w konfiguracji; dziś wykonuje dowolny SQL bez logowania i nie wolno go wystawiać publicznie.
 - [ ] **4.3 Szyfrowanie end-to-end** (duży) – paczki zmian szyfrowane kluczem użytkownika; serwer jako przekaźnik nieprzezroczystych zmian – do rozstrzygnięcia LWW wystarczy jawny znacznik i skrót klucza, wartości mogą być zaszyfrowane [L11], [L1]. Koszt: utrata `/api/query` i walidacji po stronie serwera (2.2) dla zaszyfrowanych tabel – do decyzji per tabela.
 - [ ] **4.4 Szyfrowanie danych lokalnych** (średni) – WAL i snapshot szyfrowane przez WebCrypto (AES-GCM, klucz z hasła); dopiero 4.3 i 4.4 razem czynią „Privacy by Design” prawdziwym w sensie [V1].
@@ -159,3 +159,9 @@ Jeśli backend ma już własną bazę główną, Flat-SQL staje się warstwą sy
 - [ ] **11.2 Łącznik PostgreSQL ↔ Flat-SQL** (duży) – przechwytywanie zmian PostgreSQL (np. replikacja logiczna) i zapis do niego zmian klientów po walidacji (2.2). Wzorzec: Change Data Capture ([P1] rozdz. 11).
 - [ ] **11.3 Mapowanie typów i kluczy** (średni) – typy PostgreSQL na `INT/FLOAT/TEXT/BOOL`, klucze złożone na jednokolumnowe.
 - [ ] **11.4 Konflikty między źródłami** (średni) – znaczniki HLC dla zapisów pochodzących z PostgreSQL, żeby LWW rozstrzygało je spójnie z zapisami klientów [C2]; dla tabel z 2.1 PostgreSQL jest jedynym autorem i konfliktów nie ma.
+
+## Kierunki na później (bez zadań)
+
+Możliwości zgodne z koncepcją, na które nie ma jeszcze zadań ani terminu.
+
+- **Weryfikacja przepustek JWT przez serwer synchronizacji** – dla aplikacji bez backendu (aplikacje osobiste, gry indie), w których nie ma kto postawić bramki z [ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md). Serwer sprawdza podpis przepustki kluczem publicznym wydawcy (np. usługi logowania) i bierze przestrzeń z jej treści (`sub`); w serwerze to drugie źródło tego samego identyfikatora przestrzeni, więc nie wymaga przebudowy. Wymaga publicznego wystawienia serwera (HTTPS, CORS, limity żądań).
