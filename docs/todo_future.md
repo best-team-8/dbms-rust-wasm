@@ -2,6 +2,8 @@
 
 Nowe możliwości, których prototyp nie ma, a bez których nie obsłuży zastosowań potwierdzonych analizą rzeczywistych wdrożeń ([research/real-world-usage.md](research/real-world-usage.md)). Optymalizacja tego, co już istnieje, jest w **[todo.md](todo.md)** – część rozszerzeń zakłada wykonanie zadań stamtąd (podano przy zadaniu). Wnioski: [references/conclusions.md](references/conclusions.md). Identyfikatory w nawiasach (np. [C9]) odsyłają do [indeksu literatury](references/README.md).
 
+Projekt docelowego serwera synchronizacji zebrany w jednym miejscu: [future/components/sync-server.md](future/components/sync-server.md).
+
 Nakład: **mały** – pojedyncze funkcje i testy; **średni** – kilka modułów, nowe testy; **duży** – nowy podsystem.
 
 **Warunek każdego rozszerzenia:** nie odbiera atutów Flat-SQL – mały moduł (setki KiB), praca w wątku głównym bez Web Workera i nagłówków COOP/COEP, zapytania lokalne w mikrosekundach, przyrostowa trwałość (WAL), wbudowana synchronizacja, płaski model tabel adresowanych kluczem, jeden rdzeń bez I/O działający wszędzie. Rozszerzenie, które wymaga Workera lub dużej biblioteki, jest **opcją**, nie domyślnym trybem.
