@@ -66,7 +66,38 @@ Reguły biznesowe należą do backendu; serwer synchronizacji daje mu tylko mech
 - [ ] **2.3 Kompensacja odrzuconych zmian** (średni) – serwer odsyła poprawną wartość z nowszym znacznikiem, żeby replika klienta wróciła do dozwolonego stanu (wzór: cofanie zmian naruszających więzy w CRR [L24]).
 - [ ] **2.4 Zamiary zatwierdzane przez backend** (średni) – klient dopisuje wiersz ze statusem „oczekujący” (zamówienie w kasie, ruch w grze turowej, zakup), backend sprawdza go kryterium akceptacji (webhook z 2.2 albo własny odczyt przez `/api/query`) i zmienia status na „zatwierdzony” albo „odrzucony” z powodem, a wynik zapisuje w tabeli z 2.1; interfejs pokazuje stan wstępny do czasu zatwierdzenia. To transakcje wstępne i bazowe z [C9]. Płatności zawsze zatwierdza serwer – tak działają wszystkie znalezione systemy kasowe.
 - [ ] **2.5 Scalanie deklarowane w SQL** (średni) – np. `qty INT MERGE ADD`: licznik sumowany zamiast nadpisywanego. Aktualizacje przemienne nie gubią zmian, w odróżnieniu od znaczników czasu [C9]; licznik CRDT [L2]; kolumny addytywne w Antidote SQL [L8]. Rozszerzenie: licznik z dolną granicą (np. saldo ≥ 0) przez przydział „do wydania offline” z góry – metoda escrow z licznikami ograniczonymi w [L8]. Wymaga [todo.md 3.1](todo.md).
-- [ ] **2.6 Schemat zarządzany przez backend** (mały) – klienci bez prawa do `CREATE/DROP TABLE` i `INDEX` w synchronizacji; powiązane z [todo.md 1.7](todo.md) i 6.1.
+- [ ] **2.6 Blokada zmian struktury z synchronizacji** (mały) – serwer odrzuca w paczkach klientów polecenia `CREATE/DROP TABLE` i `INDEX`; strukturę buduje kod aplikacji ([ADR-0027](adr/0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md)); powiązane z [todo.md 1.7](todo.md) i 6.1.
+
+**Propozycja konfiguracji przestrzeni i webhooka** (do ustalenia przy 2.1–2.2 i 4.1; format przykładowy):
+
+```json
+{
+  "gatewayKey": "env:SYNC_KEY",
+  "default": { "mode": "packets" },
+  "spaces": {
+    "user-*":   { "mode": "packets" },
+    "shop":     { "mode": "engine", "clientReadOnly": ["prices"] },
+    "player-*": { "mode": "engine", "validate": "http://backend:3000/flatsql/validate" }
+  }
+}
+```
+
+Serwer dopasowuje nazwę przestrzeni podaną przez bramkę do wzorca, a bez dopasowania używa `default`; tryb jest zapisywany w `space.json` przy tworzeniu przestrzeni. Webhook – jedno żądanie na paczkę, z kluczem bramki w nagłówku `x-flatsql-key`:
+
+```json
+{
+  "space": "player-42",
+  "batch": "7f3c9a1e",
+  "changes": [
+    { "index": 0, "op": "update", "table": "player", "key": 42,
+      "before": { "id": 42, "gold": 120 }, "after": { "id": 42, "gold": 999999 } },
+    { "index": 1, "op": "insert", "table": "inventory", "key": 1001,
+      "before": null, "after": { "id": 1001, "player": 42, "item": "sword" } }
+  ]
+}
+```
+
+Odpowiedź backendu: `{ "reject": [ { "index": 0, "reason": "…" } ] }` (pusta lista – wszystko przyjęte). Odrzucenie dotyczy pojedynczych wierszy (ADR-0018); brak odpowiedzi w limicie czasu albo błąd backendu – paczka nie jest przyjęta i zostaje w outboksie urządzenia; `batch` pozwala backendowi zwrócić tę samą decyzję przy ponowieniu.
 
 ## 3. Rozdzielenie danych i replikacja częściowa
 
@@ -98,7 +129,7 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 
 ## 6. Ewolucja schematu, protokół i współpraca
 
-- [ ] **6.1 Wersjonowanie protokołu i schematu** (średni) – wersja formatu paczek, wersje schematu tabel, migracje deklarowane przez aplikację; klient offline może wrócić po miesiącach ze starszym formatem ([P1] rozdz. 4). Wzór tłumaczenia danych między wersjami schematu: Cambria [L26]. Na bazie [todo.md 1.7](todo.md).
+- [ ] **6.1 Wersjonowanie protokołu i struktury** (średni) – według [ADR-0027](adr/0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md): kroki budowy bazy z numerami wersji w `FlatDB.open` (lokalna baza pamięta wersję i wykonuje tylko brakujące kroki), `ALTER TABLE … ADD COLUMN`, przechowywanie wartości nieznanych kolumn w wierszu, polecenia struktury nierozsyłane do innych replik; ustalić, skąd serwer w trybie z silnikiem zna strukturę przestrzeni (deklaracje scalane jako suma tabel i kolumn albo szablon w konfiguracji). Do tego wersja formatu paczek – klient offline może wrócić po miesiącach ze starszą wersją aplikacji ([P1] rozdz. 4). Na bazie [todo.md 1.7](todo.md).
 - [ ] **6.2 Powiadomienia push** (średni) – WebSocket lub SSE zamiast samego odpytywania co kilka sekund ([P1] rozdz. 12); potrzebne do współpracy na żywo (6.3) i szybkiego rozsyłania zmian z centrali (7.1).
 - [ ] **6.3 Współdzielona treść edytowana na żywo przez bibliotekę CRDT** (średni) – każda aktualizacja dokumentu z biblioteki CRDT (np. Yjs) zapisywana jako osobny, niezmienny wiersz (unikalny klucz, więc bez konfliktów LWW), a dokument składany przez bibliotekę w aplikacji; Flat-SQL zapewnia trwałość, pracę offline i transport [L1], [L28]. Wymaga 6.2.
 

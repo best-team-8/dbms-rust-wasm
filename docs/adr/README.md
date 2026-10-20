@@ -29,7 +29,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0013](0013-watek-glowny-domyslnie-worker-jako-opcja.md) | Wątek główny jako tryb domyślny, Worker jako opcja | architektura | przyjęta |
 | [0014](0014-system-typow.md) | System typów: cztery typy, koercja bezstratna, porządek całkowity | architektura | przyjęta |
 | [0015](0015-hlc-i-lww-per-wiersz.md) | Synchronizacja: zegar HLC i LWW per wiersz z tombstone'ami | architektura | przyjęta |
-| [0016](0016-outbox-w-wal.md) | Outbox jako referencje do wierszy, odbudowywany z WAL | architektura | przyjęta |
+| [0016](0016-outbox-w-wal.md) | Outbox jako referencje do wierszy, odbudowywany z WAL | architektura | przyjęta; zdanie o zmianach schematu w pkt 1 zastąpione przez [ADR-0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) |
 | [0017](0017-protokol-push-pull-z-kursorem.md) | Protokół push/pull z kursorem i epoką | architektura | przyjęta; pkt 2 zastąpiony przez [ADR-0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) |
 | [0018](0018-atomowosc-wiersza-miedzy-replikami.md) | Między replikami atomowy jest wiersz | architektura | przyjęta |
 | [0019](0019-przekazywanie-wynikow-do-js.md) | Przekazywanie wyników do JS: JSON teraz, bufor binarny docelowo | architektura | przyjęta |
@@ -40,6 +40,8 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0024](0024-bez-wiazan-dla-pythona.md) | Bez wiązań dla Pythona i synchronizacji w procesie backendu | proces | przyjęta; zakres zawężony przez [ADR-0025](0025-serwer-synchronizacji-za-bramka-backendu.md) |
 | [0025](0025-serwer-synchronizacji-za-bramka-backendu.md) | Serwer synchronizacji za bramką backendu | architektura | przyjęta |
 | [0026](0026-reguly-w-backendzie-mechanizmy-w-serwerze.md) | Reguły w backendzie, mechanizmy w serwerze synchronizacji | architektura | przyjęta |
+| [0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) | Struktura tabel w kodzie aplikacji, między wersjami tylko dokładanie | architektura | przyjęta |
+| [0028](0028-kursor-jako-numer-przyjecia.md) | Kursor synchronizacji jako numer przyjęcia nadany przez serwer | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 
