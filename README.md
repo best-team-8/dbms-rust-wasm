@@ -42,6 +42,7 @@ The primary objective is to implement the **Edge Computing** paradigm by shiftin
 - [Korzystanie](#korzystanie)
 - [Architektura](#architektura)
 - [Przepływ danych](#przepływ-danych)
+- [Tryby działania w przeglądarce](#tryby-działania-w-przeglądarce)
 - [Struktura repozytorium](#struktura-repozytorium)
 - [Wyniki badań w skrócie](#wyniki-badań-w-skrócie)
 - [Ograniczenia i dalsze prace](#ograniczenia-i-dalsze-prace)
@@ -259,6 +260,26 @@ sequenceDiagram
 ```
 
 **Start aplikacji / odtwarzanie** – snapshot + odtworzenie ramek WAL o LSN większym niż w snapshocie; urwana końcówka WAL (zamknięta karta, awaria) jest odrzucana i od razu sprzątana checkpointem. Outbox (zmiany jeszcze niewysłane) jest odbudowywany z WAL, więc przetrwa zamknięcie aplikacji w trybie offline.
+
+## Tryby działania w przeglądarce
+
+Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego **wątek i magazyn wybiera aplikacja przy otwarciu bazy, a nie silnik**. Magazyn podaje się parametrem `store` w `FlatDB.open` (dziś `IndexedDbStore` i `MemoryStore`, w Node.js także `FsStore`). Inaczej jest w SQLite, którego magazyn czyta strony z dysku synchronicznie z wnętrza silnika, przez co SQLite z trwałością w przeglądarce musi działać w Web Workerze.
+
+| | Wątek główny – tryb domyślny (zaimplementowany) | Web Worker – opcja (planowana: [todo_future 1.1, 1.5](docs/todo_future.md)) |
+|---|---|---|
+| API | synchroniczne – `db.exec()` od razu zwraca wynik | asynchroniczne – wynik przychodzi wiadomością z workera |
+| Magazyn | IndexedDB | IndexedDB albo OPFS z szybkim dostępem synchronicznym (dostępnym tylko w Workerze) |
+| Długie operacje (checkpoint, otwarcie dużej bazy) | blokują stronę, więc muszą być krótkie | nie blokują strony |
+| Wiele kart | dziś blokada Web Locks w demo – zapisuje tylko pierwsza karta | jeden `SharedWorker` obsługuje wszystkie karty |
+| Integracja | jeden import; działa w rozszerzeniach, widżetach na cudzych stronach i na zwykłym hostingu | osobny plik workera, konfiguracja bundlera |
+| Koszt zapytania | ok. 10 µs (odczyt po kluczu) | dodatkowo przesłanie zapytania i wyniku między wątkami (do zmierzenia – [todo 4.12](docs/todo.md)) |
+| Nagłówki COOP/COEP | niepotrzebne | niepotrzebne |
+
+**Kiedy który:** wątek główny – małe i średnie dane, gry, rozszerzenia przeglądarki, dodanie bazy do istniejącej strony; Worker – duże bazy, wiele kart, aplikacje w rodzaju Notion. Wielowątkowy WASM (wymagający nagłówków COOP/COEP) nie jest planowany w żadnym trybie.
+
+**Dlaczego domyślnie IndexedDB, a nie OPFS:** Flat-SQL czyta z pamięci, a na dysk zapisuje tylko małe ramki WAL (trwałe zatwierdzenie ok. 0,34 ms). Wolne są obliczenia – kodowanie snapshotu i odtwarzanie bazy – których szybszy dysk nie przyspieszy. Szybki interfejs OPFS działa tylko w Workerze, a IndexedDB pozwala zapisać snapshot i wyczyścić WAL w jednej transakcji.
+
+Uzasadnienie: [ADR-0005](docs/adr/0005-rdzen-rust-bez-io-i-zaleznosci.md), [ADR-0012](docs/adr/0012-indexeddb-domyslnie-opfs-jako-opcja.md), [ADR-0013](docs/adr/0013-watek-glowny-domyslnie-worker-jako-opcja.md).
 
 ## Struktura repozytorium
 
