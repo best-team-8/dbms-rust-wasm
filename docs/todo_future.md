@@ -36,7 +36,7 @@ Jeśli scenariusze edge z prezentacji mają zostać pokazane na obronie, 7.1 war
 | Migracje schematu | gry, aplikacje z długim życiem danych | 6.1 |
 | Węzły edge z bazą główną, platformy edge | LiteFS, Turso, Durable Objects | 7.1–7.3 |
 | Łącznik z PostgreSQL, eksport do analityki | PowerSync, CHT | 11.1–11.4 |
-| Interfejs C, aplikacje natywne | PowerSync, Turso (aplikacje mobilne) | 9.1–9.5 |
+| Interfejs C, aplikacje natywne | PowerSync, Turso (aplikacje mobilne) | 9.1, 9.5 |
 | Eksport bazy do pliku, punkty przywracania | gry, kasy, Logseq | 1.3, 5.4 |
 | Wyszukiwanie pełnotekstowe, wektory | rozszerzenia przeglądarki, notatki, pamięć asystentów | 5.5, 5.6 |
 | Współdzielona treść edytowana na żywo | tldraw, Excalidraw | 6.3 |
@@ -128,7 +128,7 @@ backend, np. FastAPI (logowanie, uprawnienia) ──przekazuje──► serwer F
       └── logika biznesowa: odczyty i zapisy przez API ─────────────┘
 ```
 
-Już działa: nowy klient bez kursora dostaje pełny stan bazy, a potem `SyncClient` synchronizuje zmiany w obie strony; zapisy przez `/api/query` trafiają do logu serwera, więc dostają je klienci. Wariant A – obecny serwer w osobnym kontenerze, backend jako bramka (sekcja 8); wariant B – silnik w procesie backendu przez wiązania (sekcja 9).
+Już działa: nowy klient bez kursora dostaje pełny stan bazy, a potem `SyncClient` synchronizuje zmiany w obie strony; zapisy przez `/api/query` trafiają do logu serwera, więc dostają je klienci. Serwer działa w osobnym kontenerze, backend jako bramka; synchronizacja w procesie backendu przez wiązania dla Pythona wypadła z planów ([ADR-0024](adr/0024-bez-wiazan-dla-pythona.md)).
 
 - [ ] **8.1 Dockerfile** (mały) – obraz Node.js 22; moduł `pkg/` budowany w osobnym etapie (Rust + `wasm-pack`) albo kopiowany gotowy; `node server/server.js --host 0.0.0.0 --port 8080 --data /data` (serwer domyślnie słucha na `127.0.0.1`), wolumen `/data`, healthcheck przez `/api/status`.
 - [ ] **8.2 Tryb bez dema** (mały) – opcja wyłączająca hosting `web/`, żeby kontener udostępniał tylko synchronizację i API.
@@ -138,10 +138,9 @@ Już działa: nowy klient bez kursora dostaje pełny stan bazy, a potem `SyncCli
 
 ## 9. Interfejs C, wiązania i panel administracyjny
 
+Pakiet Pythona i synchronizacja w FastAPI (dawne 9.2–9.4) wypadły z planów – [ADR-0024](adr/0024-bez-wiazan-dla-pythona.md).
+
 - [ ] **9.1 Interfejs C nad `flatsql-core`** (średni) – biblioteka `cdylib`: otwarcie bazy z katalogu, `execute`, przygotowane instrukcje, `export_outbox` / `ack_outbox` / `apply_changes` / `export_state`, zwalnianie pamięci.
-- [ ] **9.2 Pakiet Pythona** (średni) – `ctypes`/`cffi` na interfejsie C albo PyO3 + maturin; paczki dla Windows, Linuksa i macOS.
-- [ ] **9.3 Synchronizacja w FastAPI** (średni) – `/sync/push` i `/sync/pull` w Pythonie na wiązaniach (log, epoka, kursory, kompaktowanie przeniesione z `server/server.js`); wtedy kontener Node.js nie jest potrzebny.
-- [ ] **9.4 Testy zgodności** (mały) – ten sam klient przeglądarkowy synchronizuje się identycznie z serwerem Node.js i z FastAPI (te same paczki `FSB1`).
 - [ ] **9.5 Inne języki i aplikacje natywne** (średni) – interfejs C dla Go, C# i aplikacji mobilnych (Swift, Kotlin, React Native): natywny Flat-SQL zamiast SQLite, z tym samym formatem plików i synchronizacją co w przeglądarce (aplikacje mobilne to jedno z głównych zastosowań PowerSync i Turso).
 - [ ] **9.6 Panel administracyjny WinUI 3** (duży) – kolejny etap projektu z README i prezentacji: komunikacja z silnikiem przez interfejs C z 9.1 lub named pipes; wspólny format plików pozwala otworzyć bazę serwera. Literatury dla tego etapu nie zebrano.
 

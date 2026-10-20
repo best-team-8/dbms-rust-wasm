@@ -131,7 +131,7 @@ backend (logowanie, uprawnienia) ──przekazuje──► serwer Flat-SQL (kont
 | Wariant | Opis | Stan |
 |---|---|---|
 | A. Kontener obok backendu | obecny serwer Flat-SQL w osobnym kontenerze, backend jako bramka | do testów działa już dziś |
-| B. Silnik w procesie backendu | rdzeń jako moduł Pythona przez interfejs C, synchronizacja w FastAPI | wymaga wiązań ([todo_future.md §9](todo_future.md)) |
+| B. Silnik w procesie backendu | rdzeń jako moduł Pythona przez interfejs C, synchronizacja w FastAPI | poza planami ([ADR-0024](adr/0024-bez-wiazan-dla-pythona.md)) |
 
 Już działa: nowy klient bez kursora dostaje pełny stan bazy, a potem `SyncClient` synchronizuje zmiany w obie strony; zapisy backendu przez `/api/query` docierają do klientów.
 
@@ -187,7 +187,7 @@ Możliwa unikalna propozycja: **pamięć trzymana na urządzeniu, trwała przy k
 | Złączenia tylko do odczytu po kluczu (future 5.2) | proste CRM, katalogi z relacjami |
 | Węzły edge z bazą główną (future 7.1–7.3) | scenariusze edge z prezentacji w rzeczywistym układzie |
 | Wyszukiwanie wektorowe i pełnotekstowe (future 5.5, 5.6) | pamięć asystentów (§10), wyszukiwanie w notatkach |
-| Interfejs C i wiązania dla Pythona (future §9) | backendy w innych językach, aplikacje natywne zamiast SQLite |
+| Interfejs C (future 9.1, 9.5) | aplikacje natywne zamiast SQLite, panel administracyjny |
 
 ## 12. Czego nie polecać i dlaczego
 
