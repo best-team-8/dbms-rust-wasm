@@ -308,6 +308,7 @@ W przeglądarce trwałe zatwierdzenie pojedynczej transakcji (WAL → IndexedDB)
 ## Dokumentacja
 
 - [Architektura i formaty danych](docs/architecture.md)
+- [Rejestr decyzji projektowych (ADR)](docs/adr/README.md)
 - [Specyfikacja Flat-SQL](docs/flat-sql.md)
 - [Analiza porównawcza silników baz danych WASM](docs/research/wasm-engines-comparison.md)
 - [Scenariusz badawczy i metodyka benchmarków](docs/research/benchmark-scenario.md)

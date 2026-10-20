@@ -11,6 +11,7 @@ Nakład: **mały** – pojedyncze funkcje i testy; **średni** – kilka moduł�
 ## 0. Doprecyzowanie dokumentacji prototypu
 
 - [ ] **0.1 Tezy w README, dokumentacji i pracy** (mały):
+  - „0 ms latencji” – brak opóźnienia sieci i zależności od serwera przy zapytaniu, nie zerowy czas wykonania ([ADR-0001](adr/0001-zapytania-lokalne-bez-serwera.md));
   - „Privacy by Design” – dane domyślnie lokalne, ale nieszyfrowane; izolacja WASM chroni hosta, nie dane modułu [V1], [L1], [W2];
   - „szybszy niż sql.js”, a nie „szybszy niż SQLite” – SQLite z OPFS nie był mierzony [B3];
   - atomowość: transakcja lokalnie, wiersz między replikami – ta sama gwarancja co w Simba [L27], zgodna z modelem encji [C7];
@@ -64,6 +65,7 @@ Nakład: **mały** – pojedyncze funkcje i testy; **średni** – kilka moduł�
 - [ ] **4.9 Koszt trwałości `strict`** (mały) – dodać do H5 (zob. 1.4). [Q1].
 - [ ] **4.10 Pauza checkpointu** (mały) – najdłuższa przerwa wątku głównego podczas checkpointu przed i po 2.6, na tle budżetu 16 ms na klatkę [D4], [S10].
 - [ ] **4.11 Koszt LWW per kolumna** (mały) – rozmiar snapshotu, paczek i czas insertów przed i po 3.1.
+- [ ] **4.12 Koszt trybu Worker** (mały) – czas przesłania zapytania i wyniku do Web Workera i z powrotem (`postMessage`) dla odczytu po kluczu i dla 10 000 wierszy, na tle 9,7 µs w wątku głównym; rozstrzyga, od jakiej skali tryb Worker się opłaca ([ADR-0013](adr/0013-watek-glowny-domyslnie-worker-jako-opcja.md)).
 
 ## 5. Zadania usunięte po weryfikacji z literaturą
 
