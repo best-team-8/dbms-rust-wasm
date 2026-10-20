@@ -175,8 +175,8 @@ Pakiet Pythona i synchronizacja w FastAPI (dawne 9.2–9.4) wypadły z planów �
 
 - [ ] **9.1 Interfejs C nad `flatsql-core`** (średni) – biblioteka `cdylib`: otwarcie bazy z katalogu, `execute`, przygotowane instrukcje, `export_outbox` / `ack_outbox` / `apply_changes` / `export_state`, zwalnianie pamięci.
 - [ ] **9.5 Inne języki i aplikacje natywne** (średni) – interfejs C dla Go, C# i aplikacji mobilnych (Swift, Kotlin, React Native): natywny Flat-SQL zamiast SQLite, z tym samym formatem plików i synchronizacją co w przeglądarce (aplikacje mobilne to jedno z głównych zastosowań PowerSync i Turso).
-- [ ] **9.7 Serwer synchronizacji jako biblioteka w backendzie** (duży, rozszerzenie bez terminu) – logika serwera (przestrzenie, log, kursory, tryby z ADR-0023) przeniesiona do Rust i udostępniona przez interfejs C (9.1) z nakładkami dla języków backendu, tak żeby backend obsługiwał `/sync/*` w swoim procesie bez osobnej usługi; przy wielu instancjach backendu wymaga blokad na plikach przestrzeni albo wspólnego magazynu. Do tego czasu integracja tylko przez HTTP ([ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md)).
 - [ ] **9.6 Panel administracyjny WinUI 3** (duży) – kolejny etap projektu z README i prezentacji: komunikacja z silnikiem przez interfejs C z 9.1 lub named pipes; wspólny format plików pozwala otworzyć bazę serwera. Literatury dla tego etapu nie zebrano.
+- [ ] **9.7 Serwer synchronizacji jako biblioteka w backendzie** (duży, rozszerzenie bez terminu) – logika serwera (przestrzenie, log, kursory, tryby z ADR-0023) przeniesiona do Rust i udostępniona przez interfejs C (9.1) z nakładkami dla języków backendu, tak żeby backend obsługiwał `/sync/*` w swoim procesie bez osobnej usługi; przy wielu instancjach backendu wymaga blokad na plikach przestrzeni albo wspólnego magazynu. Do tego czasu integracja tylko przez HTTP ([ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md)).
 
 ## 10. Skala serwera
 
