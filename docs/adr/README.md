@@ -39,6 +39,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) | Konfigurowalne tryby serwera synchronizacji | architektura | przyjęta |
 | [0024](0024-bez-wiazan-dla-pythona.md) | Bez wiązań dla Pythona i synchronizacji w procesie backendu | proces | przyjęta; zakres zawężony przez [ADR-0025](0025-serwer-synchronizacji-za-bramka-backendu.md) |
 | [0025](0025-serwer-synchronizacji-za-bramka-backendu.md) | Serwer synchronizacji za bramką backendu | architektura | przyjęta |
+| [0026](0026-reguly-w-backendzie-mechanizmy-w-serwerze.md) | Reguły w backendzie, mechanizmy w serwerze synchronizacji | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 
