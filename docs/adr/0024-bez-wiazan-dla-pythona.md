@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; zakres zawężony przez [ADR-0025](0025-serwer-synchronizacji-za-bramka-backendu.md) (serwer w procesie backendu jako odległe rozszerzenie, 9.7) |
 | Data | 2026-10-20 |
 | Rodzaj | proces |
 | Powiązane | ADR-0005, ADR-0022, ADR-0023; future 9.1, 9.5, 9.6, dawne 9.2–9.4 |

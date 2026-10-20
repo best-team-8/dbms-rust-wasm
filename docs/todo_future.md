@@ -82,8 +82,8 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 
 ## 4. Bezpieczeństwo i prywatność
 
-- [ ] **4.1 Uwierzytelnianie** (średni) – backend wydaje i sprawdza token; serwer synchronizacji przyjmuje tylko żądania z poprawnym tokenem albo jest dostępny wyłącznie przez bramkę backendu. `SyncClient` przyjmuje własną funkcję `fetch`, więc nagłówek z tokenem można dodać bez zmian w bibliotece. Uwierzytelnianie między węzłami edge a bazą główną (7.1).
-- [ ] **4.2 `/api/query` tylko dla backendu** (mały) – osobny port lub klucz API, wyłączanie endpointu w konfiguracji; dziś wykonuje dowolny SQL bez logowania i nie wolno go wystawiać publicznie.
+- [ ] **4.1 Uwierzytelnianie przez bramkę backendu** (średni) – według [ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md): serwer synchronizacji nasłuchuje tylko w sieci wewnętrznej, przestrzeń bierze z nagłówka ustawionego przez backend i odrzuca żądania bez wspólnego klucza bramki; konta, hasła i logowanie zostają w backendzie aplikacji, który przekazuje `/sync/*` przez HTTP bez czytania paczek. Później, jako rozszerzenie: weryfikacja przepustek JWT przez sam serwer dla aplikacji bez backendu. Uwierzytelnianie między węzłami edge a bazą główną (7.1).
+- [ ] **4.2 `/api/query` tylko dla backendu** (mały) – dostęp tylko z bramką i jej kluczem (4.1), wyłączanie endpointu w konfiguracji; dziś wykonuje dowolny SQL bez logowania i nie wolno go wystawiać publicznie.
 - [ ] **4.3 Szyfrowanie end-to-end** (duży) – paczki zmian szyfrowane kluczem użytkownika; serwer jako przekaźnik nieprzezroczystych zmian – do rozstrzygnięcia LWW wystarczy jawny znacznik i skrót klucza, wartości mogą być zaszyfrowane [L11], [L1]. Koszt: utrata `/api/query` i walidacji po stronie serwera (2.2) dla zaszyfrowanych tabel – do decyzji per tabela.
 - [ ] **4.4 Szyfrowanie danych lokalnych** (średni) – WAL i snapshot szyfrowane przez WebCrypto (AES-GCM, klucz z hasła); dopiero 4.3 i 4.4 razem czynią „Privacy by Design” prawdziwym w sensie [V1].
 
@@ -133,7 +133,7 @@ Już działa: nowy klient bez kursora dostaje pełny stan bazy, a potem `SyncCli
 - [ ] **8.1 Dockerfile** (mały) – obraz Node.js 22; moduł `pkg/` budowany w osobnym etapie (Rust + `wasm-pack`) albo kopiowany gotowy; `node server/server.js --host 0.0.0.0 --port 8080 --data /data` (serwer domyślnie słucha na `127.0.0.1`), wolumen `/data`, healthcheck przez `/api/status`.
 - [ ] **8.2 Tryb bez dema** (mały) – opcja wyłączająca hosting `web/`, żeby kontener udostępniał tylko synchronizację i API.
 - [ ] **8.3 Konfigurowalny CORS** (mały) – dziś `access-control-allow-origin: *`.
-- [ ] **8.4 Przykład `docker-compose` z FastAPI** (średni) – backend jako bramka: logowanie, przekazywanie `/sync/*` do kontenera, logika biznesowa przez `/api/query` w sieci wewnętrznej.
+- [ ] **8.4 Przykład bramki i `docker-compose`** (średni) – przykładowy backend jako bramka ([ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md)): logowanie, wybór przestrzeni z sesji i przekazywanie `/sync/*` do kontenera bez publicznego portu, logika biznesowa przez `/api/query` w sieci wewnętrznej; w demo – mała bramka w Node.js z udawanym logowaniem dwóch użytkowników, z których każdy widzi tylko swoje dane. Wymaga przestrzeni (4.1, [ADR-0023](adr/0023-konfigurowalne-tryby-serwera-synchronizacji.md)).
 - [ ] **8.5 Instrukcja wdrożenia** (mały) – po polsku: uruchomienie, parametry, kopie zapasowe katalogu danych (`snapshot.fsql`, `wal.fsql`), aktualizacja obrazu.
 
 ## 9. Interfejs C, wiązania i panel administracyjny
@@ -142,6 +142,7 @@ Pakiet Pythona i synchronizacja w FastAPI (dawne 9.2–9.4) wypadły z planów �
 
 - [ ] **9.1 Interfejs C nad `flatsql-core`** (średni) – biblioteka `cdylib`: otwarcie bazy z katalogu, `execute`, przygotowane instrukcje, `export_outbox` / `ack_outbox` / `apply_changes` / `export_state`, zwalnianie pamięci.
 - [ ] **9.5 Inne języki i aplikacje natywne** (średni) – interfejs C dla Go, C# i aplikacji mobilnych (Swift, Kotlin, React Native): natywny Flat-SQL zamiast SQLite, z tym samym formatem plików i synchronizacją co w przeglądarce (aplikacje mobilne to jedno z głównych zastosowań PowerSync i Turso).
+- [ ] **9.7 Serwer synchronizacji jako biblioteka w backendzie** (duży, rozszerzenie bez terminu) – logika serwera (przestrzenie, log, kursory, tryby z ADR-0023) przeniesiona do Rust i udostępniona przez interfejs C (9.1) z nakładkami dla języków backendu, tak żeby backend obsługiwał `/sync/*` w swoim procesie bez osobnej usługi; przy wielu instancjach backendu wymaga blokad na plikach przestrzeni albo wspólnego magazynu. Do tego czasu integracja tylko przez HTTP ([ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md)).
 - [ ] **9.6 Panel administracyjny WinUI 3** (duży) – kolejny etap projektu z README i prezentacji: komunikacja z silnikiem przez interfejs C z 9.1 lub named pipes; wspólny format plików pozwala otworzyć bazę serwera. Literatury dla tego etapu nie zebrano.
 
 ## 10. Skala serwera
