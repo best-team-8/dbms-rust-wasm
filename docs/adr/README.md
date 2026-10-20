@@ -30,12 +30,13 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0014](0014-system-typow.md) | System typów: cztery typy, koercja bezstratna, porządek całkowity | architektura | przyjęta |
 | [0015](0015-hlc-i-lww-per-wiersz.md) | Synchronizacja: zegar HLC i LWW per wiersz z tombstone'ami | architektura | przyjęta |
 | [0016](0016-outbox-w-wal.md) | Outbox jako referencje do wierszy, odbudowywany z WAL | architektura | przyjęta |
-| [0017](0017-protokol-push-pull-z-kursorem.md) | Protokół push/pull z kursorem i epoką | architektura | przyjęta |
+| [0017](0017-protokol-push-pull-z-kursorem.md) | Protokół push/pull z kursorem i epoką | architektura | przyjęta; pkt 2 zastąpiony przez [ADR-0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) |
 | [0018](0018-atomowosc-wiersza-miedzy-replikami.md) | Między replikami atomowy jest wiersz | architektura | przyjęta |
 | [0019](0019-przekazywanie-wynikow-do-js.md) | Przekazywanie wyników do JS: JSON teraz, bufor binarny docelowo | architektura | przyjęta |
 | [0020](0020-punkty-odniesienia-benchmarku.md) | Punkty odniesienia i metodyka benchmarku | proces | przyjęta |
 | [0021](0021-rdzen-literatury.md) | Rdzeń literatury i kryteria doboru | proces | przyjęta |
 | [0022](0022-podzial-list-zadan.md) | Podział list zadań: optymalizacja i rozszerzenia | proces | przyjęta |
+| [0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) | Konfigurowalne tryby serwera synchronizacji | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 
