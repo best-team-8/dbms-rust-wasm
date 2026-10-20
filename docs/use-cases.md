@@ -1,6 +1,6 @@
 # Zastosowania Flat-SQL
 
-Katalog zastosowań wynikający z analizy prototypu i przeglądu literatury (stan na 18 października 2026). Pierwotne zastosowania: [prezentacja projektu](ProductPresentation.pdf). Uzasadnienia i źródła: [references/conclusions.md](references/conclusions.md). Zadania: [todo.md](todo.md) i [todo_future.md](todo_future.md). Identyfikatory w nawiasach (np. [L24]) odsyłają do [indeksu literatury](references/README.md).
+Katalog zastosowań wynikający z analizy prototypu i przeglądu literatury (stan na 18 października 2026, odwołania zaktualizowane 20 października). Pierwotne zastosowania: [prezentacja projektu](ProductPresentation.pdf). Uzasadnienia i źródła: [references/conclusions.md](references/conclusions.md). Zadania: [todo.md](todo.md) i [todo_future.md](todo_future.md). Identyfikatory w nawiasach (np. [L24]) odsyłają do [indeksu literatury](references/README.md).
 
 ## 1. Czym Flat-SQL jest, a czym nie jest
 
@@ -65,7 +65,7 @@ Flat-SQL **nie zastępuje** PostgreSQL na serwerze – uzupełnia go. PostgreSQL
 
 - **gry jednoosobowe z zapisem w chmurze** – gry „idle”, RPG, roguelike, strategie: postęp zapisywany lokalnie przy każdej akcji, gra działa offline, ten sam zapis na telefonie i komputerze;
 - **zabezpieczenie postępu** – kopia na serwerze chroni przed usunięciem danych przez przeglądarkę (Safari po 7 dniach bez interakcji – [Q2]);
-- **gry turowe i asynchroniczne** – ruch raz na jakiś czas (np. szachy korespondencyjne); local-first sprawdza się przy współpracy asynchronicznej [L22];
+- **gry turowe i asynchroniczne** – ruch raz na jakiś czas (np. szachy korespondencyjne); replikacja dla słabo połączonych urządzeń sprawdza się przy współpracy asynchronicznej [C3];
 - **mała kooperacja** – np. wspólna skrzynia kilku graczy, po dodaniu liczników `MERGE ADD`;
 - **narzędzia twórców gier** – edytory poziomów, katalogi zasobów.
 
@@ -85,7 +85,7 @@ Flat-SQL **nie zastępuje** PostgreSQL na serwerze – uzupełnia go. PostgreSQL
 
 ## 6. Portfele kryptowalut
 
-W portfelu są dwie różne rzeczy: **klucze** (czyli środki) i **dane** (historia, saldo, książka adresowa). Flat-SQL nadaje się do danych, **nigdy do kluczy**: dane nie są szyfrowane, IndexedDB może odczytać każdy skrypt strony (np. przy XSS lub złośliwej bibliotece), izolacja WebAssembly nie chroni danych wewnątrz modułu ([W2], [W9]), a przeglądarka może dane usunąć – utrata klucza to utrata środków.
+W portfelu są dwie różne rzeczy: **klucze** (czyli środki) i **dane** (historia, saldo, książka adresowa). Flat-SQL nadaje się do danych, **nigdy do kluczy**: dane nie są szyfrowane, IndexedDB może odczytać każdy skrypt strony (np. przy XSS lub złośliwej bibliotece), izolacja WebAssembly nie chroni danych wewnątrz modułu ([W2]), a przeglądarka może dane usunąć – utrata klucza to utrata środków.
 
 Przepis:
 
@@ -93,7 +93,7 @@ Przepis:
 2. **Blockchain jako źródło prawdy, Flat-SQL jako lokalny indeks** – tabela `tx` z kluczem = hash transakcji (niezmienny, więc bez konfliktów), indeksy po tokenie, dacie i adresie, podsumowania portfela przez `GROUP BY`.
 3. **Transakcje oczekujące** – status „oczekująca → potwierdzona/odrzucona”, jak zapisy wstępne w Bayou [C3].
 4. **Synchronizacja tylko metadanych użytkownika** (etykiety adresów, notatki, książka adresowa, ustawienia) – z szyfrowaniem end-to-end, bo etykiety ujawniają finanse; historię zawsze można pobrać ponownie z blockchaina.
-5. **Szyfrowanie lokalne i `navigator.storage.persist()`** ([todo.md 4.3 i 1.5](todo.md)).
+5. **Szyfrowanie lokalne i `navigator.storage.persist()`** ([todo_future.md 4.4](todo_future.md), [todo.md 1.5](todo.md)).
 6. **„Weryfikacja na edge” nie jest dowodem** – wymaga zaufania do węzła; dane z węzła RPC warto sprawdzać w kilku źródłach.
 7. **Forma: rozszerzenie przeglądarki** – tu mały moduł działający bez Workera i nagłówków to realna przewaga.
 
@@ -108,7 +108,7 @@ przeglądarki ─► węzeł edge (np. Warszawa) ─┐
 przeglądarki ─► węzeł edge (np. Berlin)  ──┴─► baza główna
 ```
 
-**Stan prototypu:** jest jeden serwer ([server/server.js](../server/server.js)), który jest jednocześnie hubem synchronizacji, API do porównań w H1 i bazą główną; węzłów edge zsynchronizowanych z bazą główną jeszcze nie ma ([todo.md 4.10–4.11](todo.md)). W literaturze to replikacja multi-leader w topologii drzewa ([P1] rozdz. 5) i scenariusz CRR [L24]; węzeł edge może obsługiwać użytkowników przy niedostępnej centrali [E2].
+**Stan prototypu:** jest jeden serwer ([server/server.js](../server/server.js)), który jest jednocześnie hubem synchronizacji, API do porównań w H1 i bazą główną; węzłów edge zsynchronizowanych z bazą główną jeszcze nie ma ([todo_future.md §7](todo_future.md)). W literaturze to replikacja dwuwarstwowa z węzłami bazowymi [C9] albo multi-leader w topologii drzewa ([P1] rozdz. 5) i scenariusz CRR [L24]; węzeł edge może obsługiwać użytkowników przy niedostępnej centrali, jak klient Coda przy niedostępnym serwerze [C10].
 
 | Scenariusz | Ocena | Uwagi |
 |---|---|---|
@@ -131,7 +131,7 @@ backend (logowanie, uprawnienia) ──przekazuje──► serwer Flat-SQL (kont
 | Wariant | Opis | Stan |
 |---|---|---|
 | A. Kontener obok backendu | obecny serwer Flat-SQL w osobnym kontenerze, backend jako bramka | do testów działa już dziś |
-| B. Silnik w procesie backendu | rdzeń jako moduł Pythona przez interfejs C, synchronizacja w FastAPI | wymaga wiązań ([todo_future.md §4](todo_future.md)) |
+| B. Silnik w procesie backendu | rdzeń jako moduł Pythona przez interfejs C, synchronizacja w FastAPI | wymaga wiązań ([todo_future.md §9](todo_future.md)) |
 
 Już działa: nowy klient bez kursora dostaje pełny stan bazy, a potem `SyncClient` synchronizuje zmiany w obie strony; zapisy backendu przez `/api/query` docierają do klientów.
 
@@ -139,7 +139,7 @@ Już działa: nowy klient bez kursora dostaje pełny stan bazy, a potem `SyncCli
 
 | Sposób | Kiedy | Plusy | Minusy |
 |---|---|---|---|
-| Jedna baza główna + reguły, kto dostaje które wiersze (domyślnie) | dane wspólne: rankingi, rynek, zespoły | zapytania przekrojowe, jedno źródło prawdy | wymaga replikacji częściowej i reguł ([todo_future.md 1.2](todo_future.md)) |
+| Jedna baza główna + reguły, kto dostaje które wiersze (domyślnie) | dane wspólne: rankingi, rynek, zespoły | zapytania przekrojowe, jedno źródło prawdy | wymaga replikacji częściowej i reguł ([todo_future.md 3.2, §2](todo_future.md)) |
 | Osobna baza na użytkownika | dane niezależne: zapisy gry, notatki | izolacja, łatwe usunięcie konta i eksport danych | brak zapytań między użytkownikami (do tego osobna baza, np. PostgreSQL) |
 
 Baza Flat-SQL to struktura w pamięci i dwa pliki, a nie osobny serwer ani proces. Szacunek: ekwipunek 200 wierszy to kilkadziesiąt KB, 100 tys. graczy – ok. 2 GB na dysku, a w pamięci tylko aktywni użytkownicy. Model „baza na użytkownika” stosują m.in. Cloudflare Durable Objects, Turso i Apple iCloud (praca o FoundationDB Record Layer, SIGMOD 2019 – do doczytania).
@@ -151,9 +151,9 @@ Czego brakuje do realnego użycia: rozdzielenia danych użytkowników, uwierzyte
 | Sytuacja | Czy potrzebna synchronizacja z inną bazą | Jak |
 |---|---|---|
 | Zapis w chmurze dla jednego użytkownika, aplikacje osobiste, aplikacje terenowe z własnym serwerem | nie – baza główna może być Flat-SQL | obecny protokół synchronizacji |
-| Dane wspólne (rankingi, rynek), analityka wszystkich użytkowników | tak – zwykle PostgreSQL jako baza główna | łącznik przechwytujący zmiany PostgreSQL (CDC, [P1] rozdz. 11) i zapisujący do niego zmiany klientów po walidacji ([todo_future.md §6](todo_future.md)) |
+| Dane wspólne (rankingi, rynek), analityka wszystkich użytkowników | tak – zwykle PostgreSQL jako baza główna | łącznik przechwytujący zmiany PostgreSQL (CDC, [P1] rozdz. 11) i zapisujący do niego zmiany klientów po walidacji ([todo_future.md §11](todo_future.md)) |
 | Istniejący backend z PostgreSQL | tak | jak wyżej; to dokładnie zakres PowerSync i ElectricSQL [Q11] |
-| Aplikacje natywne (mobilne, desktopowe) używające SQLite | zależy | albo łącznik SQLite ↔ Flat-SQL, albo natywny Flat-SQL zamiast SQLite przez interfejs C ([todo_future.md §4](todo_future.md)) – wtedy synchronizacja działa bez tłumaczenia |
+| Aplikacje natywne (mobilne, desktopowe) używające SQLite | zależy | albo łącznik SQLite ↔ Flat-SQL, albo natywny Flat-SQL zamiast SQLite przez interfejs C ([todo_future.md §9](todo_future.md)) – wtedy synchronizacja działa bez tłumaczenia |
 | Serwer lub edge na SQLite (np. Durable Objects, Turso) | zależy | backend `Storage` dla magazynu platformy albo łącznik jak dla PostgreSQL |
 
 ## 10. Lokalna pamięć asystentów i agentów programowych
@@ -179,23 +179,23 @@ Możliwa unikalna propozycja: **pamięć trzymana na urządzeniu, trwała przy k
 
 ## 11. Zastosowania odblokowane przez planowane funkcje
 
-| Funkcja ([todo.md](todo.md)) | Nowe zastosowania |
+| Funkcja ([todo.md](todo.md), [todo_future.md](todo_future.md)) | Nowe zastosowania |
 |---|---|
-| LWW per kolumna i liczniki `MERGE ADD` (3.1, 3.2) | wspólne listy i tablice zadań, stany magazynowe liczone z wielu skanerów, wspólna skrzynia w grze, ekonomia gry na wielu urządzeniach |
-| Zapytania reaktywne (4.1) | interfejsy i pulpity aktualizowane bez ręcznego odświeżania |
-| Szyfrowanie end-to-end i lokalne (4.2, 4.3) | zdrowie, dzienniki, śledzenie wydatków, dokumenty firmowe – dopiero wtedy „Privacy by Design” jest w pełni prawdziwe |
-| Złączenia tylko do odczytu (4.5) | proste CRM, katalogi z relacjami |
-| Węzły edge z bazą główną (4.10, 4.11) | scenariusze edge z prezentacji w rzeczywistym układzie |
-| Wyszukiwanie wektorowe i pełnotekstowe | pamięć asystentów (§10), wyszukiwanie w notatkach |
-| Interfejs C i wiązania dla Pythona ([todo_future.md §4](todo_future.md)) | backendy w innych językach, aplikacje natywne zamiast SQLite |
+| LWW per kolumna i liczniki `MERGE ADD` (todo 3.1, future 2.5) | wspólne listy i tablice zadań, stany magazynowe liczone z wielu skanerów, wspólna skrzynia w grze, ekonomia gry na wielu urządzeniach |
+| Zapytania reaktywne (future 5.1) | interfejsy i pulpity aktualizowane bez ręcznego odświeżania |
+| Szyfrowanie end-to-end i lokalne (future 4.3, 4.4) | zdrowie, dzienniki, śledzenie wydatków, dokumenty firmowe – dopiero wtedy „Privacy by Design” jest w pełni prawdziwe |
+| Złączenia tylko do odczytu po kluczu (future 5.2) | proste CRM, katalogi z relacjami |
+| Węzły edge z bazą główną (future 7.1–7.3) | scenariusze edge z prezentacji w rzeczywistym układzie |
+| Wyszukiwanie wektorowe i pełnotekstowe (future 5.5, 5.6) | pamięć asystentów (§10), wyszukiwanie w notatkach |
+| Interfejs C i wiązania dla Pythona (future §9) | backendy w innych językach, aplikacje natywne zamiast SQLite |
 
 ## 12. Czego nie polecać i dlaczego
 
 | Ograniczenie | Źródło | Dlaczego | Obejście |
 |---|---|---|---|
 | Duża analityka (np. CSV 500 MB) | implementacja i platforma (nie język – plik CSV to jedna tabela) | każdy wiersz to osobny obiekt w pamięci, przetwarzanie wiersz po wierszu zamiast kolumnami, limit 4 GiB `wasm32` | DuckDB-Wasm [D1]; tabele kolumnowe w Flat-SQL byłyby budową drugiego silnika |
-| Płatności jako jedyne źródło prawdy | założenie Local-First (każdy system offline) | urządzenie offline nie wie, czy środki nie zostały wydane na innym urządzeniu; zapobieganie podwójnemu wydaniu wymaga koordynacji ([C8], [P1] rozdz. 9, [L22]) | serwer lub blockchain jako źródło prawdy, lokalne operacje jako wstępne do potwierdzenia [C3]; ewentualnie limit do wydania offline przydzielony z góry (metoda „escrow”, O'Neil 1986 – do doczytania) |
-| Wspólna edycja tekstu na żywo | model danych (pole jako całość + LWW) i implementacja (pobieranie zmian co 5 s) | edytory współdzielone śledzą każdy znak osobno (CRDT tekstu, np. [L16]) | każda edycja jako osobny niezmienny wiersz, tekst składany biblioteką CRDT (np. Yjs) w aplikacji, powiadomienia push |
-| Dane większe niż pamięć urządzenia | implementacja (decyzja „dane w pamięci”) i platforma | cała baza musi zmieścić się w pamięci modułu | magazyn stronicowany na OPFS z buforem stron (duży nakład); 64-bitowa pamięć WASM kosztuje wydajność [W6] |
+| Płatności jako jedyne źródło prawdy | założenie Local-First (każdy system offline) | urządzenie offline nie wie, czy środki nie zostały wydane na innym urządzeniu; zapobieganie podwójnemu wydaniu wymaga koordynacji ([C8], [C9], [P1] rozdz. 9) | serwer lub blockchain jako źródło prawdy, lokalne operacje jako wstępne do potwierdzenia [C3]; ewentualnie limit do wydania offline przydzielony z góry (metoda escrow – liczniki ograniczone w Antidote SQL [L8]) |
+| Wspólna edycja tekstu na żywo | model danych (pole jako całość + LWW) i implementacja (pobieranie zmian co 5 s) | edytory współdzielone śledzą każdy znak osobno (CRDT tekstu, [L1]) | każda edycja jako osobny niezmienny wiersz, tekst składany biblioteką CRDT (np. Yjs) w aplikacji, powiadomienia push |
+| Dane większe niż pamięć urządzenia | implementacja (decyzja „dane w pamięci”) i platforma | cała baza musi zmieścić się w pamięci modułu | magazyn stronicowany na OPFS z buforem stron (duży nakład); 64-bitowa pamięć WASM kosztuje wydajność [Q6] |
 | Rozgrywka w czasie rzeczywistym, rankingi i rynek bez serwera | założenie Local-First | dane wspólne i podatne na oszustwa | serwer gry i baza serwerowa (§5) |
 | Przechowywanie kluczy prywatnych | bezpieczeństwo przeglądarki | brak szyfrowania, dostęp skryptów strony, możliwe usunięcie danych | portfel sprzętowy lub zaszyfrowany sejf (§6) |

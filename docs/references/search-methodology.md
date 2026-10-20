@@ -1,69 +1,134 @@
 # Metodyka przeglądu literatury i jej ograniczenia
 
-Opis, jak zebrano [bazę wiedzy](README.md), czego nie udało się sprawdzić i jak uzupełnić przegląd przed oddaniem pracy.
+Opis, jak zebrano [bazę wiedzy](README.md), czy wyszukiwanie objęło obszary, w których leżą atuty i plany projektu, jak wybrano rdzeń literatury i czego nie udało się sprawdzić.
 
 ## 1. Przebieg
 
 | Etap | Opis |
 |---|---|
-| Data | 18 października 2026 (stan źródeł internetowych z tego dnia) |
-| Punkt wyjścia | dokumenty projektu ([architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)), dwie pozycje polecone przez promotora, lista źródeł z [wasm-engines-comparison.md](../research/wasm-engines-comparison.md) |
-| Narzędzia | ogólnodostępna wyszukiwarka internetowa (indeks anglojęzyczny), strony wydawców (ACM DL, USENIX, VLDB, SIGMOD Record, CIDR), arXiv, repozytoria uczelniane (HAL, MIT DSpace, Aalto, CWI, UiT Munin), Zenodo, strony autorów |
-| Pobieranie | automatyczne, z weryfikacją sygnatury pliku PDF oraz tytułu i autorów na pierwszej stronie; pliki, które okazały się innymi dokumentami, odrzucano (jeden przypadek) |
-| Weryfikacja treści | tezy i liczby użyte w [literature-comparison.md](literature-comparison.md) i notatkach sprawdzono w pełnym tekście; pozostałe pozycje oceniono na podstawie streszczenia i wstępu |
-| Śnieżna kula | bibliografie kluczowych prac ([P1], [L1], [D4], [P2]), lista prac cytujących [L1] w ACM DL, program warsztatów PLF / PLF+PLAID (2022–2025) |
+| Runda 1 (18.10.2026) | wyszukiwanie według obszarów technologicznych (§2), pobranie 77 PDF-ów |
+| Runda 2 (20.10.2026) | audyt pokrycia atutów i planów projektu (§3), wyszukiwanie uzupełniające w lukach, ponowna ocena wszystkich pozycji i wybór rdzenia (§4) |
+| Punkt wyjścia | dokumenty projektu ([architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)), dwie pozycje polecone przez promotora, w rundzie 2 także [analiza rzeczywistych wdrożeń](../research/real-world-usage.md) i obie listy zadań |
+| Narzędzia | ogólnodostępna wyszukiwarka internetowa (indeks anglojęzyczny), strony wydawców (ACM DL, USENIX, VLDB, CIDR), arXiv, repozytoria uczelniane, strony autorów i kursów |
+| Pobieranie | z weryfikacją tytułu i autorów na pierwszej stronie; w rundzie 2 tezy z każdej nowej pracy sprawdzono w pełnym tekście przed dodaniem (wyjątek: [M3]) |
+| Weryfikacja treści | tezy i liczby użyte w [literature-comparison.md](literature-comparison.md), [conclusions.md](conclusions.md) i listach zadań sprawdzono w pełnym tekście (w rundzie 2 ponownie dla prac rdzenia, na których opierają się zadania: [C2], [C8], [D1], [D4], [D5], [L8], [L20], [L24], [L28], [M1], [S1], [S6], [S8], [E1]); [M3] oceniono na podstawie streszczenia i źródeł wtórnych |
+| Śnieżna kula | bibliografie [P1], [L1], [D4], [P2]; lista prac cytujących [L1]; program PLF / PLF+PLAID 2022–2025; w rundzie 2 bibliografie [C9], [C10], [L27] |
 
-Obszary wyszukiwania (przykładowe zapytania, po angielsku):
+## 2. Obszary wyszukiwania
 
-1. WebAssembly – projekt i wydajność: `"Bringing the Web up to Speed with WebAssembly"`, `WebAssembly vs native performance`, `WebAssembly runtimes survey`, `memory64 bounds checks`, `Wasm 3.0`;
+**Runda 1** – przykładowe zapytania (po angielsku):
+
+1. WebAssembly – projekt i wydajność: `"Bringing the Web up to Speed with WebAssembly"`, `WebAssembly vs native performance`, `WebAssembly runtimes survey`, `memory64 bounds checks`;
 2. bezpieczeństwo WASM: `binary security of WebAssembly`, `WebAssembly web vulnerabilities 2026`;
-3. SQL i bazy w WASM: `WebAssembly SQL database engine browser performance evaluation`, `DuckDB-Wasm`, `SQL queries compiled to WebAssembly`;
-4. local-first: `local-first software research 2025 2026`, `local-first architecture browser applications`, `Programming Local-First Software workshop`;
-5. CRDT i relacyjne bazy: `conflict-free replicated relations`, `CRDT relational database SQL`, `Antidote SQL`, `encrypted CRDT`;
+3. SQL i bazy w WASM: `WebAssembly SQL database engine browser`, `DuckDB-Wasm`, `SQL queries compiled to WebAssembly`;
+4. local-first: `local-first software research 2025 2026`, `Programming Local-First Software workshop`;
+5. CRDT i bazy relacyjne: `conflict-free replicated relations`, `CRDT relational database SQL`, `Antidote SQL`, `encrypted CRDT`;
 6. zegary: `hybrid logical clocks`, `last-writer-wins clock skew`;
 7. schemat: `schema evolution local-first`, `Cambria edit lenses`;
-8. składowanie i awarie: `main memory database recovery`, `group commit`, `crash-consistent applications`, `power fault database testing`;
-9. przeglądarka: `IndexedDB durability relaxed`, `Safari 7-day cap script-writable storage`, `storage persist eviction`, `IndexedDB OPFS performance study`;
-10. edge: `edge computing vision challenges`, `WebAssembly serverless edge`, `WebAssembly browser edge cloud comparison`;
-11. metodyka: `fair benchmarking database`, `statistically rigorous performance evaluation`, `VM warmup`, `YCSB`, `JavaScript timer resolution`;
+8. składowanie i awarie: `main memory database recovery`, `group commit`, `crash-consistent applications`;
+9. przeglądarka: `IndexedDB durability relaxed`, `Safari 7-day cap`, `storage persist eviction`;
+10. edge: `edge computing vision challenges`, `WebAssembly serverless edge`;
+11. metodyka: `fair benchmarking database`, `statistically rigorous performance evaluation`, `YCSB`;
 12. model danych: `What Goes Around Comes Around 2024`, `Life beyond Distributed Transactions`.
 
-Kryteria doboru: (1) związek z co najmniej jednym modułem projektu lub hipotezą H1–H6; (2) praca recenzowana, uznany preprint lub praca dyplomowa uczelni; (3) pierwszeństwo dla wersji otwartych. Źródła branżowe (blogi przeglądarek, dokumentacja, pomiary producentów) przyjęto tylko tam, gdzie opisują zachowanie platformy, od którego zależy poprawność projektu.
+**Runda 2** – zapytania w lukach z §3:
 
-## 2. Wynik
+1. `"The Dangers of Replication and a Solution" two-tier replication tentative transactions mobile`;
+2. `disconnected operation Coda reintegration log`, `client modify log optimization`;
+3. `content-based partial replication filter`, `partial replication CRDT local-first 2024 2025 2026`;
+4. `data sync mobile apps reliability consistency` (Simba);
+5. `scale independence bounded query key-value PIQL`;
+6. `checkpoint recovery main memory frequently consistent applications games`;
+7. `materialized view maintenance incremental aggregates`;
+8. `Approaches to Conflict-free Replicated Data Types survey 2024`;
+9. `WebAssembly JavaScript interoperability overhead boundary empirical 2023 2024 2025`;
+10. `IndexedDB OPFS performance evaluation empirical study`;
+11. dokumentacja: dostępność `SharedWorker` (2025–2026), zastosowanie JS String Builtins dla języków z pamięcią liniową.
 
-- 77 plików PDF: 14 prac do 2010 r., 29 z lat 2011–2020, 19 z lat 2021–2024, 13 z lat 2025–2026, oraz specyfikacja Wasm 3.0 i notatki wykładowe Kleppmanna. Cztery z nich ([L24], [L25], [L26], [W11]) pobrano w drugim podejściu przez zwykłą przeglądarkę, bo serwisy blokowały pobieranie automatyczne; ponowne wyszukiwanie dodało też preprint Zeta-Lite [D5] z września 2026 r.
-- 3 ważne pozycje bez pliku ([README §11](README.md#11-źródła-ważne-których-nie-pobrano--do-pobrania-ręcznie)) i 11 grup źródeł dokumentacyjno-branżowych ([README §12](README.md#12-dokumentacja-platform-i-źródła-branżowe-nierecenzowane)).
-- Bibliografie 12 rozdziałów DDIA (wyd. 1) z repozytorium autora.
+Kryteria włączenia do bazy: (1) związek z modułem projektu, hipotezą H1–H6 lub zadaniem; (2) praca recenzowana, uznany preprint lub praca dyplomowa uczelni; (3) pierwszeństwo dla wersji otwartych. Źródła branżowe przyjęto tylko tam, gdzie opisują zachowanie platformy, od którego zależy poprawność projektu.
 
-## 3. Ograniczenia
+## 3. Audyt pokrycia atutów projektu
 
-1. **Brak dostępu do płatnych baz bibliograficznych.** Nie przeszukano Scopus, Web of Science, pełnych tekstów IEEE Xplore i SpringerLink ani platformy O'Reilly. Nie użyto bezpośrednio Google Scholar, więc nie ma liczby cytowań ani pełnych list „cited by”. Przegląd jest **ukierunkowany, a nie systematyczny** (w rozumieniu wytycznych Kitchenham).
-2. **Blokady automatycznego pobierania.** Część serwisów odrzucała pobranie: ACM DL dla niektórych artykułów (ochrona przed botami), HAL (strona weryfikacyjna zamiast PDF), MIT DSpace (HTTP 429), O'Reilly (HTTP 403), UiT Munin. Zabezpieczeń nie obchodzono. Trzy darmowe prace z HAL, MIT i UiT pobrano później ręcznie przez zwykłą przeglądarkę; pozostałe są na liście do pobrania ręcznego (np. przez bibliotekę uczelni). Prace z IEEE (np. [E1]) pochodzą z kopii udostępnionych na stronach kursów lub autorów.
-3. **Ograniczenia wyszukiwarki.** Wyniki pochodziły z indeksu anglojęzycznego (USA), a ranking faworyzuje popularne strony i blogi. W kilku obszarach nie znaleziono recenzowanych badań: wydajność IndexedDB i OPFS (dostępne są głównie pomiary producentów – RxDB, PGlite), koszt granicy JS↔WASM w silnikach baz danych, koordynacja wielu kart (Web Locks, `SharedWorker`). Brak wyników nie dowodzi braku publikacji.
-4. **Najnowsze prace.** Pozycje z 2026 r. to w większości preprinty arXiv bez recenzji. Materiały konferencji z drugiej połowy 2026 r. (np. VLDB, SRDS, OOPSLA/SPLASH, UIST) mogły nie być jeszcze zaindeksowane. Wystąpienia z PLF+PLAID 2025 (np. Teilen-SQL) mają tylko streszczenia; artykułu Niinikoski i Fagerholm (2026) nie odnaleziono – są tylko materiały uzupełniające. Nie udało się zweryfikować spisu treści 2. wydania DDIA (2026).
-5. **Język.** Przeszukiwano literaturę anglojęzyczną; z polskiej uwzględniono tylko tłumaczenie DDIA. Nie przeszukiwano literatury chińskiej, choć znaczna część badań nad środowiskami WASM pochodzi z Chin ([W5]).
-6. **Źródła branżowe** są obarczone konfliktem interesów (producenci porównujący własne produkty) i zmieniają się bez wersjonowania; adresy URL mogą wygasnąć.
-7. **Głębokość lektury.** Szczegółowo przeczytano fragmenty prac cytowanych w porównaniu; pozostałe oceniono na podstawie streszczeń i wstępów.
-8. **Obszary pominięte** (poza zakresem tego etapu lub bez trafień): pomiary latencji sieci komórkowych (Cloud-First na urządzeniach mobilnych), zużycie energii WASM na telefonach (jedna praca w [W5]), interfejs FFI dla panelu WinUI (kolejny etap projektu), formalna weryfikacja protokołów odtwarzania WAL, badania bezpieczeństwa magazynów przeglądarki (XSS a IndexedDB).
+Runda 1 była zorganizowana według **technologii** (WebAssembly, CRDT, edge). Dała dobre pokrycie tła technologicznego, ale nadreprezentowała tematy ogólne (środowiska uruchomieniowe WASM, formalna weryfikacja CRDT, serverless na edge), a pominęła **problemy systemowe**, którym odpowiadają założenia Flat-SQL: klient pracujący offline z trwałym logiem zmian, replikacja częściowa, synchronizacja tabel w aplikacjach, przewidywalność ograniczonego języka zapytań, checkpointy stanu w pamięci. Audyt porównał każdy atut i każdy plan z zawartością zbioru.
 
-## 4. Czy przeszukano wszystkie najnowsze prace?
+| Atut lub plan Flat-SQL | Co było po rundzie 1 | Luka | Uzupełnienie w rundzie 2 |
+|---|---|---|---|
+| Płaski model, brak JOIN, „przewidywalne wykonanie” | [C7], [C6], [C4], [C5], [M1], [L8] | uzasadnienie opierało się na replikacji; brak pracy o językach zapytań ograniczonych dla przewidywalnego kosztu | [M2] PIQL |
+| Dane w pamięci, wykonanie jednowątkowe | [S1], [S4], [S5], [P1] | – | – |
+| WAL + snapshot, checkpoint | [S1], [S2], [S3], [S6], [S7] | kierunki dla checkpointu wymagały wątków (SiloR) albo zmiany struktury (LSM); brak prac o checkpointach stanu w pamięci przy częstych zmianach (gry) | [S10] Cao i in. |
+| Odporność na awarie zapisu | [S8], [S9] | – | – |
+| Trwały outbox, praca offline klienta | [C3], [L1] | brak klasyki pracy bez połączenia i brak badań niezawodności synchronizacji w aplikacjach – dokładnie tam leży atut „outbox przetrwa zamknięcie aplikacji offline” | [C10] Coda, [L27] Simba |
+| LWW na HLC | [C1], [C2], [L2]–[L7] | koszt LWW (utracone aktualizacje) i alternatywa przemienna opisane tylko w [P1] | [C9] Gray i in. |
+| Atomowość per wiersz między replikami | [C6], [C7], [C8] | brak przykładu systemu synchronizacji, który świadomie wybiera tę gwarancję | [L27] Simba |
+| Hybryda z serwerem, reguły serwera, zamiary zatwierdzane przez serwer | [C3], [L20], [L22] | brak modelu kopii głównej i transakcji wstępnych | [C9] Gray i in. |
+| Replikacja częściowa (wg analizy wdrożeń – obowiązkowa) | brak | **całkowity brak** | [C11] Cimbiosys |
+| Zapytania reaktywne (plan) | [D4] | brak techniki przyrostowego utrzymania wyników | [M3] Gupta i Mumick |
+| Tombstone'y, delta-state | [L6], [L7], [L3] | trzy prace na jeden wątek | [L28] Almeida (aktualny przegląd w miejsce trzech) |
+| Mały moduł, praca w wątku głównym | [P2], [W1], [W11] | brak recenzowanych badań wpływu rozmiaru modułu na start; są dowody branżowe (Notion) | luka pozostaje |
+| Granica JS↔WASM (H3) | brak | brak recenzowanych pomiarów | luka pozostaje (§5) – H3 to wkład własny |
+| Wydajność IndexedDB i OPFS | [Q8] (producenci) | brak badań recenzowanych | luka pozostaje |
+| Wiele kart | brak | brak badań; jest dokumentacja | [Q12] (dokumentacja) |
+| Edge – ten sam rdzeń | [E1]–[E8] | **nadmiar**: osiem prac o serverless i środowiskach WASM, żadna o bazach | ograniczono do [E1]; architekturę węzłów opisuje [C9] |
+| Bezpieczeństwo WASM | [W2]–[W10] | **nadmiar** | ograniczono do [W2] |
+| Teoria i weryfikacja CRDT | [L2]–[L7], [L12]–[L19] | **nadmiar** (formalna weryfikacja poza zakresem pracy) | ograniczono do [L2], [L28] |
+| Metodyka benchmarków | [B1]–[B6] | nadmiar | ograniczono do [B1], [B3], [B5] |
 
-Nie – i przy dostępnych narzędziach nie było to możliwe. Zebrany zbiór dobrze pokrywa prace fundamentalne (zegary, CRDT, WAL, WebAssembly, local-first) i najważniejsze nowe pozycje z lat 2025–2026, ale nie spełnia wymogów przeglądu systematycznego: brakuje przeszukania baz bibliograficznych z zapisanymi zapytaniami, liczbą wyników na każdym etapie i kryteriami wykluczenia (schemat PRISMA).
+## 4. Dobór rdzenia
 
-## 5. Jak uzupełnić przegląd (biblioteka uczelni)
+Każdą z 77 pozycji rundy 1 oceniono ponownie pod kątem trzech pytań: czy uzasadnia decyzję projektową lub atut prototypu; czy jest punktem odniesienia dla hipotezy H1–H6 lub porównywanego systemu; czy jest podstawą zadania z [todo.md](../todo.md) lub [todo_future.md](../todo_future.md). Pozycja zostaje, jeśli odpowiada „tak” na co najmniej jedno pytanie **i** nie dubluje innej pozycji rdzenia.
+
+Kryteria wyłączenia:
+
+1. **duplikat** – inna pozycja rdzenia daje tę samą tezę (np. trzy prace o delta-state i stabilności przyczynowej → jeden przegląd [L28]);
+2. **kierunek sprzeczny z atutami** – praca uzasadnia rozwiązanie, które odbiera atut projektu (równoległe odtwarzanie wymaga wątków i COOP/COEP; obraz pamięci modułu łamie wspólny format plików);
+3. **poza zakresem pracy** – formalna weryfikacja, synchronizacja bez serwera, edycja tekstu;
+4. **kontekst bez wpływu** – przeglądy ogólne i badania ekosystemu, które nie zmieniają żadnej decyzji;
+5. **słabe źródło** – preprint lub praca licencjacka, gdy ta sama teza ma źródło recenzowane.
+
+Wynik: **38 pozycji rdzenia** – 30 z rundy 1 i 8 nowych ([C9], [C10], [C11], [L27], [L28], [M2], [M3], [S10]); dwie pozycje rundy 1 dołączono do wpisów prac promotora (wersja CACM do [P2], notatki do wykładu do [P1]); **46 pozycji poza rdzeniem** z uzasadnieniem w [README.md §13](README.md#13-pozycje-poza-rdzeniem), pliki w `papers/_poza-rdzeniem/` (zachowane). Liczba 30 nie była limitem – nowe prace dodano, bo wypełniają luki w obszarach, w których leżą atuty i plany projektu.
+
+Znalezione w rundzie 2 i **nie** włączone:
+
+| Pozycja | Powód |
+|---|---|
+| Faerber F. i in., *Main Memory Database Systems*, Foundations and Trends in Databases 8(1–2), 2017 | dostęp płatny; tematykę pokrywają [P1] rozdz. 3 i [S4] |
+| Briquemont I. i in., *Conflict-free Partially Replicated Data Types*, CloudCom 2015 | odnaleziono tylko slajdy; replikację częściową pokrywa [C11] |
+| Thalakottur M. i in., *An Empirical Study of WebAssembly Usage in Node.js*, ICSE 2026 | bada wzorce współpracy JS i WASM, nie koszt granicy |
+| Stepanov O., Klym H., *A Quantitative Analysis of WebAssembly Integration*, Electronics and Information Technologies 32, 2025 | jedyny znaleziony pomiar wywołań `wasm-bindgen`, ale czasopismo uczelniane o małym zasięgu, dostępne tylko streszczenie, a podany koszt kopiowania 1 MB (1–3 ms) budzi wątpliwości |
+| Gupta A., Mumick I. S., Subrahmanian V. S., *Maintaining Views Incrementally*, SIGMOD 1993 | algorytm zliczania opisany w przeglądzie [M3] |
+
+## 5. Ograniczenia
+
+1. **Brak dostępu do płatnych baz bibliograficznych.** Nie przeszukano Scopus, Web of Science, pełnych tekstów IEEE Xplore i SpringerLink. Nie użyto bezpośrednio Google Scholar, więc nie ma liczby cytowań ani pełnych list „cited by”. Przegląd jest **ukierunkowany, a nie systematyczny** (w rozumieniu wytycznych Kitchenham) – nie spełnia wymogów PRISMA (zapisane zapytania z liczbą wyników na każdym etapie).
+2. **Blokady automatycznego pobierania.** Część serwisów odrzucała pobranie (ACM DL, HAL, MIT DSpace, O'Reilly, część serwisów kursów); zabezpieczeń nie obchodzono. Kopie nowych prac pochodzą z otwartego dostępu (USENIX, arXiv, Microsoft Research) i z serwisów kursów (Gray i in., Coda, Cao i in.) – w pracy cytuje się wersje wydawnicze.
+3. **Ograniczenia wyszukiwarki.** Wyniki z indeksu anglojęzycznego, z rankingiem faworyzującym popularne strony. W trzech obszarach nawet po rundzie 2 nie znaleziono recenzowanych badań: wydajność IndexedDB i OPFS, koszt granicy JS↔WASM w silnikach baz, koordynacja wielu kart. Brak wyników nie dowodzi braku publikacji.
+4. **Najnowsze prace.** Pozycje z 2026 r. to w większości preprinty; materiały konferencji z drugiej połowy 2026 r. mogły nie być jeszcze zaindeksowane. Nie zweryfikowano spisu treści 2. wydania DDIA.
+5. **Język.** Przeszukiwano literaturę anglojęzyczną; z polskiej uwzględniono tylko tłumaczenie DDIA.
+6. **Źródła branżowe** są obarczone konfliktem interesów i zmieniają się bez wersjonowania; dotyczy to także źródeł analizy wdrożeń.
+7. **Obszary pominięte świadomie:** wyszukiwanie pełnotekstowe i wektorowe (zadania future 5.5–5.6 – literatura do zebrania przy ich rozpoczęciu), interfejs FFI dla panelu WinUI (kolejny etap), zużycie energii WASM na telefonach, latencja sieci komórkowych.
+
+## 6. Jak uzupełnić przegląd
 
 Zapytania do Scopus / Web of Science / IEEE Xplore / ACM DL (filtr: 2019–2026, dla klasyki bez filtra):
 
 ```text
 ("WebAssembly" OR "Wasm") AND ("database" OR "SQL" OR "query engine" OR "storage")
-("local-first" OR "offline-first") AND ("synchronization" OR "replication" OR "CRDT")
+("local-first" OR "offline-first" OR "disconnected operation") AND ("synchronization" OR "replication" OR "CRDT")
+("partial replication" OR "selective replication") AND ("mobile" OR "client" OR "CRDT")
 ("IndexedDB" OR "Origin Private File System" OR "browser storage") AND ("performance" OR "durability" OR "persistence")
 ("hybrid logical clock" OR "last-writer-wins" OR "LWW") AND ("replication" OR "conflict resolution")
 ("conflict-free replicated" OR "CRDT") AND ("relational" OR "SQL" OR "SQLite")
-("in-memory database" OR "main memory database") AND ("write-ahead log" OR "checkpoint" OR "recovery")
-("edge computing" OR "cloud-edge continuum") AND "WebAssembly"
+("in-memory database" OR "main memory database") AND ("checkpoint" OR "recovery" OR "write-ahead log")
 ("WebAssembly") AND ("JavaScript interoperability" OR "boundary" OR "data exchange")
 ```
 
-Dodatkowo: alerty Google Scholar „cytowane przez” dla [P2], [W1], [L1] i [D4]; przegląd programów PaPoC, PLF+PLAID, Local-First Conf i VLDB z 2026 r.; prośba do biblioteki o dostęp do 2. wydania DDIA.
+Lista kontrolna:
+
+- [ ] Przeszukać bazy powyższymi zapytaniami i zapisać liczby wyników na każdym etapie (jeśli promotor wymaga przeglądu systematycznego).
+- [ ] Wypożyczyć DDIA (wydanie polskie: Helion 2018) i zweryfikować [notatkę](notes/ddia-kleppmann.md) z tekstem książki.
+- [ ] Ustawić alerty Google Scholar („cytowane przez”) dla [P2], [W1], [L1], [D4], [L24], [C11].
+- [ ] Zapytać autorów Teilen-SQL o tekst [X5]; sprawdzić publikację artykułu Niinikoski i Fagerholm [X6].
+- [ ] Pobrać [M3] z bezpłatnego archiwum IEEE Data Engineering Bulletin.
+- [ ] Przejrzeć programy PaPoC, PLF, Local-First Conf i VLDB z 2026 r.
+- [ ] Przed rozpoczęciem future 5.5–5.6 i 9.6 zebrać literaturę tych obszarów.
+- [ ] W pracy cytować wersje wydawnicze (DOI), nie lokalne kopie.

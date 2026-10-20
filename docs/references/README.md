@@ -1,385 +1,303 @@
 # Baza wiedzy – literatura do projektu Flat-SQL
 
-Zbiór publikacji naukowych, specyfikacji i źródeł technicznych związanych z projektem: silnik SQL w Rust kompilowany do WebAssembly, architektura Local-First, synchronizacja replik, warstwa składowania w przeglądarce oraz metodyka benchmarków. Stan na **18 października 2026**.
+Rdzeń literatury projektu: silnik SQL w Rust kompilowany do WebAssembly, płaski model tabel adresowanych kluczem, dane w pamięci z WAL i snapshotem, synchronizacja Local-First (HLC + LWW) oraz metodyka benchmarków. Stan po rewizji z **20 października 2026**.
 
 | Plik / katalog | Zawartość |
 |---|---|
-| [conclusions.md](conclusions.md) | wnioski z analizy projektu i przeglądu literatury: pozycja na tle innych rozwiązań, kierunek rozwoju, zastosowania, słowniczek |
-| [literature-comparison.md](literature-comparison.md) | porównanie implementacji Flat-SQL z założeniami i wynikami badań, lista rekomendacji |
-| [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md) | notatka do pracy poleconej przez promotora: Haas i in. (2017) |
-| [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md) | notatka do książki poleconej przez promotora: Kleppmann (2017), z mapą rozdziałów na moduły projektu |
-| [search-methodology.md](search-methodology.md) | jak przeprowadzono wyszukiwanie, kryteria doboru, ograniczenia i luki |
-| `papers/` | 77 plików PDF (ok. 94 MB) – wersje otwarte, autorskie lub udostępnione przez uczelnie |
-| `ddia-references/` | listy bibliografii do 12 rozdziałów DDIA (repozytorium autora, licencja CC BY-NC 4.0) |
+| [conclusions.md](conclusions.md) | wnioski z analizy prototypu i literatury: pozycja na tle innych rozwiązań, kierunek rozwoju, słowniczek |
+| [literature-comparison.md](literature-comparison.md) | porównanie implementacji z wynikami badań, obszar po obszarze, z rekomendacjami |
+| [search-methodology.md](search-methodology.md) | jak szukano, audyt pokrycia atutów projektu, kryteria doboru rdzenia, ograniczenia |
+| [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md) | notatka do pracy poleconej przez promotora [P2] |
+| [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md) | notatka do książki poleconej przez promotora [P1], z mapą rozdziałów na moduły |
+| `papers/` | 38 plików PDF rdzenia (lokalnie, wykluczone z gita w `.git/info/exclude`) |
+| `papers/_poza-rdzeniem/` | 46 plików PDF odrzuconych w rewizji (§13) – zachowane, nie usunięte |
 
-> **Prawa autorskie.** Pliki w `papers/` służą do własnej nauki. Wiele z nich to wersje autorskie z dopiskiem „for personal use, not for redistribution” (np. ACM, IEEE) albo kopie z serwisów kursów uniwersyteckich. Nie należy publikować katalogu `papers/` w publicznym repozytorium – wystarczy ten indeks z odnośnikami (DOI / adres źródła). W pracy dyplomowej cytuje się wersję wydawniczą (DOI), nie lokalną kopię.
+> **Prawa autorskie.** Pliki w `papers/` służą do własnej nauki. Wiele z nich to wersje autorskie z dopiskiem „for personal use, not for redistribution” albo kopie z serwisów kursów uniwersyteckich, dlatego katalog jest wykluczony z repozytorium i nie należy go publikować. W pracy dyplomowej cytuje się wersję wydawniczą (DOI), nie lokalną kopię.
 
 ## Jak czytać wpisy
 
-Każdy wpis ma identyfikator (np. **[W3]**) używany w [literature-comparison.md](literature-comparison.md), pełny opis bibliograficzny, link do lokalnej kopii (jeśli udało się ją pobrać), krótkie streszczenie i wskazanie, której części projektu dotyczy. Oznaczenia hipotez H1–H6 pochodzą z [docs/research/benchmark-scenario.md](../research/benchmark-scenario.md).
+Każdy wpis ma identyfikator używany w pozostałych dokumentach, opis bibliograficzny, plik, streszczenie i odpowiedź na pytanie, **co z pracy wynika dla Flat-SQL**, oraz zadania, które się na nią powołują ([todo.md](../todo.md) – optymalizacja prototypu, [todo_future.md](../todo_future.md) – rozszerzenia). Hipotezy H1–H6 pochodzą z [benchmark-scenario.md](../research/benchmark-scenario.md).
 
-Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy danych w przeglądarce · [L] Local-First i CRDT · [C] zegary i replikacja · [S] składowanie i odtwarzanie · [M] model danych · [E] edge computing · [B] metodyka pomiarów · [V] prywatność · [X] źródła niepobrane · [Q] dokumentacja platform i źródła branżowe.
+**Identyfikatory zachowano z poprzedniej wersji bazy**, żeby nie unieważniać odwołań; luki w numeracji to pozycje przeniesione poza rdzeń (§13). Nowe prace z rewizji: [C9]–[C11], [L27]–[L28], [M2]–[M3], [S10].
+
+Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przeglądarce i porównywane silniki · [L] Local-First, CRDT, synchronizacja · [C] replikacja, zegary, praca offline · [S] składowanie i odtwarzanie · [M] model danych i zapytania · [E] edge computing · [B] metodyka pomiarów · [V] prywatność · [X] do pobrania · [Q] dokumentacja platform i źródła branżowe.
+
+## Mapa: założenia projektu → literatura
+
+| Założenie lub atut Flat-SQL | Prace rdzenia |
+|---|---|
+| Płaski model, obowiązkowy klucz, brak JOIN, przewidywalne wykonanie | [C7] Helland, [M2] PIQL, [M1] Stonebraker i Pavlo (krytyka), [D4] Riffle (krytyka), [L8] Antidote SQL |
+| Dane w pamięci, wykonanie jednowątkowe | [S4] H-Store, [S1] DeWitt, [P1] rozdz. 3 i 7, [D5] Zeta-Lite |
+| WAL fizyczny + snapshot, group commit | [S1] DeWitt, [S6] Malviya, [S10] Cao, [P1] rozdz. 3 |
+| Odporność na awarie zapisu | [S8] Pillai, [Q1] trwałość IndexedDB |
+| Zegar HLC, porządek znaczników | [C2] Kulkarni, [P1] rozdz. 8–9 |
+| LWW per wiersz, tombstone'y, zbieżność | [L2] Shapiro, [L28] Almeida, [C9] Gray, [L24] CRR |
+| Outbox przetrwały restart, praca offline | [C10] Coda, [L27] Simba, [C3] Bayou |
+| Protokół push/pull z kursorami, log serwera | [C3] Bayou, [P1] rozdz. 11–12, [C7] Helland (idempotencja) |
+| Atomowość: transakcja lokalnie, wiersz między replikami | [C8] Bailis (MAV), [L27] Simba, [C7] Helland |
+| Ewolucja schematu w replikach | [L26] Cambria |
+| Mały moduł WASM, ten sam rdzeń wszędzie | [P2] Haas, [W1] Jangda, [W11] Yan |
+| Granica JS↔WASM (H3) | [D1] DuckDB-Wasm (Arrow IPC); brak badań recenzowanych – wkład własny |
+| Lokalne zapytania zamiast sieci (H1) | [L1] Local-first, [D4] Riffle (budżet 16 ms), [E1] Shi |
+| Hybryda: lokalny silnik + serwer koordynujący | [L20] Niinikoski, [C9] Gray (two-tier), [C3] Bayou |
+| Privacy by Design | [V1] Cavoukian, [L1], [W2] Lehmann, [L11] Kuessner |
+| Rozszerzenia: replikacja częściowa, reguły serwera, zapytania reaktywne | [C11] Cimbiosys, [C9] Gray, [M3] Gupta i Mumick, [D4] Riffle |
+| Metodyka benchmarków | [B1] Georges, [B3] Raasveldt, [B5] YCSB |
 
 ---
 
 ## 1. Prace polecone przez promotora
 
 - **[P1]** Kleppmann M. *Designing Data-Intensive Applications: The Big Ideas Behind Reliable, Scalable, and Maintainable Systems.* O'Reilly Media, 2017. ISBN 978-1-449-37332-0.
-  Wydanie polskie: *Przetwarzanie danych w dużej skali. Niezawodność, skalowalność i łatwość konserwacji systemów*, Helion, Gliwice 2018 (ISBN 978-83-283-4065-7 wg Goodreads; katalog TUM podaje 978-83-283-4066-4 – sprawdzić na egzemplarzu).
-  Wydanie 2: Kleppmann M., Riccomini C., O'Reilly, luty–marzec 2026.
-  **Plik:** brak (książka komercyjna). Bibliografia rozdziałów: [ddia-references/](ddia-references/). Notatka z mapą rozdziałów: [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md).
-  — Podręcznik systemów danych: struktury składowania (log, LSM, B-drzewa, bazy w pamięci), kodowanie i ewolucja formatów, replikacja (w tym klienci offline jako replikacja multi-leader), rozwiązywanie konfliktów (LWW, CRDT), transakcje, zawodność zegarów, uporządkowanie zdarzeń, strumienie i log zmian. **Dla projektu:** teoretyczna podstawa niemal każdej decyzji z [architecture.md](../architecture.md) – WAL + snapshot, wykonanie szeregowe, LWW, outbox, log synchronizacji z kursorami.
+  Wydanie polskie: *Przetwarzanie danych w dużej skali. Niezawodność, skalowalność i łatwość konserwacji systemów*, Helion, Gliwice 2018 (ISBN wg Goodreads 978-83-283-4065-7, wg katalogu TUM 978-83-283-4066-4 – sprawdzić na egzemplarzu). Wydanie 2: Kleppmann M., Riccomini C., O'Reilly, 2026.
+  **Plik:** brak (książka komercyjna). Bezpłatne uzupełnienie autora: notatki do wykładu *Distributed Systems*, University of Cambridge 2021/22 – [papers/kleppmann-distributed-systems-lecture-notes.pdf](papers/kleppmann-distributed-systems-lecture-notes.pdf) (zegary, rozgłaszanie, replikacja, CRDT). Bibliografie rozdziałów: [github.com/ept/ddia-references](https://github.com/ept/ddia-references). Notatka: [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md).
+  — Podręcznik systemów danych: bazy w pamięci, log i snapshot (rozdz. 3), kodowanie i ewolucja formatów (4), klienci offline jako replikacja multi-leader i LWW (5), wykonanie szeregowe (7), zawodność zegarów (8), granice spójności ostatecznej (9), CDC i kompaktowanie logu (11), klienci ze stanem i model push (12). **Dla projektu:** teoretyczna podstawa niemal każdej decyzji z [architecture.md](../architecture.md). **Zadania:** todo 0.2, 0.3, 1.1, 2.1, 3.2; future 6.1, 6.2, §7, 11.2.
 
-- **[P2]** Haas A., Rossberg A., Schuff D. L., Titzer B. L., Holman M., Gohman D., Wagner L., Zakai A., Bastien J. F. *Bringing the Web up to Speed with WebAssembly.* PLDI 2017, ACM, s. 185–200. DOI: [10.1145/3062341.3062363](https://doi.org/10.1145/3062341.3062363).
-  **Plik:** [papers/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf](papers/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf) (wersja autorska, MPI-SWS). Notatka: [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md).
-  — Artykuł wprowadzający WebAssembly: cele projektowe (bezpieczny, szybki, przenośny, zwarty kod), maszyna stosowa z typami sprawdzanymi przy walidacji, pamięć liniowa izolowana od kodu i stosu silnika, formalna semantyka. W pomiarach PolyBenchC 7 z 24 programów mieściło się w 10% czasu kodu natywnego, a prawie wszystkie w 2×; kod był średnio o 33,7% szybszy niż asm.js i miał 62,5% rozmiaru asm.js. **Dla projektu:** punkt odniesienia dla H2 (narzut WASM), rozmiaru modułu i argumentu „izolowanej piaskownicy” w Privacy by Design.
+- **[P2]** Haas A., Rossberg A., Schuff D. L., Titzer B. L., Holman M., Gohman D., Wagner L., Zakai A., Bastien J. F. *Bringing the Web up to Speed with WebAssembly.* PLDI 2017, ACM, s. 185–200. DOI: [10.1145/3062341.3062363](https://doi.org/10.1145/3062341.3062363). Wersja skrócona: Rossberg A. i in., Communications of the ACM 61(12), 2018, s. 107–115, DOI: [10.1145/3282510](https://doi.org/10.1145/3282510).
+  **Plik:** [papers/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf](papers/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf); wersja CACM: [papers/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf](papers/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf). Notatka: [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md).
+  — Artykuł wprowadzający WebAssembly: bezpieczny, szybki, przenośny i zwarty kod; pamięć liniowa izolowana od kodu i stosu silnika; formalna semantyka. W PolyBenchC 7 z 24 programów w granicy 10% kodu natywnego, prawie wszystkie poniżej 2×; kod o 33,7% szybszy od asm.js przy 62,5% jego rozmiaru. **Dla projektu:** punkt odniesienia dla H2, rozmiaru modułu i argumentu „izolowanej piaskownicy”; artykuł nie mierzy kosztu granicy JS↔WASM (H3). **Zadania:** todo 1.8.
 
-- **[P2a]** Rossberg A., Titzer B. L., Haas A., Schuff D. L., Gohman D., Wagner L., Zakai A., Bastien J. F., Holman M. *Bringing the Web up to Speed with WebAssembly.* Communications of the ACM 61(12), 2018, s. 107–115. DOI: [10.1145/3282510](https://doi.org/10.1145/3282510).
-  **Plik:** [papers/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf](papers/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf).
-  — Skrócona, przystępniejsza wersja [P2] dla CACM. Wygodna do cytowania w części wstępnej pracy.
-
-## 2. WebAssembly – wydajność, bezpieczeństwo, ewolucja standardu
+## 2. WebAssembly – wydajność i bezpieczeństwo
 
 - **[W1]** Jangda A., Powers B., Berger E. D., Guha A. *Not So Fast: Analyzing the Performance of WebAssembly vs. Native Code.* USENIX ATC 2019.
   **Plik:** [papers/2019-jangda-not-so-fast-webassembly-vs-native.pdf](papers/2019-jangda-not-so-fast-webassembly-vs-native.pdf).
-  — Pierwsze duże porównanie WASM z kodem natywnym na SPEC CPU (przez Browsix-Wasm): średnio 1,55× wolniej w Chrome i 1,45× w Firefoksie, maksymalnie 2,5× / 2,08×. Przyczyny: ok. 2× więcej odczytów i zapisów pamięci (presja na rejestry), więcej skoków (m.in. sprawdzanie przepełnienia stosu przy każdym wywołaniu, kontrola wywołań pośrednich), większy kod. Krytykuje [P2] za oparcie się na małych jądrach PolyBenchC. **Dla projektu:** najważniejsze odniesienie dla H2; wyjaśnia obserwację z [benchmark-results.md §5](../research/benchmark-results.md) (duża ramka stosu rekurencyjnego `eval`).
+  — SPEC CPU przez Browsix-Wasm: średnio 1,55× wolniej w Chrome i 1,45× w Firefoksie, maksymalnie 2,5×. Przyczyny: więcej dostępów do pamięci (presja na rejestry), sprawdzanie stosu przy każdym wywołaniu, większy kod. **Dla projektu:** główne odniesienie dla H2; tłumaczy, dlaczego spłaszczenie rekurencyjnego `eval` dało w WASM tak duży zysk ([benchmark-results.md §5](../research/benchmark-results.md)).
 
 - **[W2]** Lehmann D., Kinder J., Pradel M. *Everything Old is New Again: Binary Security of WebAssembly.* USENIX Security 2020.
   **Plik:** [papers/2020-lehmann-binary-security-of-webassembly.pdf](papers/2020-lehmann-binary-security-of-webassembly.pdf).
-  — Pokazuje, że wewnątrz pamięci liniowej brakuje zabezpieczeń znanych z kodu natywnego (kanarki stosu, ASLR, strony ochronne, ochrona metadanych sterty, dane tylko do odczytu), więc błędy z C/C++ są w WASM znów wykorzystywalne. **Dla projektu:** precyzuje, co naprawdę daje „izolowana piaskownica” – chroni hosta przed modułem, ale nie dane modułu przed błędami w nim samym; argument za Rustem bez `unsafe` (rdzeń i `flatsql-wasm` go nie używają).
-
-- **[W3]** Hilbig A., Lehmann D., Pradel M. *An Empirical Study of Real-World WebAssembly Binaries: Security, Languages, Use Cases.* WWW 2021, s. 2696–2708. DOI: [10.1145/3442381.3450138](https://doi.org/10.1145/3442381.3450138).
-  **Plik:** [papers/2021-hilbig-empirical-study-real-world-webassembly-binaries.pdf](papers/2021-hilbig-empirical-study-real-world-webassembly-binaries.pdf).
-  — Analiza 8461 binariów WASM z repozytoriów, menedżerów pakietów i stron WWW: języki źródłowe, zastosowania, właściwości bezpieczeństwa. **Dla projektu:** kontekst, jak WASM jest używany w praktyce; uzupełnia [W2].
-
-- **[W4]** Bosamiya J., Lim W. S., Parno B. *Provably-Safe Multilingual Software Sandboxing using WebAssembly.* USENIX Security 2022, s. 1975–1992.
-  **Plik:** [papers/2022-bosamiya-provably-safe-sandboxing-webassembly.pdf](papers/2022-bosamiya-provably-safe-sandboxing-webassembly.pdf).
-  — Dwie drogi do dowodliwie bezpiecznej piaskownicy WASM: kompilator z dowodem formalnym (vWasm) i tłumaczenie semantyki WASM do bezpiecznego Rusta (rWasm), przy wydajności zbliżonej do klasycznych podejść. **Dla projektu:** literatura do tezy, że bezpieczeństwo piaskownicy zależy od implementacji środowiska uruchomieniowego.
-
-- **[W5]** Zhang Y., Liu M., Wang H., Ma Y., Huang G., Liu X. *Research on WebAssembly Runtimes: A Survey.* arXiv:2404.12621 (v2, 2024); wersja czasopismowa ACM TOSEM, 2025, DOI: [10.1145/3714465](https://doi.org/10.1145/3714465).
-  **Plik:** [papers/2024-zhang-webassembly-runtimes-survey.pdf](papers/2024-zhang-webassembly-runtimes-survey.pdf).
-  — Systematyczny przegląd ok. 100 prac o środowiskach uruchomieniowych WASM (projekt, testowanie, analiza, zastosowania, w tym SQLite w TEE). **Dla projektu:** gotowa mapa literatury do rozdziału o WebAssembly.
-
-- **[W6]** Döllerer L., Engelke A. *Performant Bounds Checking for 64-Bit WebAssembly.* VMIL 2024. DOI: [10.1145/3689490.3690400](https://doi.org/10.1145/3689490.3690400).
-  **Plik:** [papers/2024-dollerer-bounds-checking-64bit-webassembly.pdf](papers/2024-dollerer-bounds-checking-64bit-webassembly.pdf).
-  — Programowe sprawdzanie granic przy 64-bitowej pamięci WASM (memory64) kosztuje ponad 100% czasu wykonania; dwupoziomowe strony ochronne obniżają narzut do 12,7%. **Dla projektu:** koszt wyjścia poza 4 GiB pamięci `wasm32` (dane w całości w pamięci).
-
-- **[W7]** Baek D., Getz J., Sim Y., Lehmann D., Titzer B. L., Ryu S., Pradel M. *Wasm-R3: Record-Reduce-Replay for Realistic and Standalone WebAssembly Benchmarks.* PACMPL 8 (OOPSLA2), art. 347, 2024. DOI: [10.1145/3689787](https://doi.org/10.1145/3689787).
-  **Plik:** [papers/2024-wasm-r3-realistic-webassembly-benchmarks.pdf](papers/2024-wasm-r3-realistic-webassembly-benchmarks.pdf).
-  — Nagrywanie i odtwarzanie rzeczywistych aplikacji WASM jako samodzielnych benchmarków (zestaw 27 aplikacji); wskazuje, że PolyBenchC i libsodium nie są reprezentatywne. **Dla projektu:** argument za benchmarkiem opartym na realnym scenariuszu (demo), a nie tylko syntetycznym.
-
-- **[W8]** He N., Cao S., Wang H., Guo Y., Luo X. *The Promise and Pitfalls of WebAssembly: Perspectives from the Industry.* arXiv:2503.21240, 2025.
-  **Plik:** [papers/2025-promise-and-pitfalls-of-webassembly.pdf](papers/2025-promise-and-pitfalls-of-webassembly.pdf).
-  — Największy dotąd zbiór binariów WASM używanych w przemyśle i ich charakterystyka; krytykuje dobór danych w [W3]. **Dla projektu:** aktualny (2025) obraz zastosowań WASM.
-
-- **[W9]** Corrias L., Pisu L., Maiorca D., Giacinto G. *An Analysis of Modern Web Security Vulnerabilities Inside WebAssembly Applications.* arXiv:2603.09426, marzec 2026.
-  **Plik:** [papers/2026-corrias-web-vulnerabilities-inside-webassembly.pdf](papers/2026-corrias-web-vulnerabilities-inside-webassembly.pdf).
-  — Błędy binarne w module WASM (przepełnienie bufora, use-after-free) mogą prowadzić do klasycznych ataków webowych: SQL injection, XS-Leaks, SSTI. **Dla projektu:** najnowsze argumenty, że piaskownica nie zastępuje bezpiecznej implementacji; istotne dla silnika SQL wywoływanego z JS.
-
-- **[W10]** WebAssembly Community Group (red. Rossberg A.). *WebAssembly Specification, Release 3.0.* Kompilacja z 13.10.2026. Wasm 3.0 ogłoszono 17.09.2025 ([webassembly.org](https://webassembly.org/news/2025-09-17-wasm-3.0)).
-  **Plik:** [papers/webassembly-core-specification.pdf](papers/webassembly-core-specification.pdf).
-  — Aktualna specyfikacja rdzenia: m.in. memory64, wiele pamięci, GC, obsługa wyjątków, wywołania ogonowe, relaxed SIMD; obok niej JS String Builtins w JS API. **Dla projektu:** stan standardu na czas pisania pracy (w [P2] opisano MVP z 2017 r.).
+  — W pamięci liniowej brakuje kanarków stosu, ASLR, stron ochronnych i danych tylko do odczytu, więc błędy pamięci z C/C++ są w WASM znów wykorzystywalne. **Dla projektu:** precyzuje, co daje „izolowana piaskownica” z README – chroni hosta przed modułem, nie dane modułu przed jego błędami ani przed innymi skryptami strony; argument za Rustem bez `unsafe` i przeciw trzymaniu kluczy kryptograficznych w bazie. **Zadania:** todo 0.1, 0.2.
 
 - **[W11]** Yan Y., Tu T., Zhao L., Zhou Y., Wang W. *Understanding the Performance of WebAssembly Applications.* IMC 2021. DOI: [10.1145/3487552.3487827](https://doi.org/10.1145/3487552.3487827).
-  **Plik:** [papers/2021-yan-understanding-performance-webassembly-applications.pdf](papers/2021-yan-understanding-performance-webassembly-applications.pdf) (ACM DL, wersja ogólnodostępna).
-  — Systematyczne porównanie WASM z JavaScriptem w Chrome, Firefoksie i Edge na trzech zbiorach programów i przy różnych poziomach optymalizacji (O1, O2, Oz, Ofast). Wnioski: optymalizacje LLVM nie są dostrojone do WASM i bywają nieskuteczne, a nawet szkodliwe; JIT wyraźnie przyspiesza JS, ale nie WASM; wyniki mocno zależą od środowiska; WASM zużywa znacznie więcej pamięci niż JS. **Dla projektu:** argument, by sprawdzić w benchmarku inne poziomy optymalizacji niż `opt-level = 3` + `wasm-opt -O3`, i tło dla zużycia pamięci przy danych w całości w pamięci.
+  **Plik:** [papers/2021-yan-understanding-performance-webassembly-applications.pdf](papers/2021-yan-understanding-performance-webassembly-applications.pdf).
+  — WASM vs JS w Chrome, Firefoksie i Edge przy różnych poziomach optymalizacji: optymalizacje LLVM nie są dostrojone do WASM i bywają szkodliwe, wyniki silnie zależą od przeglądarki, WASM zużywa znacznie więcej pamięci niż JS. **Dla projektu:** podstawa porównania poziomów optymalizacji i pomiaru pamięci. **Zadania:** todo 2.5, 2.7, 4.4.
 
-## 3. Bazy danych w przeglądarce i SQL w WebAssembly
+## 3. Bazy danych w przeglądarce i porównywane silniki
 
 - **[D1]** Kohn A., Moritz D., Raasveldt M., Mühleisen H., Neumann T. *DuckDB-Wasm: Fast Analytical Processing for the Web.* PVLDB 15(12), 2022, s. 3574–3577. DOI: [10.14778/3554821.3554847](https://doi.org/10.14778/3554821.3554847).
   **Plik:** [papers/2022-kohn-duckdb-wasm.pdf](papers/2022-kohn-duckdb-wasm.pdf).
-  — DuckDB w WASM: zapytania w wątkach w tle (Web Worker), funkcje użytkownika w JS, system plików czytający lokalne i zdalne pliki fragmentami; szybszy od wcześniejszych bibliotek webowych w TPC-H. **Dla projektu:** właściwy punkt odniesienia dla scenariusza „CSV 500 MB” z README – inna klasa systemu niż Flat-SQL.
+  — DuckDB w WASM: zapytania w Web Workerze, czytanie plików lokalnych i zdalnych fragmentami, wyniki serializowane jako strumienie Arrow IPC czytane przez JS wprost ze sterty WASM. **Dla projektu:** właściwe narzędzie dla scenariusza „CSV 500 MB” (inna klasa systemu) i wzór binarnego przekazywania wyników. **Zadania:** todo 0.2, 2.4.
 
 - **[D2]** Gaffney K. P., Prammer M., Brasfield L., Hipp D. R., Kennedy D., Patel J. M. *SQLite: Past, Present, and Future.* PVLDB 15(12), 2022, s. 3535–3547. DOI: [10.14778/3554821.3554842](https://doi.org/10.14778/3554821.3554842).
   **Plik:** [papers/2022-gaffney-sqlite-past-present-future.pdf](papers/2022-gaffney-sqlite-past-present-future.pdf).
-  — Architektura SQLite (wiersze, B-drzewa, OLTP), porównanie z DuckDB i optymalizacje analityczne (do 4,2× szybciej w SSB). **Dla projektu:** wyjaśnia przewagi SQLite widoczne w H4 (format stronicowy, indeksy pokrywające).
-
-- **[D3]** Haffner I., Dittrich J. *Fast Compilation and Execution of SQL Queries with WebAssembly.* arXiv:2104.15098, 2021 (rozwinięcie: EDBT 2023).
-  **Plik:** [papers/2021-haffner-fast-compilation-sql-queries-webassembly.pdf](papers/2021-haffner-fast-compilation-sql-queries-webassembly.pdf).
-  — Kompilacja planów zapytań SQL do WASM i wykorzystanie wielopoziomowej kompilacji V8 (Liftoff → TurboFan) do uzyskania niskiej latencji i wysokiej przepustowości. **Dla projektu:** alternatywa dla interpretera wyrażeń z `expr`; kierunek dalszych prac (JIT zapytań).
+  — Architektura SQLite (format stronicowy, B-drzewa, OLTP), porównanie z DuckDB, optymalizacje analityczne. **Dla projektu:** wyjaśnia przewagi SQLite w H4 (snapshot = kopia pliku, indeksy pokrywające). **Zadania:** todo 2.1.
 
 - **[D4]** Litt G., Schiefer N., Schickling J., Jackson D. *Riffle: Reactive Relational State for Local-First Applications.* UIST 2023. DOI: [10.1145/3586183.3606801](https://doi.org/10.1145/3586183.3606801).
   **Plik:** [papers/2023-litt-riffle-reactive-relational-state.pdf](papers/2023-litt-riffle-reactive-relational-state.pdf).
-  — Cały stan aplikacji webowej w trwałej, lokalnej relacyjnej bazie; reaktywne zapytania i synchroniczne transakcyjne aktualizacje w wątku UI; cel: odpowiedź w 16 ms (próg Nielsena: 100 ms). Złączenia w SQLite potrafiły trwać ponad 300 ms, inkrementalnie utrzymywane widoki – 1–10 ms. **Dla projektu:** najbliższa praca naukowa (lokalna baza SQL w przeglądarce + Local-First); argument za zapytaniami reaktywnymi i przeciw całkowitej rezygnacji ze złączeń.
+  — Cały stan aplikacji w lokalnej relacyjnej bazie (SKDB) z reaktywnymi zapytaniami i synchronicznymi transakcjami w wątku UI; cel: odpowiedź w 16 ms (jedna klatka), próg Nielsena 100 ms. Znaczna część kodu UI to złączenia i grupowania. **Dla projektu:** najbliższa praca naukowa (lokalna baza SQL + Local-First); budżet 16 ms do interpretacji H1 i pauzy checkpointu; argument za zapytaniami reaktywnymi i przeciw całkowitej rezygnacji ze złączeń. **Zadania:** todo 4.10; future 5.1, 5.2.
 
-- **[D5]** Zhang G. *Zeta-Lite: A Concurrent, Branchable In-Browser SQL Database for Agentic Memory.* arXiv:2609.01818, wrzesień 2026 (wersja v0.1, preprint bez recenzji).
+- **[D5]** Zhang G. *Zeta-Lite: A Concurrent, Branchable In-Browser SQL Database for Agentic Memory.* arXiv:2609.01818, wrzesień 2026 (preprint bez recenzji).
   **Plik:** [papers/2026-zeta-lite-in-browser-sql-database.pdf](papers/2026-zeta-lite-in-browser-sql-database.pdf).
-  — Przeglądarkowa wersja serwerowego silnika Zeta: ten sam parser, planer i wykonawca skompilowany do `wasm32-unknown-unknown` z `wasm-bindgen` (2,87 MB gzip). Transakcje z izolacją migawkową w jednym wątku (MVCC), rozgałęzianie całej bazy, pełny dialekt PostgreSQL; trwałość przez snapshot do OPFS zapisywany na żądanie – autor przyznaje, że zmiany po ostatnim snapshocie giną. Przepustowość w przeglądarce 5–15% poniżej natywnej. Kod silnika zamknięty, jeden autor. **Dla projektu:** najnowszy system o tej samej architekturze „jeden rdzeń dla serwera i przeglądarki” i tym samym toolchainie; jego zgrubna trwałość kontrastuje z przyrostowym WAL Flat-SQL (H5). Cytować ostrożnie (preprint).
+  — Serwerowy silnik Zeta skompilowany do `wasm32-unknown-unknown` z `wasm-bindgen` (2,87 MB gzip): MVCC w jednym wątku, rozgałęzianie bazy, dialekt PostgreSQL; 268–315 tys. odczytów punktowych/s (ok. 3,2–3,7 µs), w przeglądarce 5–15% poniżej natywnej. Trwałość tylko przez snapshot do OPFS na żądanie – autor przyznaje, że zmiany po ostatnim snapshocie giną. Kod zamknięty, jeden autor. **Dla projektu:** najnowszy system o tej samej architekturze „jeden rdzeń dla serwera i przeglądarki”; kontrast dla przyrostowego WAL (H5) i cel dla odczytu po kluczu. Cytować ostrożnie. **Zadania:** todo 2.4, 4.1.
 
 ## 4. Local-First, CRDT i synchronizacja
 
 - **[L1]** Kleppmann M., Wiggins A., van Hardenberg P., McGranaghan M. *Local-First Software: You Own Your Data, in spite of the Cloud.* Onward! 2019, s. 154–178. DOI: [10.1145/3359591.3359737](https://doi.org/10.1145/3359591.3359737).
-  **Plik:** [papers/2019-kleppmann-local-first-software.pdf](papers/2019-kleppmann-local-first-software.pdf) (wersja ACM, otwarty dostęp).
-  — Siedem ideałów oprogramowania local-first: brak „spinnerów”, wiele urządzeń, sieć opcjonalna, współpraca, długowieczność danych, prywatność i bezpieczeństwo domyślnie, kontrola użytkownika; ocena istniejących technologii i CRDT jako fundamentu. Zwraca uwagę, że magazyn przeglądarki bywa czyszczony razem z ciasteczkami. **Dla projektu:** główna rama oceny architektury (tabela w [literature-comparison.md §3](literature-comparison.md#3-ideały-local-first)).
+  **Plik:** [papers/2019-kleppmann-local-first-software.pdf](papers/2019-kleppmann-local-first-software.pdf).
+  — Siedem ideałów oprogramowania local-first (brak spinnerów, wiele urządzeń, sieć opcjonalna, współpraca, długowieczność danych, prywatność, kontrola użytkownika); CRDT jako fundament; magazyn przeglądarki bywa czyszczony razem z ciasteczkami. **Dla projektu:** główna rama oceny architektury ([literature-comparison.md §3](literature-comparison.md#3-ideały-local-first)). **Zadania:** todo 1.5; future 1.3, 4.3, 6.3.
 
-- **[L2]** Shapiro M., Preguiça N., Baquero C., Zawirski M. *A comprehensive study of Convergent and Commutative Replicated Data Types.* INRIA, Research Report RR-7506, 2011.
-  **Plik:** [papers/2011-shapiro-comprehensive-study-crdt.pdf](papers/2011-shapiro-comprehensive-study-crdt.pdf) (kopia z serwisu kursu IISc; oryginał w HAL: inria-00555588).
-  — Formalne podstawy CRDT (state-based / op-based) i katalog typów, m.in. rejestr LWW (specyfikacje 8–9), zbiory z tombstone'ami. **Dla projektu:** model Flat-SQL to mapa rejestrów LWW indeksowana kluczem głównym – tu jest jego formalna definicja.
-
-- **[L3]** Preguiça N. *Conflict-free Replicated Data Types: An Overview.* arXiv:1806.10254, 2018.
-  **Plik:** [papers/2018-preguica-crdt-overview.pdf](papers/2018-preguica-crdt-overview.pdf).
-  — Zwięzły przegląd CRDT, wariantów synchronizacji i zastosowań. **Dla projektu:** łatwiejsze wejście w temat niż [L2].
-
-- **[L4]** Gomes V. B. F., Kleppmann M., Mulligan D. P., Beresford A. R. *Verifying Strong Eventual Consistency in Distributed Systems.* PACMPL 1 (OOPSLA), art. 109, 2017. arXiv:1707.01747.
-  **Plik:** [papers/2017-gomes-verifying-strong-eventual-consistency.pdf](papers/2017-gomes-verifying-strong-eventual-consistency.pdf).
-  — Mechanicznie sprawdzony (Isabelle/HOL) dowód silnej spójności ostatecznej dla kilku CRDT w modelu sieci z utratą i zmianą kolejności wiadomości. **Dla projektu:** jak formalnie uzasadnić zbieżność, którą Flat-SQL sprawdza testem losowym.
-
-- **[L5]** Kleppmann M., Beresford A. R. *A Conflict-Free Replicated JSON Datatype.* IEEE TPDS 28(10), 2017, s. 2733–2746. arXiv:1608.03960.
-  **Plik:** [papers/2017-kleppmann-beresford-json-crdt.pdf](papers/2017-kleppmann-beresford-json-crdt.pdf).
-  — CRDT dla zagnieżdżonych dokumentów JSON (podstawa biblioteki Automerge). **Dla projektu:** alternatywa dokumentowa wobec płaskich wierszy.
-
-- **[L6]** Almeida P. S., Shoker A., Baquero C. *Delta State Replicated Data Types.* arXiv:1603.01529, 2016 (wersja czasopismowa: JPDC, 2018).
-  **Plik:** [papers/2016-almeida-delta-state-crdt.pdf](papers/2016-almeida-delta-state-crdt.pdf).
-  — Przesyłanie tylko zmienionych fragmentów stanu (delt) zamiast całego stanu. **Dla projektu:** outbox Flat-SQL (wysyłka bieżącego stanu zmienionych wierszy) jest w istocie synchronizacją delta-state.
-
-- **[L7]** Baquero C., Almeida P. S., Shoker A. *Pure Operation-Based Replicated Data Types.* arXiv:1710.04469, 2017.
-  **Plik:** [papers/2017-baquero-pure-operation-based-crdt.pdf](papers/2017-baquero-pure-operation-based-crdt.pdf).
-  — CRDT oparte na częściowo uporządkowanym logu operacji z kompaktowaniem po osiągnięciu stabilności przyczynowej. **Dla projektu:** formalne kryterium, kiedy można usuwać tombstone'y (planowane w [architecture.md §8](../architecture.md)).
+- **[L2]** Shapiro M., Preguiça N., Baquero C., Zawirski M. *A comprehensive study of Convergent and Commutative Replicated Data Types.* INRIA, RR-7506, 2011.
+  **Plik:** [papers/2011-shapiro-comprehensive-study-crdt.pdf](papers/2011-shapiro-comprehensive-study-crdt.pdf) (kopia z serwisu kursu IISc; oryginał: HAL inria-00555588).
+  — Formalne podstawy CRDT i katalog typów, m.in. rejestr LWW, liczniki PN, zbiory z tombstone'ami. **Dla projektu:** model replikacji Flat-SQL to mapa rejestrów LWW indeksowana kluczem – tu jest jego formalna definicja i dowód zbieżności. **Zadania:** todo 1.9; future 2.5.
 
 - **[L8]** Lopes P., Sousa J., Balegas V., Ferreira C., Duarte S., Bieniusa A., Rodrigues R., Preguiça N. *Antidote SQL: Relaxed When Possible, Strict When Necessary.* arXiv:1902.03576, 2019.
   **Plik:** [papers/2019-lopes-antidote-sql.pdf](papers/2019-lopes-antidote-sql.pdf).
-  — Interfejs SQL nad bazą słabo spójną: semantyka update-wins / delete-wins deklarowana per tabela, klucze obce bez koordynacji, silna spójność tylko tam, gdzie konieczna. **Dla projektu:** pokazuje, że trudność replikacji leży w więzach integralności (klucze obce), a nie w samych złączeniach – ważne dla uzasadnienia modelu „bez JOIN”.
-
-- **[L9]** Edwards J., Petricek T., van der Storm T. *Live & Local Schema Change: Challenge Problems.* arXiv:2309.11406, 2023.
-  **Plik:** [papers/2023-live-local-schema-change.pdf](papers/2023-live-local-schema-change.pdf).
-  — Zestaw problemów-wyzwań dotyczących zmian schematu w programowaniu na żywo i w oprogramowaniu local-first (rozjazd danych między replikami i wersjami kodu). **Dla projektu:** replikacja `CREATE/DROP TABLE` w Flat-SQL jest uproszczona – tu opisano, dlaczego to problem otwarty.
-
-- **[L10]** Edwards J., Petricek T. *Baseline: Operation-Based Evolution and Versioning of Data.* arXiv:2512.09762 (v2: czerwiec 2026).
-  **Plik:** [papers/2025-baseline-operation-based-evolution-of-data.pdf](papers/2025-baseline-operation-based-evolution-of-data.pdf).
-  — Wersjonowanie danych oparte na operacjach (w tym refaktoryzacjach i zmianach schematu) z łączeniem gałęzi mimo zmian struktury. **Dla projektu:** najnowszy kierunek dla ewolucji schematu w replikach.
+  — SQL nad bazą słabo spójną: semantyka update-wins / delete-wins deklarowana w schemacie, kolumny addytywne na licznikach ograniczonych (metoda escrow), klucze obce bez koordynacji. **Dla projektu:** wzór deklarowania scalania w SQL (`MERGE ADD`) i argument, że trudność replikacji leży w więzach integralności, nie w samych złączeniach. **Zadania:** future 2.2, 2.5, 5.2.
 
 - **[L11]** Kuessner C., Mogk R., Wickert A.-K., Mezini M. *Encrypted Replicated Data Types within REScala.* PLF 2022 (preprint).
   **Plik:** [papers/2022-kuessner-encrypted-replicated-data-types.pdf](papers/2022-kuessner-encrypted-replicated-data-types.pdf).
-  — Replikowane typy danych z automatycznym szyfrowaniem i uwierzytelnianiem, synchronizowane przez niezaufanych pośredników. **Dla projektu:** jak dodać szyfrowanie end-to-end bez rezygnacji z serwera synchronizacji.
-
-- **[L12]** Kleppmann M., Howard H. *Byzantine Eventual Consistency and the Fundamental Limits of Peer-to-Peer Databases.* arXiv:2012.00472, 2020.
-  **Plik:** [papers/2020-kleppmann-howard-byzantine-eventual-consistency.pdf](papers/2020-kleppmann-howard-byzantine-eventual-consistency.pdf).
-  — Spójność ostateczna przy złośliwych uczestnikach i granice tego, co da się zagwarantować bez koordynacji. **Dla projektu:** serwer Flat-SQL przyjmuje dowolne zmiany i znaczniki – praca pokazuje, czego wymaga odporność na nieuczciwego klienta.
-
-- **[L13]** Sanjuán H., Pöyhtäri S., Teixeira P., Psaras I. *Merkle-CRDTs: Merkle-DAGs meet CRDTs.* arXiv:2004.00107, 2020.
-  **Plik:** [papers/2020-sanjuan-merkle-crdts.pdf](papers/2020-sanjuan-merkle-crdts.pdf).
-  — Merkle-DAG jako warstwa transportu i trwałości CRDT, bez centralnego serwera. **Dla projektu:** alternatywa dla logu z kursorami po stronie serwera.
-
-- **[L14]** Meyer A. *Range-Based Set Reconciliation.* arXiv:2212.13567, 2023.
-  **Plik:** [papers/2023-meyer-range-based-set-reconciliation.pdf](papers/2023-meyer-range-based-set-reconciliation.pdf).
-  — Wydajne uzgadnianie zbiorów przez rekurencyjne porównywanie odcisków zakresów. **Dla projektu:** sposób na synchronizację bez pełnego `exportState` po utracie kursora (nowy klient, nowa epoka serwera).
-
-- **[L15]** Weidner M. i in. *Collabs: A Flexible and Performant CRDT Collaboration Framework.* arXiv:2212.02618 (v2, 2023).
-  **Plik:** [papers/2022-weidner-collabs.pdf](papers/2022-weidner-collabs.pdf).
-  — Biblioteka CRDT do budowy aplikacji współpracy, z oceną wydajności. **Dla projektu:** przykład dojrzałej warstwy CRDT w przeglądarce.
-
-- **[L16]** Gentle J., Kleppmann M. *Collaborative Text Editing with Eg-walker: Better, Faster, Smaller.* EuroSys 2025. arXiv:2409.14252.
-  **Plik:** [papers/2025-gentle-kleppmann-eg-walker.pdf](papers/2025-gentle-kleppmann-eg-walker.pdf).
-  — Algorytm łączący zalety OT i CRDT: mniej pamięci i szybsze wczytywanie niż CRDT, szybkie scalanie długich gałęzi offline. **Dla projektu:** najnowsza praca Kleppmanna; kontekst dla danych tekstowych, których Flat-SQL nie scala (LWW na cały wiersz).
-
-- **[L17]** Ramesh P., Soundarapandian V., Sivaramakrishnan K. C. *Sal: Multi-modal Verification of Replicated Data Types.* arXiv:2603.27202, marzec 2026.
-  **Plik:** [papers/2026-sal-verification-replicated-data-types.pdf](papers/2026-sal-verification-replicated-data-types.pdf).
-  — Weryfikacja CRDT i MRDT w Lean (automatyzacja z rekonstrukcją dowodu, SMT w razie potrzeby). **Dla projektu:** stan sztuki 2026 w formalnej weryfikacji typów replikowanych.
-
-- **[L18]** Jacob F., Stuber J., Hartenstein H. *Towards System-Oriented Formal Verification of Local-First Access Control.* arXiv:2604.23560, kwiecień 2026.
-  **Plik:** [papers/2026-local-first-access-control-verification.pdf](papers/2026-local-first-access-control-verification.pdf).
-  — Formalnie weryfikowana kontrola dostępu dla systemów local-first odpornych na zachowania bizantyjskie (Matrix, Keyhive), specyfikacja w Ruście. **Dla projektu:** brak uwierzytelniania i autoryzacji w serwerze synchronizacji to znana luka – tu jej stan badań.
-
-- **[L19]** Yanakieva E., Bieniusa A., Dumbrava S. *A Datalog Framework for Conflict-Free Replicated Data Types.* arXiv:2605.31569, maj 2026.
-  **Plik:** [papers/2026-datalog-framework-crdts.pdf](papers/2026-datalog-framework-crdts.pdf).
-  — Deklaratywna specyfikacja semantyki CRDT w Datalogu i testowanie własności implementacji. **Dla projektu:** sposób na precyzyjny opis semantyki LWW per wiersz z tombstone'ami.
+  — Replikowane typy danych z automatycznym szyfrowaniem i uwierzytelnianiem, synchronizowane przez niezaufanych pośredników. **Dla projektu:** wzór szyfrowania end-to-end przy zachowaniu serwera synchronizacji jako przekaźnika. **Zadania:** future 4.3.
 
 - **[L20]** Niinikoski J.-K. *Local-First Architecture: Investigating the Suitability for Modern Browser Applications.* Praca magisterska, Aalto University, 2025.
   **Plik:** [papers/2025-niinikoski-local-first-architecture-thesis.pdf](papers/2025-niinikoski-local-first-architecture-thesis.pdf).
-  — Przegląd literatury i wywiady z twórcami aplikacji webowych: local-first poprawia responsywność i pracę offline, ale przenosi na klienta odpowiedzialności serwera; w pełni bezserwerowe systemy rzadko są praktyczne, realne są modele hybrydowe z minimalną koordynacją serwera. **Dla projektu:** wspiera hybrydową architekturę Flat-SQL (lokalny silnik + serwer synchronizacji).
+  — Przegląd literatury i wywiady z twórcami aplikacji webowych: local-first poprawia responsywność i pracę offline, ale przenosi na klienta odpowiedzialności serwera; w pełni bezserwerowe systemy rzadko są praktyczne, realne są modele hybrydowe z minimalną koordynacją serwera. **Dla projektu:** akademickie potwierdzenie hybrydowej architektury Flat-SQL, zgodne z [analizą wdrożeń](../research/real-world-usage.md). **Zadania:** future 3.2.
 
-- **[L21]** Niinikoski J., Fagerholm F. *Supplementary Material for “On the Suitability of Local-First Architecture From Web Application Developers' Perspective”.* Zenodo, 2026. DOI: [10.5281/zenodo.20121788](https://doi.org/10.5281/zenodo.20121788).
-  **Plik:** [papers/2026-niinikoski-fagerholm-local-first-suitability-supplementary.pdf](papers/2026-niinikoski-fagerholm-local-first-suitability-supplementary.pdf) (CC BY 4.0).
-  — Materiały uzupełniające (protokół wywiadów, lista prac z przeglądu) do artykułu z 2026 r.; samego artykułu nie udało się zlokalizować. **Dla projektu:** gotowa lista literatury z przeglądu systematycznego.
-
-- **[L22]** Otsamo O. *Local-First Software: Promises and Pitfalls.* Praca licencjacka, Aalto University, 2025.
-  **Plik:** [papers/2025-otsamo-local-first-promises-and-pitfalls-thesis.pdf](papers/2025-otsamo-local-first-promises-and-pitfalls-thesis.pdf).
-  — Local-first sprawdza się we współpracy asynchronicznej, ale nie zastąpi chmury m.in. przy transakcjach finansowych i dużych zbiorach danych. **Dla projektu:** krótkie, aktualne podsumowanie ograniczeń podejścia (do dyskusji w pracy).
-
-- **[L23]** Kleppmann M. *Distributed Systems* – notatki do wykładu, University of Cambridge, 2021/22.
-  **Plik:** [papers/kleppmann-distributed-systems-lecture-notes.pdf](papers/kleppmann-distributed-systems-lecture-notes.pdf).
-  — Bezpłatne notatki autora DDIA: zegary fizyczne i logiczne, rozgłaszanie, replikacja, kworum, konsensus, CRDT. **Dla projektu:** legalnie dostępne uzupełnienie [P1] dla rozdziałów 5, 8 i 9.
-
-- **[L24]** Yu W., Ignat C.-L. *Conflict-Free Replicated Relations for Multi-Synchronous Database Management at Edge.* IEEE International Conference on Smart Data Services (SMDS), 2020. HAL: [hal-02983557](https://hal.science/hal-02983557).
-  **Plik:** [papers/2020-yu-ignat-conflict-free-replicated-relations.pdf](papers/2020-yu-ignat-conflict-free-replicated-relations.pdf) (wersja otwarta z HAL).
-  — CRDT zastosowane do relacyjnej bazy danych na urządzeniach brzegowych. Dwie warstwy: aplikacja widzi zwykłe tabele, a pod spodem każda kolumna to rejestr LWW z własnym znacznikiem czasu, każdy wiersz ma „długość przyczynową” (licznik wstawień i usunięć zamiast tombstone'a), a kolumny liczbowe mogą być licznikami CRDT. Naruszenia więzów (unikalność, klucze obce) wykrywane są przy scalaniu i naprawiane przez cofnięcie przegrywającej zmiany. Prototyp na Ecto (Elixir) z PostgreSQL. **Dla projektu:** najbliższa praca naukowa do synchronizacji Flat-SQL – pokazuje, jak przejść z LWW na wiersz do LWW na kolumnę i jak obsłużyć konflikty klucza głównego (porównanie §4.2, §4.4).
-
-- **[L25]** Tomter I. T. *Towards a General Database Management System of Conflict-Free Replicated Relations.* Praca magisterska, UiT – The Arctic University of Norway, 2021 (promotor: W. Yu).
-  **Plik:** [papers/2021-tomter-dbms-conflict-free-replicated-relations-thesis.pdf](papers/2021-tomter-dbms-conflict-free-replicated-relations-thesis.pdf).
-  — Przeniesienie CRR [L24] bezpośrednio do SQLite: dwie warstwy realizowane wyzwalaczami, scalanie wykonywane w całości skryptem SQL, istniejąca baza „rozszerzana” jednym poleceniem bez zmian w aplikacji. Ciekawy szczegół: SQLite daje czas z dokładnością do milisekundy, więc autor dokłada losowe cyfry, by uniknąć remisów znaczników. **Dla projektu:** porównanie z HLC we Flat-SQL (remisy rozstrzyga licznik i identyfikator węzła, nie losowość) i przykład pracy dyplomowej o podobnym zakresie.
+- **[L24]** Yu W., Ignat C.-L. *Conflict-Free Replicated Relations for Multi-Synchronous Database Management at Edge.* IEEE SMDS 2020. HAL: [hal-02983557](https://hal.science/hal-02983557).
+  **Plik:** [papers/2020-yu-ignat-conflict-free-replicated-relations.pdf](papers/2020-yu-ignat-conflict-free-replicated-relations.pdf).
+  — CRDT dla relacyjnej bazy na urządzeniach brzegowych: każdy atrybut to rejestr LWW z własnym znacznikiem, wiersz ma „długość przyczynową” (licznik wstawień i usunięć zamiast tombstone'a), kolumny liczbowe mogą być licznikami CRDT; naruszenia więzów (unikalność, klucze obce) wykrywane przy scalaniu i naprawiane cofnięciem przegrywającej zmiany. **Dla projektu:** najbliższa praca naukowa do synchronizacji Flat-SQL – wzór LWW per kolumna, raportu konfliktów klucza i kompensacji. **Zadania:** todo 3.1, 3.3; future 2.3, §7.
 
 - **[L26]** Litt G., van Hardenberg P., Henry O. *Cambria: Schema Evolution in Distributed Systems with Edit Lenses.* PaPoC 2021. DOI: [10.1145/3447865.3457963](https://doi.org/10.1145/3447865.3457963).
-  **Plik:** [papers/2021-litt-cambria-schema-evolution.pdf](papers/2021-litt-cambria-schema-evolution.pdf) (wersja ACM, CC BY 4.0).
-  — Osobna warstwa tłumacząca dokumenty między wersjami schematu „w locie” za pomocą dwukierunkowych soczewek (np. zmiana pola `complete: bool` na `status` z trzema wartościami); biblioteka w TypeScript zintegrowana z CRDT Automerge, sprawdzona na zdecentralizowanym systemie zgłoszeń. **Dla projektu:** gotowy wzorzec dla problemu z porównania §4.6 – repliki z różnymi wersjami schematu tabel.
+  **Plik:** [papers/2021-litt-cambria-schema-evolution.pdf](papers/2021-litt-cambria-schema-evolution.pdf) (CC BY 4.0).
+  — Warstwa tłumacząca dane między wersjami schematu „w locie” dwukierunkowymi soczewkami, zintegrowana z Automerge. **Dla projektu:** repliki z różnymi wersjami schematu tabel – dziś konflikt schematu jest cichy. **Zadania:** todo 1.7; future 6.1.
 
-## 5. Zegary, uporządkowanie i replikacja (prace klasyczne)
+- **[L27]** Go Y., Agrawal N., Aranya A., Ungureanu C. *Reliable, Consistent, and Efficient Data Sync for Mobile Apps.* USENIX FAST 2015, s. 359–372. *(nowa)*
+  **Plik:** [papers/2015-go-simba-data-sync-mobile-apps.pdf](papers/2015-go-simba-data-sync-mobile-apps.pdf) (otwarty dostęp USENIX).
+  — Badanie popularnych aplikacji mobilnych z usługami synchronizacji (Dropbox, Parse, Kinvey): przy przerwie w sieci, zamknięciu aplikacji lub zaniku zasilania aplikacje tracą lub psują dane. Simba: tabela (`sTable`) z wierszem jako jednostką spójności i atomowości – lokalnie i w synchronizacji; polityka synchronizacji per tabela; konflikty zgłaszane aplikacji. Autorzy świadomie **nie** dają atomowej synchronizacji wielu wierszy, uznając ją dla większości aplikacji za zbędną i kosztowną. **Dla projektu:** empiryczne uzasadnienie wbudowanej synchronizacji z trwałym outboksem oraz gwarancji „atomowy wiersz między replikami”. **Zadania:** todo 0.1, 3.3, 3.5.
 
-- **[C1]** Lamport L. *Time, Clocks, and the Ordering of Events in a Distributed System.* Communications of the ACM 21(7), 1978, s. 558–565.
-  **Plik:** [papers/1978-lamport-time-clocks-ordering-of-events.pdf](papers/1978-lamport-time-clocks-ordering-of-events.pdf).
-  — Relacja „zdarzyło się przed”, zegary logiczne i porządek całkowity z rozstrzyganiem remisów identyfikatorem procesu. **Dla projektu:** `Stamp { time, node }` to właśnie ten porządek.
+- **[L28]** Almeida P. S. *Approaches to Conflict-free Replicated Data Types.* ACM Computing Surveys 57(2), art. 51, 2024. DOI: [10.1145/3695249](https://doi.org/10.1145/3695249); arXiv:2310.18220. *(nowa)*
+  **Plik:** [papers/2024-almeida-approaches-to-crdts.pdf](papers/2024-almeida-approaches-to-crdts.pdf).
+  — Aktualny przegląd podejść do CRDT: oparte na stanie, na operacjach, delta-state i „czysto operacyjne”, z kompaktowaniem po osiągnięciu stabilności przyczynowej. **Dla projektu:** jedno recenzowane źródło dla trzech tez: outbox wysyłający bieżący stan zmienionych wierszy to synchronizacja delta-state; tombstone można usunąć po stabilności przyczynowej; zbieżność wynika z łączności, przemienności i idempotencji scalania. Zastępuje cztery wcześniejsze pozycje (§13). **Zadania:** todo 3.4; future 6.3.
 
-- **[C2]** Kulkarni S. S., Demirbas M., Madeppa D., Avva B., Leone M. *Logical Physical Clocks and Consistent Snapshots in Globally Distributed Databases.* OPODIS 2014 (LNCS 8878); raport techniczny UB 2014-04.
+## 5. Replikacja, zegary i praca offline
+
+- **[C2]** Kulkarni S. S., Demirbas M., Madeppa D., Avva B., Leone M. *Logical Physical Clocks and Consistent Snapshots in Globally Distributed Databases.* OPODIS 2014 (LNCS 8878).
   **Plik:** [papers/2014-kulkarni-hybrid-logical-clocks.pdf](papers/2014-kulkarni-hybrid-logical-clocks.pdf).
-  — Zegar HLC: zachowuje przyczynowość jak zegar logiczny i pozostaje blisko czasu NTP; zwarta postać 64-bitowa (48 bitów czasu + 16 bitów licznika); reguły odporności – reset do czasu fizycznego i **ignorowanie wiadomości ze znacznikiem zbyt daleko w przyszłości**. **Dla projektu:** zegar w `sync.rs` realizuje postać zwartą, ale nie ma reguły odrzucania znaczników spoza granicy (zob. porównanie §4.1).
+  — Zegar HLC: przyczynowość jak zegar logiczny, wartość blisko czasu fizycznego, postać 64-bitowa (48 bitów czasu + 16 bitów licznika). Sekcja 4: wiadomości odsuwające zegar logiczny zbyt daleko od fizycznego są **ignorowane**, a incydent logowany i zgłaszany. **Dla projektu:** `sync.rs` realizuje postać zwartą bez tej reguły. **Zadania:** todo 1.1, 1.9; future 11.4.
 
 - **[C3]** Terry D. B., Theimer M. M., Petersen K., Demers A. J., Spreitzer M. J., Hauser C. H. *Managing Update Conflicts in Bayou, a Weakly Connected Replicated Storage System.* SOSP 1995, s. 172–182.
   **Plik:** [papers/1995-terry-bayou-update-conflicts.pdf](papers/1995-terry-bayou-update-conflicts.pdf).
-  — Replikacja dla słabo połączonych urządzeń mobilnych: zapisy do dowolnej repliki, wykrywanie konfliktów (dependency checks) i procedury scalania dostarczane przez aplikację, anti-entropy, serwer główny ustalający kolejność zatwierdzeń. **Dla projektu:** protoplasta architektury „lokalne zapisy + serwer porządkujący log”.
-
-- **[C4]** DeCandia G. i in. *Dynamo: Amazon's Highly Available Key-value Store.* SOSP 2007, s. 205–220.
-  **Plik:** [papers/2007-decandia-dynamo.pdf](papers/2007-decandia-dynamo.pdf) (wersja autorska, „not for redistribution”).
-  — Magazyn klucz-wartość z wektorami wersji i rozwiązywaniem konfliktów przez aplikację; podkreśla, że wiele usług potrzebuje wyłącznie dostępu po kluczu głównym, a magazyn sam może zastosować tylko proste reguły typu LWW. **Dla projektu:** uzasadnienie modelu adresowania kluczem i porównanie LWW z wektorami wersji.
-
-- **[C5]** Lakshman A., Malik P. *Cassandra – A Decentralized Structured Storage System.* ACM SIGOPS Operating Systems Review 44(2), 2010, s. 35–40.
-  **Plik:** [papers/2010-lakshman-malik-cassandra.pdf](papers/2010-lakshman-malik-cassandra.pdf).
-  — Architektura Cassandry (model column-family, partycjonowanie, replikacja). **Dla projektu:** Cassandra i jej język CQL (składnia SQL, brak złączeń, obowiązkowy klucz główny, LWW ze znacznikami czasu) to najbliższy przemysłowy odpowiednik modelu Flat-SQL.
-
-- **[C6]** Chang F. i in. *Bigtable: A Distributed Storage System for Structured Data.* OSDI 2006.
-  **Plik:** [papers/2006-chang-bigtable.pdf](papers/2006-chang-bigtable.pdf).
-  — Posortowana mapa (wiersz, kolumna, czas) → wartość; każdy odczyt i zapis w obrębie jednego wiersza jest atomowy, transakcje tylko jednowierszowe. **Dla projektu:** precedens dla atomowości „per wiersz” i adresowania kluczem.
+  — Replikacja dla słabo połączonych urządzeń: zapisy do dowolnej repliki, zapisy wstępne i zatwierdzone, serwer główny ustalający kolejność, anti-entropy, sprawdzanie zależności i procedury scalania aplikacji. **Dla projektu:** protoplasta architektury „lokalne zapisy + serwer porządkujący log” i wzorzec zamiarów zatwierdzanych przez serwer. **Zadania:** future §2.
 
 - **[C7]** Helland P. *Life beyond Distributed Transactions: an Apostate's Opinion.* CIDR 2007.
   **Plik:** [papers/2007-helland-life-beyond-distributed-transactions.pdf](papers/2007-helland-life-beyond-distributed-transactions.pdf).
-  — Encja z unikalnym kluczem jako zakres serializowalności; transakcje atomowe nie obejmują wielu encji; wiadomości muszą być idempotentne. **Dla projektu:** najmocniejsze uzasadnienie płaskiego modelu Flat-SQL i idempotentnych rund synchronizacji.
+  — Encja z unikalnym kluczem jako zakres serializowalności; transakcje atomowe nie obejmują wielu encji; wiadomości muszą być idempotentne. **Dla projektu:** najmocniejsze uzasadnienie płaskiego modelu i idempotentnych rund synchronizacji. **Zadania:** todo 0.1.
 
 - **[C8]** Bailis P., Davidson A., Fekete A., Ghodsi A., Hellerstein J. M., Stoica I. *Highly Available Transactions: Virtues and Limitations.* PVLDB 7(3), 2013, s. 181–192.
   **Plik:** [papers/2014-bailis-highly-available-transactions.pdf](papers/2014-bailis-highly-available-transactions.pdf).
-  — Które poziomy izolacji da się zapewnić bez koordynacji: m.in. Read Committed i Monotonic Atomic View tak, zapobieganie utraconym aktualizacjom i write skew – nie. **Dla projektu:** precyzyjny język do opisu gwarancji Flat-SQL po synchronizacji (transakcje atomowe lokalnie, ale bez MAV między replikami).
+  — Które gwarancje da się zapewnić bez koordynacji: m.in. Read Committed i Monotonic Atomic View (wszystkie albo żadne zapisy transakcji) tak, zapobieganie utraconym aktualizacjom – nie. **Dla projektu:** język do opisu gwarancji po synchronizacji; MAV jest osiągalne, gdyby atomowość per wiersz okazała się za słaba. **Zadania:** todo 3.5.
+
+- **[C9]** Gray J., Helland P., O'Neil P., Shasha D. *The Dangers of Replication and a Solution.* ACM SIGMOD 1996, s. 173–182. DOI: [10.1145/233269.233330](https://doi.org/10.1145/233269.233330). *(nowa)*
+  **Plik:** [papers/1996-gray-dangers-of-replication.pdf](papers/1996-gray-dangers-of-replication.pdf) (kopia z grupy czytelniczej Boston University).
+  — Replikacja „zapis wszędzie” jest niestabilna przy wzroście skali (10× więcej węzłów i ruchu daje 1000× więcej zakleszczeń lub uzgodnień). Schemat ze znacznikami czasu („nowszy znacznik wygrywa”) zbiega się, ale **gubi aktualizacje**; aktualizacje przemienne (np. dodawanie stałej do liczby) tego problemu nie mają. Rozwiązanie: replikacja dwuwarstwowa – węzły mobilne wykonują transakcje wstępne na lokalnej kopii, a węzły bazowe, właściciele kopii głównych, wykonują je ponownie jako transakcje bazowe z kryterium akceptacji i informują o odrzuceniu. **Dla projektu:** w jednej pracy uzasadnienie i granica LWW (utracone aktualizacje), argument za licznikami `MERGE ADD`, model tabel prowadzonych przez serwer, zamiarów zatwierdzanych przez serwer i węzłów edge jako warstwy bazowej. **Zadania:** todo 3.1; future 2.1–2.5, §7, 7.2.
+
+- **[C10]** Kistler J. J., Satyanarayanan M. *Disconnected Operation in the Coda File System.* ACM TOCS 10(1), 1992, s. 3–25. DOI: [10.1145/146941.146942](https://doi.org/10.1145/146941.146942) (wersja konferencyjna: SOSP 1991). *(nowa)*
+  **Plik:** [papers/1991-kistler-satyanarayanan-coda-disconnected-operation.pdf](papers/1991-kistler-satyanarayanan-coda-disconnected-operation.pdf) (wersja SOSP, kopia z kursu University of Michigan).
+  — Klasyczna praca o pracy bez połączenia: klient gromadzi zawczasu potrzebne dane (hoarding, z priorytetami i wymianą w pamięci podręcznej), offline zapisuje zmiany w trwałym logu (w pamięci odtwarzalnej z WAL), log skraca – nowszy zapis pliku unieważnia wcześniejsze wpisy – a po połączeniu odtwarza go na serwerze w jednej transakcji z wykrywaniem konfliktów; tymczasowe identyfikatory obiektów zastępowane są przy reintegracji stałymi. W praktyce konfliktów prawie nie było. **Dla projektu:** akademicki odpowiednik outboksu (scalanie kolejnych zmian wiersza, trwałość po restarcie, idempotentna reintegracja), wzór trybu pamięci podręcznej i obsługi kluczy tworzonych offline. **Zadania:** todo 0.3, 3.2; future 1.2, 7.1.
+
+- **[C11]** Ramasubramanian V., Rodeheffer T. L., Terry D. B., Walraed-Sullivan M., Wobber T., Marshall C. C., Vahdat A. *Cimbiosys: A Platform for Content-based Partial Replication.* USENIX NSDI 2009. *(nowa)*
+  **Plik:** [papers/2009-ramasubramanian-cimbiosys-partial-replication.pdf](papers/2009-ramasubramanian-cimbiosys-partial-replication.pdf) (Microsoft Research).
+  — Replikacja częściowa z filtrem treści zdefiniowanym przez każde urządzenie. Gwarancja „ostatecznej spójności filtra”: urządzenie w końcu przechowuje dokładnie te elementy, których najnowsza wersja pasuje do filtra; elementy, które przestały pasować, usuwa po komunikacie *move-out*. Metadane synchronizacji rosną z liczbą urządzeń, nie elementów. **Dla projektu:** wzór replikacji częściowej, którą analiza wdrożeń uznała za obowiązkową przy wzroście danych – w tym zasady, że wiersz wychodzący z zakresu klienta jest usuwany tylko lokalnie. **Zadania:** future 3.2, 3.4.
 
 ## 6. Składowanie, WAL i odtwarzanie po awarii
 
-- **[S1]** DeWitt D. J., Katz R. H., Olken F., Shapiro L. D., Stonebraker M. R., Wood D. *Implementation Techniques for Main Memory Database Systems.* SIGMOD 1984, s. 1–8 (raport UCB/ERL M84/5).
+- **[S1]** DeWitt D. J., Katz R. H., Olken F., Shapiro L. D., Stonebraker M. R., Wood D. *Implementation Techniques for Main Memory Database Systems.* SIGMOD 1984, s. 1–8.
   **Plik:** [papers/1984-dewitt-main-memory-database-systems.pdf](papers/1984-dewitt-main-memory-database-systems.pdf).
-  — Struktury i odtwarzanie dla baz mieszczących się w pamięci; pierwszy drukowany opis **group commit** (autorzy piszą, że wcześniej był to „folklor” System R). **Dla projektu:** źródło group commitu w `FlatDB.flush()` i modelu „log + checkpoint”.
-
-- **[S2]** Mohan C., Haderle D., Lindsay B., Pirahesh H., Schwarz P. *ARIES: A Transaction Recovery Method Supporting Fine-Granularity Locking and Partial Rollbacks Using Write-Ahead Logging.* ACM TODS 17(1), 1992, s. 94–162.
-  **Plik:** [papers/1992-mohan-aries.pdf](papers/1992-mohan-aries.pdf).
-  — Klasyczny WAL: numery LSN, powtarzanie historii, logowanie wycofań. **Dla projektu:** tło dla uproszczeń Flat-SQL (log tylko-redo, bo niezatwierdzone zmiany nigdy nie trafiają do WAL).
-
-- **[S3]** O'Neil P., Cheng E., Gawlick D., O'Neil E. *The Log-Structured Merge-Tree (LSM-Tree).* Acta Informatica 33(4), 1996, s. 351–385.
-  **Plik:** [papers/1996-oneil-lsm-tree.pdf](papers/1996-oneil-lsm-tree.pdf).
-  — Struktura zoptymalizowana pod intensywne zapisy przez scalanie posortowanych przebiegów. **Dla projektu:** kierunek, gdyby pełny checkpoint (kopiowanie całej bazy) stał się wąskim gardłem.
+  — Struktury i odtwarzanie dla baz w pamięci; pierwszy drukowany opis **group commit** (jeden zapis logu dla grupy transakcji). **Dla projektu:** źródło group commitu w `FlatDB.flush()` i modelu „log + checkpoint”.
 
 - **[S4]** Stonebraker M., Madden S., Abadi D. J., Harizopoulos S., Hachem N., Helland P. *The End of an Architectural Era (It's Time for a Complete Rewrite).* VLDB 2007, s. 1150–1160.
   **Plik:** [papers/2007-stonebraker-end-of-an-architectural-era.pdf](papers/2007-stonebraker-end-of-an-architectural-era.pdf).
-  — H-Store: dane w pamięci, wykonanie jednowątkowe, specjalizacja zamiast „jednego rozmiaru dla wszystkich”; 82× szybciej od komercyjnego RDBMS w TPC-C. **Dla projektu:** uzasadnienie wąsko wyspecjalizowanego, jednowątkowego silnika w pamięci.
-
-- **[S5]** Harizopoulos S., Abadi D. J., Madden S., Stonebraker M. *OLTP Through the Looking Glass, and What We Found There.* SIGMOD 2008, s. 981–992.
-  **Plik:** [papers/2008-harizopoulos-oltp-through-the-looking-glass.pdf](papers/2008-harizopoulos-oltp-through-the-looking-glass.pdf) (kopia ze strony D. Abadiego).
-  — Rozkład instrukcji w klasycznym silniku OLTP: logowanie, blokady, latche i bufor stron pochłaniają większość pracy; „użyteczna praca” to niewielka część. **Dla projektu:** wyjaśnia, dlaczego Flat-SQL płaci za undo log + WAL + outbox w insertach (H4) i czego nie płaci (blokady, bufor stron).
+  — H-Store: dane w pamięci, wykonanie jednowątkowe, specjalizacja zamiast „jednego rozmiaru dla wszystkich”; logowanie, blokady, latche i bufor stron to większość pracy klasycznego silnika. **Dla projektu:** uzasadnienie wąsko wyspecjalizowanego, jednowątkowego silnika w pamięci; Flat-SQL nie płaci za blokady i bufor stron, płaci za logowanie (undo log + WAL + outbox – H4).
 
 - **[S6]** Malviya N., Weisberg A., Madden S., Stonebraker M. *Rethinking Main Memory OLTP Recovery.* ICDE 2014, s. 604–615.
   **Plik:** [papers/2014-malviya-rethinking-main-memory-oltp-recovery.pdf](papers/2014-malviya-rethinking-main-memory-oltp-recovery.pdf).
-  — Logowanie poleceń (command logging) daje w VoltDB ok. 1,5× większą przepustowość niż logowanie fizjologiczne w stylu ARIES, kosztem dłuższego odtwarzania. **Dla projektu:** uzasadnienie wyboru logu fizycznego: te same wpisy WAL służą synchronizacji, a odtworzenie nie zależy od determinizmu zapytań.
-
-- **[S7]** Zheng W., Tu S., Kohler E., Liskov B. *Fast Databases with Fast Durability and Recovery Through Multicore Parallelism.* OSDI 2014.
-  **Plik:** [papers/2014-zheng-silor-fast-durability-and-recovery.pdf](papers/2014-zheng-silor-fast-durability-and-recovery.pdf).
-  — SiloR: równoległe logowanie, checkpointy i odtwarzanie w bazie w pamięci. **Dla projektu:** kierunek optymalizacji odtwarzania snapshotu (200 ms dla 100 tys. wierszy w H4).
+  — W VoltDB logowanie poleceń daje ok. 1,5× większą przepustowość niż logowanie fizjologiczne w stylu ARIES, kosztem dłuższego odtwarzania i wymogu determinizmu. **Dla projektu:** uzasadnienie logu fizycznego – te same wpisy WAL służą synchronizacji, a odtworzenie nie zależy od zegara ani wyników zapytań.
 
 - **[S8]** Pillai T. S., Chidambaram V., Alagappan R., Al-Kiswany S., Arpaci-Dusseau A. C., Arpaci-Dusseau R. H. *All File Systems Are Not Created Equal: On the Complexity of Crafting Crash-Consistent Applications.* OSDI 2014, s. 433–448.
   **Plik:** [papers/2014-pillai-all-file-systems-are-not-created-equal.pdf](papers/2014-pillai-all-file-systems-are-not-created-equal.pdf).
-  — Narzędzia BOB i ALICE: poprawność protokołów zapisu aplikacji zależy od subtelnych właściwości systemu plików (atomowość, kolejność operacji na różnych plikach); 60 podatności w 11 dojrzałych aplikacjach. **Dla projektu:** bezpośrednio dotyczy sekwencji `snapshot.tmp → rename → obcięcie WAL` w `FileStorage` (porównanie §6.4).
+  — Narzędzia BOB i ALICE: poprawność protokołów zapisu zależy od subtelnych właściwości systemu plików; 60 podatności w 11 dojrzałych aplikacjach, w tym brak `fsync` katalogu nadrzędnego po utworzeniu lub zmianie nazwy pliku. **Dla projektu:** dotyczy sekwencji `snapshot.tmp → rename → obcięcie WAL` w `FileStorage` i braku `fsync` w `FsStore`. **Zadania:** todo 1.2, 1.3, 1.6.
 
-- **[S9]** Zheng M., Tucek J., Huang D., Qin F., Lillibridge M., Yang E. S., Zhao B. W., Singh S. *Torturing Databases for Fun and Profit.* OSDI 2014, s. 449–464.
-  **Plik:** [papers/2014-zheng-torturing-databases.pdf](papers/2014-zheng-torturing-databases.pdf).
-  — Wstrzykiwanie zaników zasilania: wszystkie 8 badanych baz (open source i komercyjne) zachowało się błędnie, 7 naruszyło ACID. Model awarii: utrwalony jest prefiks strumienia I/O. **Dla projektu:** test „ucięcie WAL w każdym bajcie” odpowiada temu modelowi awarii na poziomie pliku.
+- **[S10]** Cao T., Vaz Salles M., Sowell B., Yue Y., Demers A., Gehrke J., White W. *Fast Checkpoint Recovery Algorithms for Frequently Consistent Applications.* ACM SIGMOD 2011, s. 265–276. DOI: [10.1145/1989323.1989352](https://doi.org/10.1145/1989323.1989352). *(nowa)*
+  **Plik:** [papers/2011-cao-fast-checkpoint-recovery.pdf](papers/2011-cao-fast-checkpoint-recovery.pdf) (kopia z kursu Georgia Tech).
+  — Checkpointy aplikacji w pamięci o częstych punktach spójności – na przykładzie gier MMO (stan spójny na granicy „ticku”) i H-Store. Porównuje „naiwny snapshot” (synchroniczna kopia całego stanu – skok latencji), kopiowanie przy aktualizacji i dwa nowe algorytmy bez blokad i kopii masowych, które kosztem dodatkowej pamięci dają niemal stałą latencję. **Dla projektu:** checkpoint Flat-SQL to dziś naiwny snapshot (35–49 ms, czyli 2–3 klatki), a gry są pierwszym zastosowaniem z prezentacji – praca daje gotowe kierunki i metrykę (najdłuższa pauza). **Zadania:** todo 2.6, 4.10.
 
-## 7. Model danych: SQL, NoSQL i „płaskie” tabele
+## 7. Model danych i zapytania
 
 - **[M1]** Stonebraker M., Pavlo A. *What Goes Around Comes Around... And Around...* ACM SIGMOD Record 53(2), 2024, s. 21–37.
   **Plik:** [papers/2024-stonebraker-pavlo-what-goes-around-comes-around.pdf](papers/2024-stonebraker-pavlo-what-goes-around-comes-around.pdf).
-  — Przegląd 20 lat modeli danych: prawie wszystkie systemy NoSQL dodały interfejs SQL (CQL, PartiQL, SQL++), systemy column-family przejęły z Bigtable brak złączeń i indeksów wtórnych, model relacyjny pozostał dominujący. **Dla projektu:** Flat-SQL wpisuje się w ten trend (składnia SQL nad modelem klucz-wiersz) – i podlega tej samej krytyce braku złączeń.
+  — 20 lat modeli danych: systemy NoSQL niemal powszechnie dodały interfejs SQL (CQL w Cassandrze, PartiQL w DynamoDB, SQL++), model relacyjny pozostał dominujący. **Dla projektu:** Flat-SQL wpisuje się w trend „składnia SQL nad modelem klucz–wiersz” (najbliższy odpowiednik: CQL) – i podlega tej samej krytyce braku złączeń. **Zadania:** future 5.2.
 
-## 8. Edge computing i WebAssembly poza przeglądarką
+- **[M2]** Armbrust M., Curtis K., Kraska T., Fox A., Franklin M. J., Patterson D. A. *PIQL: Success-Tolerant Query Processing in the Cloud.* PVLDB 5(3), 2011, s. 181–192. DOI: [10.14778/2078331.2078334](https://doi.org/10.14778/2078331.2078334); arXiv:1111.7166. *(nowa)*
+  **Plik:** [papers/2011-armbrust-piql-scale-independence.pdf](papers/2011-armbrust-piql-scale-independence.pdf).
+  — Deklaratywny język, który dla każdego zapytania wylicza górne ograniczenie liczby operacji na magazynie klucz–wartość („niezależność od skali”); zapytania bez ograniczenia są odrzucane przy kompilacji. Klasa zapytań o stałym koszcie to zapytania z `LIMIT` bez złączeń albo ze złączeniem tylko po unikalnym kluczu głównym. Autorzy krytykują języki, które dla skalowalności po prostu usuwają złączenia (np. GQL). **Dla projektu:** precyzuje tezę o „przewidywalnym wykonaniu” – płaski model daje przewidywalny plan, ale ograniczony koszt mają tylko zapytania po kluczu lub indeksie z limitem; pokazuje też, że złączenie po kluczu głównym nie psuje przewidywalności. **Zadania:** todo 0.1; future 5.2.
+
+- **[M3]** Gupta A., Mumick I. S. *Maintenance of Materialized Views: Problems, Techniques, and Applications.* IEEE Data Engineering Bulletin 18(2), 1995, s. 3–18. *(nowa)*
+  **Plik:** brak – bezpłatny numer biuletynu na stronie IEEE TCDE ([sites.computer.org/debull](http://sites.computer.org/debull/95JUN-CD.pdf)).
+  — Taksonomia i techniki przyrostowego utrzymania widoków: według klasy widoku, dostępnych informacji i rodzaju modyfikacji; agregaty `COUNT`/`SUM` dają się aktualizować przyrostowo, `MIN`/`MAX` przy usunięciu wymagają ponownego przeliczenia. **Dla projektu:** podstawa projektowa zapytań reaktywnych w modelu jednotabelowym (Riffle [D4] pokazuje potrzebę, ta praca – technikę). **Zadania:** future 5.1.
+
+## 8. Edge computing
 
 - **[E1]** Shi W., Cao J., Zhang Q., Li Y., Xu L. *Edge Computing: Vision and Challenges.* IEEE Internet of Things Journal 3(5), 2016, s. 637–646. DOI: [10.1109/JIOT.2016.2579198](https://doi.org/10.1109/JIOT.2016.2579198).
   **Plik:** [papers/2016-shi-edge-computing-vision-and-challenges.pdf](papers/2016-shi-edge-computing-vision-and-challenges.pdf) (kopia z serwisu kursu).
-  — Definicja i wyzwania przetwarzania brzegowego. **Dla projektu:** cytowanie definicji „Edge Computing” z README.
-
-- **[E2]** Satyanarayanan M. *The Emergence of Edge Computing.* IEEE Computer 50(1), 2017, s. 30–39. DOI: [10.1109/MC.2017.9](https://doi.org/10.1109/MC.2017.9).
-  **Plik:** [papers/2017-satyanarayanan-emergence-of-edge-computing.pdf](papers/2017-satyanarayanan-emergence-of-edge-computing.pdf) (kopia ze strony autora).
-  — Węzły obliczeniowe blisko urządzeń: niska latencja, egzekwowanie polityk prywatności, maskowanie awarii chmury. **Dla projektu:** motywacja trybu edge (serwer Node z tym samym `.wasm`).
-
-- **[E3]** Hall A., Ramachandran U. *An Execution Model for Serverless Functions at the Edge.* IoTDI 2019. DOI: [10.1145/3302505.3310084](https://doi.org/10.1145/3302505.3310084).
-  **Plik:** [papers/2019-hall-serverless-functions-at-the-edge.pdf](papers/2019-hall-serverless-functions-at-the-edge.pdf).
-  — WebAssembly jako lżejsza od kontenerów izolacja funkcji serverless na brzegu sieci. **Dla projektu:** precedens uruchamiania tego samego modułu WASM na węźle brzegowym.
-
-- **[E4]** Gadepalli P. K., McBride S., Peach G., Cherkasova L., Parmer G. *Sledge: a Serverless-first, Light-weight Wasm Runtime for the Edge.* Middleware 2020, s. 265–279.
-  **Plik:** [papers/2020-gadepalli-sledge-wasm-runtime-edge.pdf](papers/2020-gadepalli-sledge-wasm-runtime-edge.pdf).
-  — Środowisko WASM dla krótkotrwałych funkcji na urządzeniach brzegowych z izolacją programową. **Dla projektu:** jak wygląda „edge” z WASM w literaturze systemowej.
-
-- **[E5]** Shillaker S., Pietzuch P. *Faasm: Lightweight Isolation for Efficient Stateful Serverless Computing.* USENIX ATC 2020. arXiv:2002.09344.
-  **Plik:** [papers/2020-shillaker-faasm.pdf](papers/2020-shillaker-faasm.pdf).
-  — Izolacja pamięci funkcji przez WASM i współdzielenie stanu w jednej przestrzeni adresowej; szybki start ze snapshotów. **Dla projektu:** stanowe obliczenia w WASM – analogia do silnika ze stanem w pamięci modułu.
-
-- **[E6]** Ménétrey J., Pasin M., Felber P., Schiavoni V. *WebAssembly as a Common Layer for the Cloud-edge Continuum.* FRAME 2022. DOI: [10.1145/3526059.3533618](https://doi.org/10.1145/3526059.3533618).
-  **Plik:** [papers/2022-menetrey-webassembly-cloud-edge-continuum.pdf](papers/2022-menetrey-webassembly-cloud-edge-continuum.pdf).
-  — Artykuł pozycyjny: WASM jako wspólna warstwa wykonawcza od urządzeń IoT po chmurę. **Dla projektu:** wprost wspiera założenie „jeden rdzeń, wiele środowisk”.
-
-- **[E7]** Colosi M., Farahani R., Lovén L., Prodan R., Villari M. *Serverless Everywhere: A Comparative Analysis of WebAssembly Workflows Across Browser, Edge, and Cloud.* arXiv:2512.04089 (IoT 2025 – warsztat ScaleSys).
-  **Plik:** [papers/2025-colosi-serverless-everywhere-webassembly.pdf](papers/2025-colosi-serverless-everywhere-webassembly.pdf).
-  — Ten sam przepływ WASM w przeglądarce, na brzegu i w chmurze: przy małych danych przeglądarka jest konkurencyjna dzięki wymianie danych w pamięci; przy dużych wygrywa kompilacja AOT na serwerach. **Dla projektu:** empiryczne wsparcie dla wykonywania małych zapytań operacyjnych lokalnie, a ciężkiej analityki gdzie indziej.
-
-- **[E8]** Marcelino C., Krennmair N., Pusztai T., Nastic S. *Lumos: Performance Characterization of WebAssembly as a Serverless Runtime in the Edge-Cloud Continuum.* arXiv:2510.05118, 2025.
-  **Plik:** [papers/2025-lumos-webassembly-serverless-edge-cloud.pdf](papers/2025-lumos-webassembly-serverless-edge-cloud.pdf).
-  — Obrazy WASM kompilowane AOT są do 30× mniejsze od kontenerów i startują do 16% szybciej; WASM interpretowany ma 30–55× większą latencję i 7–10× większy narzut serializacji I/O. **Dla projektu:** pokazuje, że koszt przekazywania danych między WASM a otoczeniem bywa istotniejszy niż samo wykonanie – kontekst dla H3.
+  — Definicja: „edge” to dowolne zasoby obliczeniowe i sieciowe na drodze między źródłem danych a chmurą – także smartfon. **Dla projektu:** uzasadnia ujęcie z README, w którym urządzenie użytkownika jest brzegiem sieci, i odróżnia je od węzłów edge synchronizowanych z bazą główną. **Zadania:** future 7.3.
 
 ## 9. Metodyka pomiarów
 
 - **[B1]** Georges A., Buytaert D., Eeckhout L. *Statistically Rigorous Java Performance Evaluation.* OOPSLA 2007, s. 57–76.
   **Plik:** [papers/2007-georges-statistically-rigorous-performance-evaluation.pdf](papers/2007-georges-statistically-rigorous-performance-evaluation.pdf).
-  — Popularne metody raportowania (najlepszy wynik, pojedynczy przebieg) prowadzą do błędnych wniosków w środowiskach z JIT; zalecane wielokrotne uruchomienia maszyny wirtualnej i przedziały ufności. **Dla projektu:** jak wzmocnić wnioski H2–H4 (szum ±30% opisany w scenariuszu).
-
-- **[B2]** Barrett E., Bolz-Tereick C. F., Killick R., Mount S., Tratt L. *Virtual Machine Warmup Blows Hot and Cold.* PACMPL 1 (OOPSLA), art. 52, 2017. arXiv:1602.00602.
-  **Plik:** [papers/2017-barrett-vm-warmup-blows-hot-and-cold.pdf](papers/2017-barrett-vm-warmup-blows-hot-and-cold.pdf).
-  — Wiele par (VM, benchmark) nigdy nie osiąga stabilnego stanu po rozgrzewce; metoda wykrywania punktów zmiany. **Dla projektu:** uzasadnia rozgrzewkę w benchmarku i pokazuje jej granice (Liftoff → TurboFan w V8).
+  — Najlepszy wynik lub pojedynczy przebieg prowadzą w środowiskach z JIT do błędnych wniosków; zalecane wielokrotne uruchomienia maszyny wirtualnej i przedziały ufności. **Dla projektu:** jak wzmocnić H2–H5 (szum ±30% opisany w scenariuszu). **Zadania:** todo 4.2.
 
 - **[B3]** Raasveldt M., Holanda P., Gubner T., Mühleisen H. *Fair Benchmarking Considered Difficult: Common Pitfalls In Database Performance Testing.* DBTest 2018. DOI: [10.1145/3209950.3209955](https://doi.org/10.1145/3209950.3209955).
   **Plik:** [papers/2018-raasveldt-fair-benchmarking-considered-difficult.pdf](papers/2018-raasveldt-fair-benchmarking-considered-difficult.pdf).
-  — Lista pułapek: brak powtarzalności, brak optymalizacji systemu porównywanego, „jabłka i pomarańcze”, nadmierne strojenie, przebiegi zimne/gorące/ciepłe, pomijanie przygotowania danych, niepoprawne wyniki. **Dla projektu:** lista kontrolna do recenzji [benchmark-scenario.md](../research/benchmark-scenario.md) (porównanie §8).
-
-- **[B4]** Taipalus T. *Database management system performance comparisons: A systematic literature review.* arXiv:2301.01095 (v3, 2023).
-  **Plik:** [papers/2023-dbms-performance-comparisons-review.pdf](papers/2023-dbms-performance-comparisons-review.pdf).
-  — Większość porównań wydajności DBMS testuje scenariusze dalekie od rzeczywistych i opisuje je zbyt skąpo, by je powtórzyć. **Dla projektu:** argument za opisem środowiska i surowymi wynikami w JSON (już robione) oraz scenariuszem bliskim aplikacji.
+  — Pułapki: brak powtarzalności, nieoptymalny system porównywany, „jabłka i pomarańcze”, nadmierne strojenie, przebiegi zimne i gorące, niepoprawne wyniki. **Dla projektu:** lista kontrolna dla [benchmark-scenario.md](../research/benchmark-scenario.md) ([porównanie §8](literature-comparison.md#8-metodyka-benchmarków)). **Zadania:** todo 0.1, 4.1, 4.3, 4.6.
 
 - **[B5]** Cooper B. F., Silberstein A., Tam E., Ramakrishnan R., Sears R. *Benchmarking Cloud Serving Systems with YCSB.* SoCC 2010, s. 143–154.
   **Plik:** [papers/2010-cooper-ycsb.pdf](papers/2010-cooper-ycsb.pdf).
-  — Standardowe obciążenia dla magazynów klucz-wartość (proporcje odczyt/zapis, rozkład Zipfa). **Dla projektu:** gotowe wzorce obciążeń dla operacji po kluczu; obecny benchmark używa rozkładu równomiernego.
-
-- **[B6]** Schwarz M., Maurice C., Gruss D., Mangard S. *Fantastic Timers and Where to Find Them: High-Resolution Microarchitectural Attacks in JavaScript.* Financial Cryptography 2017, LNCS 10322.
-  **Plik:** [papers/2017-schwarz-fantastic-timers.pdf](papers/2017-schwarz-fantastic-timers.pdf).
-  — Dlaczego przeglądarki ograniczają rozdzielczość zegarów i jakie są alternatywne źródła czasu. **Dla projektu:** tło dla ograniczenia `performance.now()` do 100 µs w pomiarach przeglądarkowych.
+  — Standardowe obciążenia dla magazynów adresowanych kluczem (proporcje odczyt/zapis, rozkład Zipfa). **Dla projektu:** Flat-SQL jest właśnie takim magazynem – obecny benchmark losuje klucze równomiernie. **Zadania:** todo 4.5.
 
 ## 10. Prywatność
 
 - **[V1]** Cavoukian A. *Privacy by Design: The 7 Foundational Principles – Implementation and Mapping of Fair Information Practices.* Information and Privacy Commissioner of Ontario.
   **Plik:** [papers/2009-cavoukian-privacy-by-design-principles.pdf](papers/2009-cavoukian-privacy-by-design-principles.pdf) (kopia z serwisu kursu University of Waterloo).
-  — Siedem zasad Privacy by Design (m.in. prywatność domyślnie, ochrona w całym cyklu życia danych, przejrzystość) z mapowaniem na zasady FIP. **Dla projektu:** źródło pojęcia „Privacy by Design” użytego w README; pozwala ocenić, które zasady projekt spełnia (porównanie §2.4). Uzupełnienie prawne: art. 25 RODO (ochrona danych w fazie projektowania i domyślna ochrona danych).
+  — Siedem zasad Privacy by Design (prywatność domyślnie, ochrona w całym cyklu życia, przejrzystość) z mapowaniem na zasady FIP. Uzupełnienie prawne: art. 25 RODO. **Dla projektu:** źródło pojęcia z README; pozwala ocenić, które zasady prototyp spełnia ([porównanie §2.4](literature-comparison.md#24-izolacja-bezpieczeństwo-i-privacy-by-design)). **Zadania:** todo 0.1; future 4.4, 5.6.
 
 ---
 
-## 11. Źródła ważne, których nie pobrano – do pobrania ręcznie
+## 11. Do sprawdzenia i pobrania
 
-| ID | Publikacja | Dlaczego brak pliku | Gdzie szukać |
+| ID | Publikacja | Stan | Gdzie szukać |
 |---|---|---|---|
-| **[X4]** | Kleppmann M. *Designing Data-Intensive Applications* (wyd. 1 2017, wyd. 2 2026) | książka komercyjna | biblioteka uczelni, wydanie polskie Helion 2018, O'Reilly Learning |
-| **[X5]** | Saadbye J., Gondelman L., Albano M. *Teilen-SQL: A library for building local-first software with SQLite and version control.* PLF+PLAID @ ECOOP 2025 | opublikowano tylko streszczenie wystąpienia | [strona wystąpienia](https://2025.ecoop.org/details/plf-plaid-2025-papers/7/Teilen-SQL-A-library-for-building-local-first-software-with-SQLite-and-version-contr) – SQLite w przeglądarce, komórki jako rejestry LWW |
-| **[X6]** | Niinikoski J., Fagerholm F. *On the Suitability of Local-First Architecture From Web Application Developers' Perspective* (2026) | nie znaleziono tekstu artykułu, tylko materiały uzupełniające [L21] | wyszukać tytuł w ACM DL / Google Scholar po publikacji |
-
-Pozycje dawniej oznaczone [X1], [X2], [X3] i [X7] pobrano ręcznie przez przeglądarkę – są teraz wpisami [L24], [L26], [W11] i [L25]. Dla [X5] i [X6] ponowne wyszukiwanie (18.10.2026) nie znalazło pełnego tekstu.
+| **[X4]** | Kleppmann M. *Designing Data-Intensive Applications* (wyd. 1 2017, wyd. 2 2026) | książka komercyjna | biblioteka uczelni, wydanie polskie Helion 2018 |
+| **[X5]** | Saadbye J., Gondelman L., Albano M. *Teilen-SQL: A library for building local-first software with SQLite and version control.* PLF+PLAID @ ECOOP 2025 | tylko streszczenie wystąpienia – SQLite w przeglądarce, komórki jako rejestry LWW | [strona wystąpienia](https://2025.ecoop.org/details/plf-plaid-2025-papers/7/Teilen-SQL-A-library-for-building-local-first-software-with-SQLite-and-version-contr); zapytać autorów |
+| **[X6]** | Niinikoski J., Fagerholm F. *On the Suitability of Local-First Architecture From Web Application Developers' Perspective* (2026) | nie znaleziono tekstu; są tylko materiały uzupełniające (Zenodo, DOI [10.5281/zenodo.20121788](https://doi.org/10.5281/zenodo.20121788)) | ACM DL / Google Scholar po publikacji; rozwinięcie [L20] |
 
 ## 12. Dokumentacja platform i źródła branżowe (nierecenzowane)
 
-Źródła te nie są publikacjami naukowymi, ale opisują zachowanie przeglądarek, od którego zależy poprawność projektu – w pracy warto je cytować jako dokumentację techniczną.
+Nie są to publikacje naukowe, ale opisują zachowanie platform, od którego zależy poprawność projektu – w pracy cytuje się je jako dokumentację techniczną.
 
 - **[Q1]** Chrome for Developers: [A change to the default durability mode in IndexedDB](https://developer.chrome.com/blog/indexeddb-durability-mode-now-defaults-to-relaxed) – od Chrome 121 domyślna trwałość transakcji IndexedDB to `relaxed` (zdarzenie `complete` po przekazaniu danych do bufora systemu operacyjnego).
-- **[Q2]** WebKit: [Full Third-Party Cookie Blocking and More](https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/) (24.03.2020) – Safari usuwa m.in. IndexedDB, LocalStorage i rejestracje Service Workera po 7 dniach używania Safari bez interakcji użytkownika z witryną; aplikacje dodane do ekranu głównego mają własny licznik.
-- **[Q3]** WebKit: [Updates to Storage Policy](https://webkit.org/blog/14403/updates-to-storage-policy/) (Safari 17, 2023) – nowe limity miejsca dla źródła i zasady usuwania danych; tryb trwały przez `navigator.storage.persist()`.
-- **[Q4]** MDN: [Storage quotas and eviction criteria](https://developer.mozilla.org/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria) – magazyn „best-effort” vs „persistent” w przeglądarkach.
+- **[Q2]** WebKit: [Full Third-Party Cookie Blocking and More](https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/) (2020) – Safari usuwa m.in. IndexedDB po 7 dniach używania przeglądarki bez interakcji z witryną; aplikacje dodane do ekranu głównego mają własny licznik.
+- **[Q3]** WebKit: [Updates to Storage Policy](https://webkit.org/blog/14403/updates-to-storage-policy/) (Safari 17, 2023) – limity miejsca i zasady usuwania; tryb trwały przez `navigator.storage.persist()`.
+- **[Q4]** MDN: [Storage quotas and eviction criteria](https://developer.mozilla.org/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria) – magazyn „best-effort” vs „persistent”.
 - **[Q5]** web.dev: [Making your website cross-origin isolated using COOP and COEP](https://web.dev/articles/coop-coep) – rozdzielczość `performance.now()`: 100 µs domyślnie, 5 µs w kontekście izolowanym.
-- **[Q6]** webassembly.org: [Wasm 3.0 Completed](https://webassembly.org/news/2025-09-17-wasm-3.0) (17.09.2025); SpiderMonkey: [Is Memory64 actually worth using?](https://spidermonkey.dev/blog/2025/01/15/is-memory64-actually-worth-using.html) (15.01.2025).
+- **[Q6]** webassembly.org: [Wasm 3.0 Completed](https://webassembly.org/news/2025-09-17-wasm-3.0) (2025) – memory64, GC, wyjątki; SpiderMonkey: [Is Memory64 actually worth using?](https://spidermonkey.dev/blog/2025/01/15/is-memory64-actually-worth-using.html) – 64-bitowa pamięć jest wolniejsza, warto ją włączać tylko przy potrzebie > 4 GiB.
 - **[Q7]** SQLite: [persistence options for the WASM build (OPFS, opfs-sahpool, kvvfs)](https://sqlite.org/wasm/doc/tip/persistence.md).
-- **[Q8]** RxDB: [LocalStorage vs. IndexedDB vs. Cookies vs. OPFS vs. WASM-SQLite](https://rxdb.info/articles/localstorage-indexeddb-cookies-opfs-sqlite-wasm.html); PGlite: [benchmarks](https://pglite.dev/benchmarks) – pomiary producentów (uwaga na konflikt interesów).
-- **[Q9]** Kleppmann M.: keynote PaPoC 2025 „Byzantine eventual consistency and local-first access control” i SRDS 2026 (Rzym, 24.09.2026) – [martin.kleppmann.com](https://martin.kleppmann.com/); wywiad [SE Radio 716](https://se-radio.net/2026/04/se-radio-716-martin-kleppmann-local-first-software/) (04.2026).
-- **[Q10]** [FOSDEM 2026 – ścieżka Local-First, sync engines, CRDTs](https://fosdem.org/2026/schedule/track/local-first/); [Smashing Magazine, „The Architecture Of Local-First Web Development”](https://www.smashingmagazine.com/2026/05/architecture-local-first-web-development/) (05.2026) – praktyk zaleca LWW na poziomie pola, nie rekordu.
+- **[Q8]** RxDB: [LocalStorage vs. IndexedDB vs. Cookies vs. OPFS vs. WASM-SQLite](https://rxdb.info/articles/localstorage-indexeddb-cookies-opfs-sqlite-wasm.html); PGlite: [benchmarks](https://pglite.dev/benchmarks) – pomiary producentów (konflikt interesów); jedyne dostępne dane o wydajności IndexedDB i OPFS.
 - **[Q11]** Repozytoria systemów porównywanych w [wasm-engines-comparison.md](../research/wasm-engines-comparison.md): sql.js, wa-sqlite, PGlite, DuckDB-Wasm, GlueSQL, Turso, cr-sqlite, ElectricSQL, PowerSync.
+- **[Q12]** Wiele kart: MDN [Web Locks API](https://developer.mozilla.org/docs/Web/API/Web_Locks_API) i [SharedWorker](https://developer.mozilla.org/docs/Web/API/SharedWorker) (Baseline 2026 – Chrome na Androidzie przywrócił `SharedWorker` w wersji 148, kwiecień 2026); wdrożenie Notion: [How we sped up Notion in the browser with WASM SQLite](https://www.notion.com/blog/how-we-sped-up-notion-in-the-browser-with-wasm-sqlite).
+- **[Q13]** WebAssembly JS String Builtins: [MDN](https://developer.mozilla.org/docs/WebAssembly/JavaScript_builtins), [przegląd W3C TAG](https://tag-github-bot.w3.org/gh/w3ctag/design-reviews/940) – mechanizm dla języków, które chcą używać łańcuchów JS jako własnych (GC); Rust trzyma tekst w pamięci liniowej, więc kopiowania nie unika.
+- Źródła o wdrożeniach (Notion, Actual Budget, Linear, Community Health Toolkit, PowerSync, LiteFS, Turso i in.): [research/real-world-usage.md §5](../research/real-world-usage.md#5-źródła).
+
+## 13. Pozycje poza rdzeniem
+
+Pliki przeniesiono do `papers/_poza-rdzeniem/`. Kryteria wyłączenia: [search-methodology.md §4](search-methodology.md#4-dobór-rdzenia). Pozycje można przywrócić, jeśli praca dyplomowa obejmie dany wątek.
+
+| ID | Praca | Powód wyłączenia |
+|---|---|---|
+| [P2a] | Rossberg i in., CACM 2018 | wersja [P2] – dołączona do jego wpisu (plik w `papers/`) |
+| [L23] | Kleppmann, notatki do wykładu | dołączone do wpisu [P1] (plik w `papers/`) |
+| [W3] | Hilbig i in., binaria WASM, WWW 2021 | kontekst zastosowań WASM, bez wpływu na decyzje |
+| [W4] | Bosamiya i in., dowodliwa piaskownica, USENIX Sec 2022 | dotyczy implementacji środowisk uruchomieniowych, nie aplikacji |
+| [W5] | Zhang i in., przegląd środowisk WASM, 2024 | przegląd ogólny; [P2], [W1] wystarczają |
+| [W6] | Döllerer, Engelke, memory64, VMIL 2024 | wniosek (nie przechodzić na memory64) wystarcza w [Q6] |
+| [W7] | Wasm-R3, OOPSLA 2024 | argument za realistycznym obciążeniem pokrywa [B5] |
+| [W8] | He i in., WASM w przemyśle, 2025 | kontekst |
+| [W9] | Corrias i in., podatności webowe w WASM, 2026 | preprint; tezę pokrywa recenzowane [W2] |
+| [W10] | Specyfikacja WebAssembly 3.0 | po usunięciu zadania o JS String Builtins nie jest potrzebna; stan standardu – [Q6] |
+| [D3] | Haffner, Dittrich, kompilacja SQL do WASM, 2021 | JIT zapytań nie opłaca się przy zapytaniach trwających mikrosekundy; brak zadania |
+| [L3] | Preguiça, przegląd CRDT, 2018 | zastąpiony aktualnym przeglądem [L28] |
+| [L4] | Gomes i in., weryfikacja SEC, OOPSLA 2017 | formalna weryfikacja poza zakresem pracy |
+| [L5] | Kleppmann, Beresford, JSON CRDT, 2017 | model dokumentowy, nie płaskie tabele |
+| [L6] | Almeida i in., delta-state, 2016 | pokryty przez [L28] (ten sam autor) |
+| [L7] | Baquero i in., pure op-based, 2017 | kryterium stabilności przyczynowej pokryte przez [L28] |
+| [L9] | Edwards i in., zmiany schematu na żywo, 2023 | problem otwarty opisany też w [L26], które daje rozwiązanie |
+| [L10] | Edwards, Petricek, Baseline, 2025 | preprint; wersjonowanie danych poza planami |
+| [L12] | Kleppmann, Howard, BEC, 2020 | dotyczy sieci bez zaufanego serwera; Flat-SQL ma serwer jako autorytet |
+| [L13] | Merkle-CRDTs, 2020 | synchronizacja bez serwera – poza architekturą |
+| [L14] | Meyer, uzgadnianie zakresów, 2023 | zadanie przeniesione do przyszłych i uzależnione od trwałego logu (future 3.7) |
+| [L15] | Collabs, 2022 | biblioteka współpracy, bez wpływu na projekt |
+| [L16] | Gentle, Kleppmann, Eg-walker, 2025 | edycja tekstu poza silnikiem; wystarcza [L1] |
+| [L17] | Sal, 2026 | formalna weryfikacja, preprint |
+| [L18] | Jacob i in., kontrola dostępu local-first, 2026 | kontrola dostępu bez zaufanego serwera; preprint |
+| [L19] | Datalog dla CRDT, 2026 | formalna specyfikacja, preprint |
+| [L21] | Niinikoski, Fagerholm, materiały uzupełniające | sam artykuł niedostępny – [X6] |
+| [L22] | Otsamo, praca licencjacka, 2025 | słabsze źródło tez obecnych w [L1] i [C9] |
+| [L25] | Tomter, praca magisterska, 2021 | powiela [L24] (wersja na SQLite) |
+| [C1] | Lamport 1978 | porządek znaczników opisany w [C2] i [P1] rozdz. 9 |
+| [C4] | Dynamo, SOSP 2007 | argument za dostępem po kluczu pokrywa [C7]; LWW – [C9] |
+| [C5] | Cassandra, 2010 | artykuł nie opisuje CQL; analogię z CQL daje [M1] |
+| [C6] | Bigtable, OSDI 2006 | atomowość per wiersz pokrywają [C7] i [L27] |
+| [S2] | ARIES, TODS 1992 | WAL opisany w [P1] rozdz. 3 i 7; Flat-SQL ma log tylko-redo |
+| [S3] | LSM-tree, 1996 | kierunek dla checkpointu lepiej pokrywa [S10] |
+| [S5] | Harizopoulos i in., OLTP, SIGMOD 2008 | wniosek zawarty w [S4] |
+| [S7] | SiloR, OSDI 2014 | równoległe odtwarzanie wymaga wątków, czyli COOP/COEP – sprzeczne z atutem |
+| [S9] | Zheng i in., awarie zasilania, OSDI 2014 | model awarii pokrywa [S8] |
+| [E2] | Satyanarayanan, 2017 | definicję edge daje [E1] |
+| [E3] | Hall, Ramachandran, 2019 | funkcje serverless, nie bazy |
+| [E4] | Sledge, 2020 | środowisko uruchomieniowe, nie bazy |
+| [E5] | Faasm, 2020 | „snapshot jako obraz pamięci” łamie wspólny format plików Rust/WASM – zadanie usunięte |
+| [E6] | Ménétrey i in., 2022 | artykuł pozycyjny; teza zweryfikowana przez sam prototyp |
+| [E7] | Colosi i in., 2025 | warsztat; wniosek pokrywają [D1] i H1 |
+| [E8] | Lumos, 2025 | WASM poza przeglądarką, serializacja I/O kontenerów |
+| [B2] | Barrett i in., rozgrzewka VM, 2017 | uzupełnia [B1]; wystarcza jedno źródło |
+| [B4] | Taipalus, przegląd porównań DBMS, 2023 | wniosek pokrywa [B3] |
+| [B6] | Schwarz i in., zegary w JS, 2017 | rozdzielczość zegarów opisuje [Q5] |
+| [Q9], [Q10] | wystąpienia Kleppmanna; FOSDEM i Smashing Magazine | bez bezpośredniego zastosowania; LWW per pole pokrywa [L24] |

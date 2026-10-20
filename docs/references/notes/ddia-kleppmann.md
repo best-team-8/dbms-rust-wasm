@@ -1,6 +1,6 @@
 # Kleppmann (2017) – „Designing Data-Intensive Applications”
 
-Notatka do książki poleconej przez promotora. Książka jest komercyjna – w bazie wiedzy nie ma jej tekstu, są natomiast bibliografie wszystkich rozdziałów udostępnione przez autora ([../ddia-references/](../ddia-references/), licencja CC BY-NC 4.0) i jego bezpłatne notatki do wykładu z systemów rozproszonych ([L23](../papers/kleppmann-distributed-systems-lecture-notes.pdf)). Mapa poniżej odnosi się do **wydania 1 (2017)** i jego polskiego tłumaczenia; tytuły podrozdziałów podano w oryginale, żeby łatwo było je odnaleźć.
+Notatka do książki poleconej przez promotora. Książka jest komercyjna – w bazie wiedzy nie ma jej tekstu, są natomiast bibliografie wszystkich rozdziałów udostępnione przez autora ([github.com/ept/ddia-references](https://github.com/ept/ddia-references), licencja CC BY-NC 4.0) i jego bezpłatne notatki do wykładu z systemów rozproszonych ([lokalna kopia](../papers/kleppmann-distributed-systems-lecture-notes.pdf), dołączona do wpisu [P1]). Mapa poniżej odnosi się do **wydania 1 (2017)** i jego polskiego tłumaczenia; tytuły podrozdziałów podano w oryginale, żeby łatwo było je odnaleźć.
 
 ## 1. Dane bibliograficzne
 
@@ -51,5 +51,5 @@ Przy cytowaniu należy podać wydanie i numer rozdziału – w wydaniu 2 układ 
 
 ## 4. Gdzie szukać dalej
 
-- Bibliografie rozdziałów: [ch. 3](../ddia-references/chapter-03-refs.md), [ch. 5](../ddia-references/chapter-05-refs.md), [ch. 7](../ddia-references/chapter-07-refs.md), [ch. 8](../ddia-references/chapter-08-refs.md), [ch. 9](../ddia-references/chapter-09-refs.md), [ch. 11](../ddia-references/chapter-11-refs.md), [ch. 12](../ddia-references/chapter-12-refs.md).
-- Rozwinięcie wątków z rozdziałów 5 i 12 w późniejszych pracach autora: [L1] (local-first), [L4] (weryfikacja zbieżności), [L5] (JSON CRDT), [L12] (spójność przy uczestnikach bizantyjskich), [L16] (Eg-walker, 2025).
+- Bibliografie rozdziałów 3, 5, 7, 8, 9, 11 i 12 w repozytorium autora: [github.com/ept/ddia-references](https://github.com/ept/ddia-references).
+- Prace rdzenia rozwijające wątki książki: [L1] (local-first, rozdz. 5 i 12), [C2] (HLC, rozdz. 8), [C9] (koszt LWW i replikacja dwuwarstwowa, rozdz. 5 i 7), [C10] (klienci offline, rozdz. 5 i 12), [L28] (CRDT, rozdz. 5), [S6] (logowanie w bazach w pamięci, rozdz. 3).

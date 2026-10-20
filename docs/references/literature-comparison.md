@@ -1,6 +1,6 @@
 # Flat-SQL na tle literatury
 
-Dokument zestawia założenia i wyniki prototypu (gałąź `dbms-2-engine-prototype`, dokumenty [architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)) z publikacjami zebranymi w [bazie wiedzy](README.md). Identyfikatory w nawiasach kwadratowych (np. [W1]) odsyłają do wpisów w indeksie. Stan na 18 października 2026.
+Dokument zestawia założenia i wyniki prototypu (gałąź `dbms-2-engine-prototype`, dokumenty [architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)) z publikacjami z rdzenia [bazy wiedzy](README.md). Identyfikatory w nawiasach kwadratowych (np. [W1]) odsyłają do wpisów w indeksie; zadania – do [todo.md](../todo.md) (optymalizacja prototypu) i [todo_future.md](../todo_future.md) (rozszerzenia). Stan po rewizji z 20 października 2026.
 
 Ocena w tabelach:
 
@@ -13,20 +13,23 @@ Ocena w tabelach:
 | # | Obszar | Założenie / wynik projektu | Literatura | Ocena |
 |---|---|---|---|---|
 | 1 | Narzut WebAssembly (H2) | 1,1–1,8× wolniej niż natywnie w operacjach wewnątrz silnika | [P2]: prawie wszystkie jądra < 2×; [W1]: średnio 1,45–1,55×, maks. 2,5× | zgodne |
-| 2 | Granica JS↔WASM (H3) | JSON 1,9× szybszy od obiektów `js-sys` dla jednego wiersza | [P2] nie mierzy; [D1]: wyniki przekazywane jako Arrow IPC prosto ze sterty WASM; [E8]: wysoki narzut serializacji I/O | zgodne, **wkład własny** |
-| 3 | Izolacja i Privacy by Design | dane przetwarzane „w izolowanym środowisku przeglądarki” | [P2]: izolacja chroni hosta, nie dane modułu; [W2], [W9]; [L1] i [V1]: szyfrowanie end-to-end, ochrona w całym cyklu życia | częściowo |
+| 2 | Granica JS↔WASM (H3) | JSON 1,9× szybszy od obiektów `js-sys` dla jednego wiersza | [P2], [W1] nie mierzą; [D1]: wyniki jako Arrow IPC czytane wprost ze sterty WASM | zgodne, **wkład własny** |
+| 3 | Izolacja i Privacy by Design | dane przetwarzane „w izolowanym środowisku przeglądarki” | [P2], [W2]: izolacja chroni hosta, nie dane modułu; [L1], [V1]: szyfrowanie, ochrona w całym cyklu życia | częściowo |
 | 4 | Siedem ideałów local-first | szybkość, offline, synchronizacja | [L1] | 3 zgodne, 4 częściowo (§3) |
-| 5 | Zegar HLC | 48 bitów ms + 16 bitów licznika, wchłanianie obcych znaczników | [C2]: ta sama postać zwarta, ale także reguła odrzucania znaczników zbyt daleko w przyszłości; [P1] rozdz. 8 | luka |
-| 6 | LWW per wiersz | deterministyczna zbieżność bez koordynacji | [L2] rejestr LWW; [P1] rozdz. 5: zbieżność kosztem utraty współbieżnych zapisów; [L24], [X5], [Q10]: granulacja kolumny/komórki | częściowo |
-| 7 | Transakcje a replikacja | transakcja = jedna ramka WAL, atomowa lokalnie | [C8]: Monotonic Atomic View osiągalne bez koordynacji; outbox Flat-SQL zachowuje granice transakcji tylko wtedy, gdy mieści się w jednej paczce | częściowo |
-| 8 | Ewolucja schematu w replikach | „replikowana w uproszczony sposób” | [L1], [L9], [L10], [L26]: problem otwarty | luka (znana) |
-| 9 | Model „bez JOIN” | upraszcza wykonanie i replikację | [C7], [C6], [C4]: encja pod kluczem jako jednostka atomowości; [M1], [D4]: brak złączeń to koszt; [L8]: trudność replikacji leży w więzach, nie w złączeniach | częściowo |
-| 10 | Baza w pamięci + WAL + snapshot, group commit | trwałość przyrostowa, koszt ∝ zmianie | [S1], [S4], [S5], [S6], [P1] rozdz. 3 | zgodne |
-| 11 | Trwałość w przeglądarce | „po `await flush()` dane są trwałe” | [Q1]: od Chrome 121 domyślnie `relaxed` – trwałe wobec awarii karty, nie systemu | częściowo (doprecyzować) |
-| 12 | Backend plikowy | `tmp` + `fsync` + `rename` + obcięcie WAL | [S8]: bez `fsync` katalogu kolejność `rename` i obcięcia WAL nie jest gwarantowana | luka |
-| 13 | Usuwanie danych przez przeglądarkę | dane w IndexedDB „na zawsze” | [L1], [Q2], [Q3], [Q4]: magazyn best-effort, 7-dniowy limit Safari | luka |
-| 14 | Local-First vs Cloud-First (H1) | µs lokalnie vs RTT w chmurze | [E1], [E2], [D4] (próg 100 ms, cel 16 ms), [E7] | zgodne |
-| 15 | Metodyka benchmarków | rozgrzewka, kontrola wyników, JSON | [B3]: zimne i gorące przebiegi osobno; [B1], [B2]: wiele uruchomień i przedziały ufności; [B5]: rozkład Zipfa | częściowo |
+| 5 | Zegar HLC | 48 bitów ms + 16 bitów licznika, wchłanianie obcych znaczników | [C2] §4: także ignorowanie znaczników zbyt daleko w przyszłości; [P1] rozdz. 8 | luka |
+| 6 | LWW per wiersz | deterministyczna zbieżność bez koordynacji | [L2], [L28]: poprawny CRDT; [C9]: znaczniki czasu gubią aktualizacje; [L24]: LWW per atrybut | częściowo |
+| 7 | Atomowość między replikami | transakcja atomowa lokalnie, między replikami – wiersz | [C7], [L27]: wiersz/encja jako jednostka atomowości; [C8]: MAV osiągalne bez koordynacji | zgodne (do udokumentowania) |
+| 8 | Trwały outbox, praca offline | outbox odbudowywany z WAL, przetrwa restart | [C10]: trwały, skracany log reintegracji; [L27]: aplikacje bez tego tracą dane | zgodne |
+| 9 | Log synchronizacji serwera | log w pamięci, nowa epoka po każdym restarcie | [P1] rozdz. 11, [C10]: trwały log z offsetami | luka |
+| 10 | Ewolucja schematu w replikach | „replikowana w uproszczony sposób” | [L1], [L26]: problem otwarty, wzór soczewek | luka (znana) |
+| 11 | Model „bez JOIN” | upraszcza wykonanie i replikację | [C7] za; [M1], [D4] przeciw; [M2]: przewidywalny koszt tylko dla zapytań ograniczonych; [L8]: trudność leży w więzach | częściowo |
+| 12 | Baza w pamięci + WAL + snapshot, group commit | trwałość przyrostowa, koszt ∝ zmianie | [S1], [S4], [S6], [P1] rozdz. 3 | zgodne |
+| 13 | Checkpoint | synchroniczna kopia całej bazy (35–49 ms) | [S10]: „naiwny snapshot” daje skoki latencji; są algorytmy bez przestoju | częściowo |
+| 14 | Trwałość w przeglądarce | „po `await flush()` dane są trwałe” | [Q1]: od Chrome 121 domyślnie `relaxed` – trwałe wobec awarii karty, nie systemu | częściowo (doprecyzować) |
+| 15 | Backend plikowy | `tmp` + `fsync` + `rename` + obcięcie WAL | [S8]: bez `fsync` katalogu kolejność `rename` i obcięcia WAL nie jest gwarantowana | luka |
+| 16 | Usuwanie danych przez przeglądarkę | dane w IndexedDB „na zawsze” | [L1], [Q2]–[Q4]: magazyn best-effort, 7-dniowy limit Safari | luka |
+| 17 | Local-First vs Cloud-First (H1) | µs lokalnie vs RTT w chmurze | [D4] (cel 16 ms, próg 100 ms), [E1] | zgodne |
+| 18 | Metodyka benchmarków | rozgrzewka, kontrola wyników, JSON | [B3]: zimne i gorące przebiegi osobno; [B1]: wiele uruchomień; [B5]: rozkład Zipfa | częściowo |
 
 ## 2. WebAssembly jako platforma silnika
 
@@ -34,140 +37,141 @@ Ocena w tabelach:
 
 Praca twórców standardu [P2] pokazała wydajność bliską natywnej na PolyBenchC (7 z 24 jąder w granicy 10%, prawie wszystkie poniżej 2×). Jangda i in. [W1] na pełnych programach SPEC CPU zmierzyli średnio 1,55× (Chrome) i 1,45× (Firefox), z maksimum 2,5×, i przypisali narzut głównie większej liczbie dostępów do pamięci (presja na rejestry), dodatkowym skokom (m.in. kontrola przepełnienia stosu przy każdym wywołaniu) i większemu kodowi.
 
-Wynik Flat-SQL – 1,1–1,8× dla operacji wewnątrz silnika ([benchmark-results.md §6](../research/benchmark-results.md)) – mieści się w tym przedziale. Co ważniejsze, obserwacja z §5 wyników (rekurencyjny `eval` z ramką ~500 B zapisywał rejestry przy każdym wywołaniu, a obsługa liści wyrażeń bez wywołania funkcji skróciła porównanie z ~90 do ~30 ns) jest praktycznym potwierdzeniem diagnozy z [W1]: w WASM każde wywołanie funkcji jest droższe niż natywnie, więc spłaszczanie gorących ścieżek opłaca się bardziej niż w kodzie natywnym.
+Wynik Flat-SQL – 1,1–1,8× dla operacji wewnątrz silnika ([benchmark-results.md §6](../research/benchmark-results.md)) – mieści się w tym przedziale. Obserwacja z §5 wyników (rekurencyjny `eval` z ramką ~500 B zapisywał rejestry przy każdym wywołaniu; obsługa liści wyrażeń bez wywołania funkcji skróciła porównanie z ~90 do ~30 ns) jest praktycznym potwierdzeniem diagnozy z [W1]: w WASM każde wywołanie jest droższe niż natywnie, więc spłaszczanie gorących ścieżek opłaca się bardziej.
 
-**Wniosek:** zgodne. W pracy warto zestawić trzy liczby: [P2], [W1] i własny pomiar, oraz zaznaczyć, że narzut 4,3× dla PK lookup wynika z granicy JS↔WASM, a nie z samego WebAssembly (to rozróżnienie jest w literaturze rzadko mierzone).
+**Wniosek:** zgodne. W pracy warto zestawić trzy liczby: [P2], [W1] i własny pomiar, oraz zaznaczyć, że narzut 4,3× dla odczytu po kluczu wynika z granicy JS↔WASM, a nie z samego WebAssembly.
 
 ### 2.2 Granica JS↔WASM (H3)
 
-[P2] stawia prostą współpracę z platformą WWW za cel, ale nie mierzy kosztu przekazywania danych; [W1] analizuje jakość kodu generowanego przez kompilatory JIT, a narzut własnej infrastruktury (wywołania systemowe obsługiwane przez JS) ocenia jako pomijalny (średnio 0,2%) i nie bada go dalej. Nowsze prace o WASM poza przeglądarką wskazują wysoki narzut serializacji wejścia/wyjścia ([E8]: 7–10× względem kontenerów w trybie interpretowanym), a [E7] – że przeglądarka jest konkurencyjna właśnie wtedy, gdy dane wymieniane są w pamięci.
+[P2] stawia prostą współpracę z platformą WWW za cel, ale nie mierzy kosztu przekazywania danych; [W1] ocenia narzut wywołań obsługiwanych przez JS jako pomijalny i nie bada go dalej. Ponowne wyszukiwanie (20.10.2026, [search-methodology.md](search-methodology.md)) nie znalazło recenzowanych pomiarów tej granicy dla silników baz danych.
 
-Pomiar H3 (JSON 1,9× szybszy od budowania obiektów JS przez `js-sys` dla wyników jednowierszowych) jest więc **wkładem własnym** w obszarze słabo pokrytym przez badania. Najbliższy precedens to DuckDB-Wasm [D1]: autorzy wskazują izolację pamięci WASM od sterty JS jako główną przeszkodę i rozwiązują ją, serializując wyniki jako strumienie Apache Arrow IPC, które JS czyta bezpośrednio ze sterty WASM. To potwierdza wniosek z H3 („JSON lub binarny format kolumnowy zamiast budowania obiektów przez `js-sys`”) i wskazuje konkretny format. Dodatkowo JS String Builtins (Wasm 3.0, [W10], [Q6]) zmniejszają koszt przekazywania tekstu.
+Pomiar H3 (JSON 1,9× szybszy od budowania obiektów JS przez `js-sys` dla wyników jednowierszowych) jest więc **wkładem własnym**. Najbliższy precedens to DuckDB-Wasm [D1]: autorzy wskazują izolację pamięci WASM od sterty JS jako główną przeszkodę i serializują wyniki jako strumienie Apache Arrow IPC, które JS czyta bezpośrednio ze sterty WASM. To potwierdza kierunek „binarny bufor zamiast obiektów” ([todo.md 2.4](../todo.md)). Nie potwierdza natomiast wcześniejszej sugestii, że pomogą JS String Builtins z Wasm 3.0: mechanizm służy językom, które używają łańcuchów JS jako własnych (z GC), a Rust trzyma tekst w pamięci liniowej i kopiowania nie uniknie [Q13] – zadanie usunięto.
 
-### 2.3 Rozmiar modułu, kompilacja i rozgrzewka
+### 2.3 Rozmiar modułu, kompilacja i poziomy optymalizacji
 
-[P2] zakłada zwartą reprezentację (62,5% rozmiaru asm.js, 85,3% kodu x86-64) i szybką, strumieniową kompilację. Flat-SQL: 545 KiB (206 KiB gzip), kompilacja 2,7 ms w Node.js; serwer wysyła moduł z typem `application/wasm` ([server/server.js](../../server/server.js)), więc przeglądarka może kompilować go strumieniowo – zgodne.
+[P2] zakłada zwartą reprezentację (62,5% rozmiaru asm.js, 85,3% kodu x86-64) i kompilację strumieniową. Flat-SQL: 545 KiB (206 KiB gzip), kompilacja 2,7 ms w Node.js; serwer wysyła moduł z typem `application/wasm`, a inicjalizacja `wasm-bindgen` kompiluje go strumieniowo – zgodne. Analiza wdrożeń potwierdza, że rozmiar ma znaczenie: Notion ładuje SQLite asynchronicznie, bo kilkaset KB biblioteki opóźniało start strony ([real-world-usage.md §3](../research/real-world-usage.md#3-wnioski-projektowe-z-cudzych-wdrożeń)).
 
-Yan i in. [W11] pokazali, że optymalizacje LLVM nie są dostrojone do WASM i wyższy poziom optymalizacji nie zawsze daje szybszy kod. Flat-SQL buduje się z `opt-level = 3` i `wasm-opt -O3` – warto w benchmarku porównać przynajmniej `opt-level = 2` i `"s"` (mniejszy moduł, a w świetle [W11] niekoniecznie wolniejszy).
+Yan i in. [W11] pokazali, że optymalizacje LLVM nie są dostrojone do WASM i wyższy poziom optymalizacji nie zawsze daje szybszy kod. Flat-SQL buduje się z `opt-level = 3` i `wasm-opt -O3` – warto porównać przynajmniej `opt-level = 2`, `"s"` i `"z"` ([todo.md 2.5](../todo.md)).
 
-Rozgrzewka w benchmarku (bez niej pierwszy mierzony silnik wypadał do 2× gorzej przy insertach – efekt przejścia Liftoff → TurboFan) jest zgodna z zaleceniami [B1] i [B2]. [B2] pokazuje jednak, że w wielu parach maszyna wirtualna–benchmark stabilny stan nie następuje nawet po rozgrzewce – zob. §8.
+Rozgrzewka w benchmarku (bez niej pierwszy mierzony silnik wypadał do 2× gorzej przy insertach – efekt przejścia Liftoff → TurboFan) jest zgodna z zaleceniami [B1]; wiele uruchomień procesu – zob. §8.
 
 ### 2.4 Izolacja, bezpieczeństwo i Privacy by Design
 
-README obiecuje „przetwarzanie wrażliwych danych w izolowanym środowisku przeglądarki bez wysyłania ich na serwer”. Literatura rozdziela tu trzy różne własności:
+README obiecuje „przetwarzanie wrażliwych danych w izolowanym środowisku przeglądarki bez wysyłania ich na serwer”. Literatura rozdziela tu trzy własności:
 
 | Własność | Literatura | Stan Flat-SQL | Ocena |
 |---|---|---|---|
-| Moduł nie zaszkodzi hostowi | [P2]: pamięć liniowa oddzielona od kodu i stosu silnika; [W4]: dowodliwie bezpieczne implementacje | zapewnia przeglądarka | zgodne |
-| Błąd w module nie zaszkodzi danym modułu | [W2]: w pamięci liniowej brak kanarków stosu, ASLR, stron ochronnych; [W9] (2026): błędy binarne prowadzą do SQL injection i XS-Leaks | rdzeń i `flatsql-wasm` bez `unsafe`, rdzeń bez zależności – większość klas ataków z [W2] nie dotyczy kodu w bezpiecznym Ruście | zgodne (warto to podkreślić w pracy) |
-| Dane są chronione przed innymi | [L1] ideał 6: szyfrowanie end-to-end, serwer przechowuje tylko szyfrogramy; [L11]: szyfrowane typy replikowane; [V1]: prywatność domyślnie i ochrona w całym cyklu życia; [L18]: kontrola dostępu w systemach local-first | IndexedDB nie jest szyfrowana i jest dostępna dla każdego skryptu tej samej domeny (np. przy XSS); po włączeniu synchronizacji serwer otrzymuje dane jawnym tekstem; serwer nie ma uwierzytelniania (prototyp na `127.0.0.1`) | **częściowo** |
+| Moduł nie zaszkodzi hostowi | [P2]: pamięć liniowa oddzielona od kodu i stosu silnika | zapewnia przeglądarka | zgodne |
+| Błąd w module nie zaszkodzi danym modułu | [W2]: w pamięci liniowej brak kanarków stosu, ASLR, stron ochronnych | rdzeń i `flatsql-wasm` bez `unsafe`, rdzeń bez zależności – klasy ataków z [W2] w większości nie dotyczą bezpiecznego Rusta | zgodne (warto podkreślić w pracy) |
+| Dane są chronione przed innymi | [L1] ideał 6: szyfrowanie end-to-end; [L11]: szyfrowane typy replikowane; [V1]: prywatność domyślnie i ochrona w całym cyklu życia | IndexedDB nie jest szyfrowana i jest dostępna dla każdego skryptu tej samej domeny (np. przy XSS); serwer synchronizacji dostaje dane jawnym tekstem i nie uwierzytelnia klientów | **częściowo** |
 
-**Wniosek:** „Privacy by Design” w obecnym kształcie oznacza minimalizację przesyłanych danych (lokalne przetwarzanie, synchronizacja opcjonalna), a nie ochronę kryptograficzną. Uczciwe sformułowanie w pracy: dane są domyślnie lokalne (zasada 2 z [V1]); pełna realizacja wymagałaby szyfrowania paczek zmian kluczem użytkownika ([L11]) i uwierzytelniania klientów ([L18]). Szyfrowanie end-to-end paczek `FSB1` jest architektonicznie możliwe, jeśli serwer stanie się przekaźnikiem nieprzezroczystych zmian: do rozstrzygnięcia LWW wystarczy jawny znacznik i identyfikator wiersza (np. skrót klucza), a wartości mogą być zaszyfrowane. Kosztem jest utrata trybu Cloud-First (`/api/query`) i walidacji schematu po stronie serwera, który dziś utrzymuje pełną replikę.
+**Wniosek:** „Privacy by Design” oznacza dziś minimalizację przesyłanych danych (lokalne przetwarzanie, synchronizacja opcjonalna – zasada 2 z [V1]), a nie ochronę kryptograficzną ([todo.md 0.1](../todo.md)). Szyfrowanie end-to-end paczek `FSB1` jest architektonicznie możliwe, jeśli serwer stanie się przekaźnikiem nieprzezroczystych zmian: do rozstrzygnięcia LWW wystarczy jawny znacznik i skrót klucza, a wartości mogą być zaszyfrowane [L11]. Kosztem jest utrata `/api/query` i walidacji po stronie serwera dla zaszyfrowanych tabel ([todo_future.md 4.3–4.4](../todo_future.md)).
 
 ### 2.5 Pamięć i skala danych
 
-MVP z [P2] ma 32-bitowe adresy (do 4 GiB pamięci liniowej). Wasm 3.0 dodał memory64 ([W10]), ale bez sztuczki ze stronami ochronnymi sprawdzanie granic kosztuje ponad 100% czasu wykonania, a dwupoziomowe strony ochronne obniżają to do 12,7% ([W6]); twórcy SpiderMonkey zalecają memory64 tylko przy faktycznej potrzebie > 4 GiB ([Q6]).
-
-Yan i in. [W11] zmierzyli też, że programy WASM zużywają znacznie więcej pamięci niż odpowiedniki w JS (pamięć liniowa rośnie, ale nie jest oddawana jak przy GC). Flat-SQL trzyma każdy wiersz jako osobną alokację w `BTreeMap` (snapshot 100 tys. wierszy: 5,27 MB na dysku, w pamięci wielokrotnie więcej). Scenariusz z README „plik CSV 500 MB w przeglądarce” jest więc poza zasięgiem obecnej reprezentacji – właściwym narzędziem jest DuckDB-Wasm [D1] (kolumnowy, czytający pliki fragmentami), co [wasm-engines-comparison.md §4](../research/wasm-engines-comparison.md) już przyznaje. **Rekomendacja:** usunąć ten scenariusz z listy zastosowań Flat-SQL albo opisać go jako przypadek dla innego silnika; w części o ograniczeniach powołać się na [W6] i [D1].
+MVP z [P2] ma 32-bitowe adresy (do 4 GiB pamięci liniowej). Wasm 3.0 dodał memory64, ale 64-bitowa pamięć jest wyraźnie wolniejsza i twórcy SpiderMonkey zalecają ją tylko przy faktycznej potrzebie > 4 GiB [Q6]. Yan i in. [W11] zmierzyli, że programy WASM zużywają znacznie więcej pamięci niż JS, bo pamięć liniowa rośnie, ale nie jest oddawana. Flat-SQL trzyma każdy wiersz jako osobną alokację w `BTreeMap` (snapshot 100 tys. wierszy: 5,27 MB na dysku, w pamięci wielokrotnie więcej). Scenariusz „plik CSV 500 MB w przeglądarce” jest poza zasięgiem tej reprezentacji – właściwym narzędziem jest DuckDB-Wasm [D1]. **Rekomendacja:** przypisać scenariusz DuckDB-Wasm ([todo.md 0.2](../todo.md)), zmierzyć pamięć ([todo.md 4.4](../todo.md)) i zmniejszyć ją zwartą reprezentacją wierszy ([todo.md 2.7](../todo.md)).
 
 ### 2.6 Determinizm
 
-[P2] dopuszcza w arytmetyce zmiennoprzecinkowej jedynie niedeterministyczne wzorce bitowe NaN. Codec Flat-SQL zapisuje `f64` bit po bicie ([storage/codec.rs](../../crates/flatsql-core/src/storage/codec.rs)), a porządek `Value` traktuje NaN jako równe – logicznie repliki są zgodne. Jeśli w przyszłości stan replik będzie porównywany po skrócie bajtów (np. przy uzgadnianiu zbiorów [L14]), warto kanonizować NaN przy zapisie.
+[P2] dopuszcza w arytmetyce zmiennoprzecinkowej jedynie niedeterministyczne wzorce bitowe NaN. Codec Flat-SQL zapisuje `f64` bit po bicie, a porządek `Value` traktuje NaN jako równe – logicznie repliki są zgodne. Przy porównywaniu replik po skrócie bajtów trzeba kanonizować NaN przy zapisie ([todo.md 1.8](../todo.md)).
 
 ## 3. Ideały local-first
 
-Ocena według siedmiu ideałów z [L1] (sekcje 2.1–2.7 artykułu):
+Ocena według siedmiu ideałów z [L1]:
 
 | Ideał [L1] | Flat-SQL | Ocena | Uwagi z literatury |
 |---|---|---|---|
-| 1. Brak spinnerów | zapytanie po kluczu ~10 µs, synchronicznie (H1) | zgodne | [D4]: cel 16 ms na interakcję, próg 100 ms – zapytania lokalne zużywają ułamek budżetu |
+| 1. Brak spinnerów | zapytanie po kluczu ~10 µs, synchronicznie (H1) | zgodne | [D4]: cel 16 ms na interakcję – zapytania lokalne zużywają ułamek budżetu; wyjątek: checkpoint (§6.3) |
 | 2. Praca nie jest uwięziona na jednym urządzeniu | synchronizacja przez serwer, repliki zbieżne (H6) | zgodne | [L20]: modele hybrydowe z serwerem są w praktyce najbardziej wykonalne |
-| 3. Sieć jest opcjonalna | Service Worker, IndexedDB, trwały outbox, test offline | zgodne, z zastrzeżeniem | [L1] sam ostrzega, że magazyn przeglądarki bywa czyszczony razem z ciasteczkami; zob. §6.6 |
-| 4. Płynna współpraca | LWW na cały wiersz | częściowo | współbieżne edycje różnych kolumn jednego wiersza – jedna ginie; [L1] wskazuje CRDT jako podstawę współpracy, a [L2] opisuje typy (np. mapy rejestrów) scalające zmiany na poziomie pól (§4.2) |
-| 5. Długowieczność danych | udokumentowane formaty binarne z nagłówkami (`FLATSQL1`, `FSB1`), wspólne dla Rust i Node.js, CLI otwiera katalog serwera | częściowo | brak polityki zgodności wersji formatów i schematu dla klientów, którzy długo byli offline ([P1] rozdz. 4, [L9]) |
+| 3. Sieć jest opcjonalna | Service Worker, IndexedDB, trwały outbox, test offline | zgodne, z zastrzeżeniem | wzorzec pracy bez połączenia z [C10]; [L1] ostrzega, że magazyn przeglądarki bywa czyszczony (§6.7) |
+| 4. Płynna współpraca | LWW na cały wiersz | częściowo | współbieżne edycje różnych kolumn jednego wiersza – jedna ginie [C9]; scalanie na poziomie pól [L24] |
+| 5. Długowieczność danych | udokumentowane formaty binarne z nagłówkami (`FLATSQL1`, `FSB1`), wspólne dla Rust i Node.js | częściowo | brak polityki zgodności wersji formatów i schematu dla klientów długo offline ([P1] rozdz. 4, [L26]) |
 | 6. Bezpieczeństwo i prywatność domyślnie | dane lokalne domyślnie | częściowo | brak szyfrowania i uwierzytelniania (§2.4) |
-| 7. Pełna kontrola użytkownika | eksport stanu (`exportState`, snapshot), przełącznik synchronizacji w demo | częściowo | dane w IndexedDB są w praktyce dostępne tylko przez aplikację; [L1] postuluje możliwość eksportu w otwartym formacie (np. JSON – jest `changes_to_json`, można go udostępnić jako eksport) |
+| 7. Pełna kontrola użytkownika | eksport stanu (`exportState`, snapshot), przełącznik synchronizacji w demo | częściowo | brak eksportu do pliku w otwartym formacie – jest `changes_to_json` ([todo_future.md 1.3](../todo_future.md)) |
 
 ## 4. Synchronizacja i rozwiązywanie konfliktów
 
 ### 4.1 Zegar HLC
 
-Implementacja ([sync.rs](../../crates/flatsql-core/src/sync.rs)) odpowiada zwartej postaci z [C2]: 48 bitów czasu fizycznego i 16 bitów licznika w jednej liczbie 64-bitowej (w artykule – bity NTP, w projekcie – milisekundy), monotoniczność przy cofnięciu zegara i wchłanianie obcych znaczników (`observe`). Porządek `(time, node)` to porządek całkowity Lamporta [C1].
+Implementacja ([sync.rs](../../crates/flatsql-core/src/sync.rs)) odpowiada zwartej postaci z [C2]: 48 bitów czasu fizycznego i 16 bitów licznika w jednej liczbie 64-bitowej, monotoniczność przy cofnięciu zegara i wchłanianie obcych znaczników (`observe`). Porządek `(time, node)` to porządek całkowity z rozstrzyganiem remisów identyfikatorem węzła.
 
-Czego brakuje: [C2] (sekcja 4) przewiduje regułę ignorowania wiadomości, które odsunęłyby zegar logiczny zbyt daleko od czasu fizycznego, oraz reset do czasu fizycznego z zalogowaniem incydentu. W Flat-SQL `observe` przyjmuje dowolną wartość, a serwer (`/sync/push`) nie sprawdza znaczników. Skutki:
+Czego brakuje: [C2] (sekcja 4) przewiduje regułę **ignorowania** wiadomości, które odsunęłyby zegar logiczny zbyt daleko od fizycznego, z zalogowaniem incydentu i powiadomieniem administratora. W Flat-SQL `observe` przyjmuje dowolną wartość, a serwer nie sprawdza znaczników. Skutki:
 
 - urządzenie z zegarem ustawionym np. rok do przodu wygrywa **wszystkie** konflikty przez ten rok,
-- przez wchłanianie znaczników „przyszłość” rozlewa się na wszystkie repliki – zegary wszystkich klientów przeskakują,
-- Kleppmann [P1, rozdz. 8] wprost zaznacza, że zegarom urządzeń, których nie kontrolujemy, nie można ufać (użytkownicy celowo zmieniają czas).
+- przez wchłanianie znaczników „przyszłość” rozlewa się na wszystkie repliki,
+- Kleppmann [P1, rozdz. 8] zaznacza, że zegarom urządzeń, których nie kontrolujemy, nie można ufać.
 
-**Rekomendacja:** stała `MAX_DRIFT` (np. 60 s); serwer odrzuca lub oznacza zmiany ze znacznikiem `> czas_serwera + MAX_DRIFT`, a klient nie wchłania takich znaczników i sygnalizuje problem z zegarem. To zmiana kilkunastu linii w `Hlc::observe` i w obsłudze `/sync/push`, a zamyka scenariusz, którego test losowy nie pokrywa (zegary w testach są poprawne).
+**Rekomendacja:** stała `MAX_DRIFT`; serwer odrzuca zmiany ze znacznikiem `> czas_serwera + MAX_DRIFT`, klient nie wchłania takich znaczników i sygnalizuje problem ([todo.md 1.1](../todo.md)), test z rozjechanymi zegarami ([todo.md 1.9](../todo.md)).
 
 ### 4.2 LWW per wiersz na tle CRDT
 
-Model replikacji Flat-SQL to mapa rejestrów LWW indeksowana kluczem głównym, z tombstone'ami usunięć – formalnie typ opisany w [L2] (rejestr LWW, specyfikacje 8–9) i [L3]. Scalanie przez maksimum w porządku całkowitym jest łączne, przemienne i idempotentne, więc zbieżność (silna spójność ostateczna) wynika z teorii CRDT, a test `randomized_offline_sessions_converge` jest jej empirycznym potwierdzeniem; formalny dowód w stylu [L4] lub specyfikacja w [L19] byłyby naturalnym rozszerzeniem. Wysyłanie bieżącego stanu zmienionych wierszy zamiast historii operacji to synchronizacja delta-state [L6] – 100 kolejnych `UPDATE` jednego wiersza daje jedną zmianę.
+Model replikacji Flat-SQL to mapa rejestrów LWW indeksowana kluczem, z tombstone'ami usunięć – formalnie typ z [L2]. Scalanie przez maksimum w porządku całkowitym jest łączne, przemienne i idempotentne, więc zbieżność wynika z teorii CRDT [L28], a test `randomized_offline_sessions_converge` jest jej empirycznym potwierdzeniem. Wysyłanie bieżącego stanu zmienionych wierszy zamiast historii operacji to synchronizacja delta-state [L28] – 100 kolejnych `UPDATE` jednego wiersza daje jedną zmianę.
 
-Zastrzeżenie dotyczy granulacji. [P1, rozdz. 5] opisuje LWW jako zbieżność kosztem utraty współbieżnych zapisów. W Flat-SQL:
+Zastrzeżenie dotyczy tego, co zbieżność kosztuje. Gray i in. [C9] opisali to już w 1996 r.: schemat „nowszy znacznik wygrywa” daje zbieżność, ale **gubi aktualizacje** (problem utraconej aktualizacji); wyjątkiem są aktualizacje przemienne, np. dodawanie stałej do liczby. [P1, rozdz. 5] dodaje, że LWW jest bezpieczne głównie dla kluczy zapisywanych raz. W Flat-SQL:
 
 | Scenariusz offline | Wynik | Rozwiązania w literaturze i praktyce |
 |---|---|---|
-| A zmienia `qty`, B zmienia `player` w tym samym wierszu | zostaje cały wiersz z późniejszym znacznikiem, druga zmiana ginie bez śladu | LWW per kolumna / komórka: CRR [L24], cr-sqlite, Teilen-SQL [X5], zalecenie praktyków [Q10] |
-| A i B zwiększają licznik o 1 | wynik +1 zamiast +2 | licznik CRDT (PN-Counter, [L2]) |
-| wspólna edycja pola tekstowego | wygrywa jedna wersja | CRDT tekstu / Eg-walker [L16] |
+| A zmienia `qty`, B zmienia `player` w tym samym wierszu | zostaje cały wiersz z późniejszym znacznikiem, druga zmiana ginie bez śladu | LWW per kolumna: CRR [L24], cr-sqlite, Teilen-SQL [X5] – [todo.md 3.1](../todo.md) |
+| A i B zwiększają licznik o 1 | wynik +1 zamiast +2 | aktualizacje przemienne [C9], licznik CRDT [L2], kolumny addytywne [L8] – [todo_future.md 2.5](../todo_future.md) |
+| wspólna edycja pola tekstowego | wygrywa jedna wersja | CRDT tekstu poza silnikiem [L1] – [todo_future.md 6.3](../todo_future.md) |
 
-**Rekomendacja:** w pracy wskazać, dla jakich danych LWW na wiersz jest właściwe (ekwipunek, ustawienia, katalog – dane rzadko edytowane współbieżnie) i jako kierunek rozwoju podać znaczniki per kolumna. Przechowywanie `Stamp` dla każdej kolumny zwiększa rozmiar wiersza, ale nie zmienia protokołu (paczka nadal niesie wiersz, tylko z wektorem znaczników).
+**Rekomendacja:** w pracy wskazać, dla jakich danych LWW na wiersz jest właściwe (ekwipunek, ustawienia, katalog – dane rzadko edytowane współbieżnie; Coda w praktyce prawie nie miała konfliktów [C10]), a jako pierwsze ulepszenie wprowadzić znaczniki per kolumna – protokół się nie zmienia, rośnie tylko rozmiar wiersza.
 
 ### 4.3 Granice transakcji przy replikacji
 
-Lokalnie transakcja jest atomowa (undo log, jedna ramka WAL). W synchronizacji ta granica nie jest zachowywana: `export_outbox(max)` ([db.rs](../../crates/flatsql-core/src/db.rs)) bierze do `max` wpisów w kolejności `seq` (`batchSize` = 1000 w [bridge/sync.js](../../bridge/sync.js)), a wpis wiersza modyfikowanego ponownie przesuwa się na koniec kolejki. Gdy outbox jest większy niż jedna paczka – typowo po dłuższej pracy offline – zmiany jednej transakcji mogą trafić do różnych paczek, a inne repliki mogą przez chwilę widzieć stan, który nigdy nie istniał w żadnej replice (np. wymiana przedmiotów między dwoma graczami, czyli dwa wiersze, widoczna tylko w połowie). Dopóki cały outbox mieści się w jednej paczce, problem nie występuje, bo serwer stosuje paczkę jako jedną transakcję, a klient – całą odpowiedź `pull`.
+Lokalnie transakcja jest atomowa (undo log, jedna ramka WAL). W synchronizacji ta granica nie jest zachowywana: `export_outbox(max)` bierze do `max` wpisów w kolejności `seq` (`batchSize` = 1000 w [bridge/sync.js](../../bridge/sync.js)), a wiersz modyfikowany ponownie przesuwa się na koniec kolejki. Gdy outbox jest większy niż jedna paczka, zmiany jednej transakcji mogą trafić do różnych paczek i inne repliki mogą przez chwilę widzieć stan pośredni.
 
-Bailis i in. [C8] pokazują, że **Monotonic Atomic View** (widoczne wszystkie albo żadne zapisy transakcji) da się zapewnić bez koordynacji, a więc bez utraty pracy offline; niemożliwe jest dopiero zapobieganie utraconym aktualizacjom. Helland [C7] i Bigtable [C6] przyjmują atomowość jednej encji (jednego wiersza) – to dokładnie gwarancja, którą Flat-SQL daje dziś między replikami.
+Literatura daje tu dwie odpowiedzi. Bailis i in. [C8] pokazują, że **Monotonic Atomic View** (widoczne wszystkie albo żadne zapisy transakcji) da się zapewnić bez koordynacji. Z drugiej strony Helland [C7] przyjmuje atomowość jednej encji, a Simba [L27] – system synchronizacji tabel dla aplikacji mobilnych – świadomie daje atomowość tylko pojedynczego wiersza, bo atomowa synchronizacja wielu wierszy okazała się dla większości aplikacji zbędna i kosztowna. Flat-SQL daje dziś dokładnie gwarancję Simby.
 
-**Rekomendacja:** albo udokumentować gwarancję wprost („transakcje są atomowe lokalnie; między replikami atomowa jest zmiana pojedynczego wiersza”), albo grupować outbox po transakcjach (`seq` początku i końca transakcji, eksport tylko pełnych grup) – serwer i tak stosuje każdą paczkę jako jedną transakcję (`apply_changes`), więc wystarczy, by paczka nie dzieliła transakcji klienta.
+**Rekomendacja:** udokumentować gwarancję wprost („transakcje są atomowe lokalnie; między replikami atomowa jest zmiana pojedynczego wiersza”) i dopiero przy konkretnej potrzebie grupować outbox po transakcjach ([todo.md 3.5](../todo.md)).
 
 ### 4.4 Usunięcia, tombstone'y i unikalność klucza
 
-- Tombstone ze znacznikiem chroni przed „wskrzeszeniem” wiersza przez spóźniony `UPDATE` – zgodne z [L2]. Antidote SQL [L8] pozwala wybrać per tabela semantykę update-wins lub delete-wins; Flat-SQL stosuje czysty porządek znaczników (późniejsza operacja wygrywa), co przy braku kluczy obcych jest spójne i proste.
-- CRR [L24] rozwiązuje usunięcia inaczej: zamiast tombstone'a ze znacznikiem każdy wiersz ma „długość przyczynową” – licznik zwiększany przy każdym wstawieniu i usunięciu (nieparzysta = wiersz istnieje, scalanie = maksimum). Dzięki temu ponowne wstawienie po usunięciu nie zależy od zegarów.
-- Tombstone'y nie są usuwane (usuwa je tylko ponowne wstawienie wiersza). [L7] podaje kryterium bezpiecznego usuwania – stabilność przyczynową: tombstone można usunąć, gdy wszystkie repliki potwierdziły znacznik. Przy serwerze centralnym wystarczy, że serwer zna minimalny potwierdzony kursor wszystkich aktywnych klientów; klienci nieaktywni dłużej niż próg dostają pełny stan (`exportState`), co już jest obsłużone.
-- **Unikalność klucza głównego jest lokalna.** Dwa urządzenia offline wstawiające wiersz o tym samym `id` nie dostaną błędu `constraint` – po synchronizacji jeden wiersz po cichu zastąpi drugi. [P1, rozdz. 9] wyjaśnia, że ograniczenia unikalności między replikami wymagają konsensusu, a rozdz. 5 – że LWW jest bezpieczne głównie dla kluczy zapisywanych raz. CRR [L24] wykrywa takie naruszenie przy scalaniu i jawnie cofa przegrywającą zmianę (wygrywa wcześniejsza, jak przy wykonaniu sekwencyjnym) – Flat-SQL robi odwrotnie (wygrywa późniejsza) i niczego nie zgłasza. **Rekomendacja:** w [flat-sql.md](../flat-sql.md) zalecić klucze generowane bez kolizji (UUID/ULID albo prefiks identyfikatora węzła) dla tabel, do których wstawia się offline.
+- Tombstone ze znacznikiem chroni przed „wskrzeszeniem” wiersza przez spóźniony `UPDATE` – zgodne z [L2]. Antidote SQL [L8] pozwala wybrać per tabela semantykę update-wins lub delete-wins; Flat-SQL stosuje czysty porządek znaczników, co przy braku kluczy obcych jest spójne.
+- CRR [L24] zamiast tombstone'a ze znacznikiem używa „długości przyczynowej” – licznika wstawień i usunięć (nieparzysta = wiersz istnieje, scalanie = maksimum), więc ponowne wstawienie po usunięciu nie zależy od zegarów.
+- Tombstone'y nie są usuwane. Bezpieczne kryterium to stabilność przyczynowa – usunięcie, gdy wszystkie repliki potwierdziły znacznik [L28]. Przy serwerze centralnym wystarczy minimalny potwierdzony kursor aktywnych klientów; klienci nieaktywni dłużej niż próg dostają pełny stan ([todo.md 3.4](../todo.md)).
+- **Unikalność klucza głównego jest lokalna.** Dwa urządzenia offline wstawiające wiersz o tym samym `id` nie dostaną błędu – po synchronizacji jeden wiersz po cichu zastąpi drugi. [P1, rozdz. 9]: ograniczenia unikalności między replikami wymagają konsensusu. CRR [L24] wykrywa takie naruszenie przy scalaniu i cofa przegrywającą zmianę, Simba [L27] zgłasza konflikty aplikacji, a Coda [C10] unikała kolizji tymczasowymi identyfikatorami zastępowanymi przy reintegracji. **Rekomendacja:** klucze bez kolizji w [flat-sql.md](../flat-sql.md) ([todo.md 0.3](../todo.md)) i raport konfliktów ([todo.md 3.3](../todo.md)).
 
 ### 4.5 Protokół synchronizacji
 
 | Element Flat-SQL | Odpowiednik w literaturze | Ocena |
 |---|---|---|
-| zapisy lokalne + serwer porządkujący log (`seq`) | Bayou [C3]: zapisy do dowolnej repliki, serwer główny ustala kolejność zatwierdzeń, anti-entropy | zgodne (LWW zamiast procedur scalania aplikacji) |
+| zapisy lokalne + serwer porządkujący log (`seq`) | Bayou [C3]: zapisy do dowolnej repliki, serwer główny ustala kolejność, anti-entropy | zgodne (LWW zamiast procedur scalania aplikacji) |
+| outbox w WAL, przetrwa restart; kolejne zmiany wiersza scalane w jedną | Coda [C10]: trwały log zmian offline, nowszy zapis unieważnia wcześniejsze wpisy; delta-state [L28] | zgodne |
+| ponowne dostarczenie paczki nie zmienia stanu | idempotencja wiadomości [C7], argument end-to-end [P1, rozdz. 12]; Coda odtwarza log w jednej transakcji [C10] | zgodne |
 | kursor klienta, epoka serwera, pełny stan przy nieznanym kursorze | offsety konsumentów i CDC ze snapshotem początkowym [P1, rozdz. 11] | zgodne |
-| outbox ze scalaniem kolejnych zmian wiersza, kompaktowanie logu serwera | kompaktowanie logu po kluczu [P1, rozdz. 11], delta-state [L6] | zgodne |
-| powtarzalne, idempotentne rundy (równe znaczniki ignorowane) | idempotencja wiadomości [C7], argument end-to-end [P1, rozdz. 12] | zgodne |
-| pull z wykładniczym odstępem | [P1, rozdz. 12]: model push dla klientów reagujących na zmiany | częściowo – dla współpracy w czasie rzeczywistym potrzebny push (WebSocket/SSE) |
-| serwer przyjmuje każdą zmianę | [L12]: odporność na nieuczciwych uczestników; [L18]: kontrola dostępu | luka (prototyp) |
-
-Alternatywy na przyszłość: synchronizacja bez serwera przez Merkle-DAG [L13] lub uzgadnianie zakresów [L14] zamiast pełnego `exportState`.
+| log serwera tylko w pamięci, epoka losowana przy starcie | trwały log z offsetami [P1, rozdz. 11] | **luka** – każdy restart wysyła wszystkim pełny stan ([todo.md 3.2](../todo.md)) |
+| pull z wykładniczym odstępem | [P1, rozdz. 12]: model push dla klientów reagujących na zmiany | częściowo – push w [todo_future.md 6.2](../todo_future.md) |
+| serwer przyjmuje każdą zmianę | Gray i in. [C9]: właściciel kopii głównej zatwierdza zmiany wstępne według kryterium akceptacji; Bayou [C3]: sprawdzanie zależności | luka prototypu ([todo_future.md §2, 4.1](../todo_future.md)) |
+| każdy klient dostaje całą bazę | Cimbiosys [C11]: replikacja częściowa z filtrem klienta i usuwaniem lokalnym wierszy spoza filtra | luka (rozszerzenie – [todo_future.md 3.2](../todo_future.md)) |
 
 ### 4.6 Ewolucja schematu
 
-`CREATE TABLE` z innej repliki jest ignorowany, jeśli tabela o tej nazwie już istnieje – bez porównania schematów ([db.rs, `apply_remote`](../../crates/flatsql-core/src/db.rs)). Dwie repliki, które offline utworzą tabelę o tej samej nazwie i różnych kolumnach, rozjadą się trwale: wiersze drugiej repliki będą odrzucane (`rejected`) przez `check_row`. To przykład problemu, który [L1] (brak „autorytatywnego” schematu bez centralnego serwera), [L9] i [L10] opisują jako otwarty, a [L26] (Cambria) rozwiązuje soczewkami tłumaczącymi dane między wersjami schematu.
+`CREATE TABLE` z innej repliki jest ignorowany, jeśli tabela o tej nazwie już istnieje – bez porównania schematów ([db.rs, `apply_remote`](../../crates/flatsql-core/src/db.rs)). Dwie repliki, które offline utworzą tabelę o tej samej nazwie i różnych kolumnach, rozjadą się trwale: wiersze drugiej repliki będą odrzucane przez `check_row`. [L1] opisuje brak „autorytatywnego” schematu jako problem otwarty, a Cambria [L26] rozwiązuje go soczewkami tłumaczącymi dane między wersjami schematu.
 
-**Rekomendacja:** w prototypie – wykrywać konflikt schematu i zgłaszać go jawnie (zamiast cichego odrzucania wierszy); w pracy – opisać jako świadome ograniczenie z odwołaniem do [L9]; w dalszych pracach – wersjonowanie schematu tabel i migracje deklarowane przez aplikację.
+**Rekomendacja:** w prototypie – wykrywać konflikt i zgłaszać go jawnie ([todo.md 1.7](../todo.md)); w dalszych pracach – wersjonowanie schematu i migracje ([todo_future.md 6.1](../todo_future.md)) oraz schemat zarządzany przez backend ([todo_future.md 2.6](../todo_future.md)).
 
 ## 5. Model danych Flat-SQL („bez JOIN”)
 
-Argumenty **za** płaskim modelem mają mocne oparcie w literaturze systemów rozproszonych:
+Argumenty **za** płaskim modelem:
 
 - Helland [C7]: encja z unikalnym kluczem jest naturalnym zakresem serializowalności, a transakcje atomowe nie powinny obejmować wielu encji;
-- Bigtable [C6]: atomowe operacje jednowierszowe;
-- Dynamo [C4]: wiele usług potrzebuje wyłącznie dostępu po kluczu głównym;
-- Cassandra [C5] i jej CQL: składnia SQL, obowiązkowy klucz, brak złączeń – przemysłowy odpowiednik Flat-SQL.
+- Armbrust i in. [M2]: zapytania z limitem bez złączeń (albo ze złączeniem po unikalnym kluczu) mają koszt niezależny od rozmiaru bazy – to formalna wersja argumentu o przewidywalności;
+- Stonebraker i Pavlo [M1]: przemysłowym odpowiednikiem jest CQL w Cassandrze – składnia SQL nad modelem klucz–wiersz;
+- Simba [L27]: tabela z wierszem jako jednostką synchronizacji wystarcza typowym aplikacjom mobilnym.
 
-Argumenty **przeciw** pochodzą z literatury baz danych i aplikacji local-first:
+Argumenty **przeciw**:
 
-- Stonebraker i Pavlo [M1]: systemy NoSQL niemal powszechnie dodały SQL, a systemy column-family odziedziczyły po Bigtable brak złączeń i indeksów wtórnych – co uznają za ograniczenie, nie zaletę;
-- Riffle [D4]: w aplikacji local-first znaczna część kodu UI to złączenia i grupowania (np. utwory–albumy–artyści), a ich szybkość decyduje o responsywności;
+- [M1]: systemy NoSQL niemal powszechnie dodały SQL, a brak złączeń uznaje się za ograniczenie, nie zaletę; [M2] krytykuje języki, które dla skalowalności po prostu usuwają złączenia;
+- Riffle [D4]: w aplikacji local-first znaczna część kodu UI to złączenia i grupowania, a ich szybkość decyduje o responsywności;
 - [P1, rozdz. 2]: relacje wiele-do-wielu bez złączeń przenoszą pracę do aplikacji.
 
-Ważna obserwacja dla uzasadnienia w pracy: **granulacja replikacji nie zależy od języka zapytań**. CRR [L24] i cr-sqlite replikują wiersze/kolumny tabel relacyjnych, a Antidote SQL [L8] pokazuje, że prawdziwa trudność to więzy integralności (klucze obce, kaskady) przy współbieżnych usunięciach – nie same złączenia. Złączenia tylko do odczytu (bez `FOREIGN KEY`) nie skomplikowałyby synchronizacji Flat-SQL.
+Dwie obserwacje ważne dla uzasadnienia w pracy:
 
-**Rekomendacja:** uzasadniać brak JOIN prostotą i przewidywalnością wykonania (jedna tabela, jeden plan dostępu) oraz brakiem więzów między tabelami (co upraszcza replikację), a nie samą replikacją. Jako dalsze prace: proste złączenie równościowe po indeksie bez więzów oraz zapytania reaktywne w stylu [D4].
+1. **Granulacja replikacji nie zależy od języka zapytań.** CRR [L24] i cr-sqlite replikują wiersze i kolumny tabel relacyjnych, a Antidote SQL [L8] pokazuje, że prawdziwa trudność to więzy integralności (klucze obce, kaskady) przy współbieżnych usunięciach – nie same złączenia.
+2. **„Przewidywalne” nie znaczy „ograniczone”.** Plan Flat-SQL jest zawsze jednotabelowy i widoczny w `EXPLAIN` oraz `rowsScanned`, ale pełny skan i `GROUP BY` rosną z tabelą. W sensie [M2] ograniczony koszt mają tylko odczyty po kluczu lub indeksie z `LIMIT`. Z tej samej pracy wynika, że złączenie po unikalnym kluczu głównym nie psuje przewidywalności.
+
+**Rekomendacja:** uzasadniać brak JOIN prostotą i przewidywalnością planu oraz brakiem więzów między tabelami, a nie samą replikacją; doprecyzować tezę o przewidywalności ([todo.md 0.1](../todo.md)); jako dalsze prace – złączenia tylko do odczytu po kluczu głównym ([todo_future.md 5.2](../todo_future.md), decyzja autora) i zapytania reaktywne ([todo_future.md 5.1](../todo_future.md)).
 
 ## 6. Składowanie i trwałość
 
@@ -176,106 +180,104 @@ Ważna obserwacja dla uzasadnienia w pracy: **granulacja replikacji nie zależy 
 Wzorzec Flat-SQL (dane w pamięci, log tylko-redo z CRC, okresowy pełny snapshot, odtwarzanie = snapshot + ramki o większym LSN) jest klasyczny:
 
 - DeWitt i in. [S1] – odtwarzanie baz w pamięci przez log i checkpointy;
-- [P1, rozdz. 3] – bazy w pamięci zawdzięczają szybkość głównie brakowi kodowania struktur do formatu dyskowego, a trwałość zapewniają logiem i snapshotami;
-- H-Store [S4] i analiza Harizopoulosa [S5] – w klasycznym silniku OLTP większość instrukcji idzie na logowanie, blokady, latche i bufor stron; jednowątkowy silnik w pamięci eliminuje trzy z czterech. Flat-SQL płaci tylko za logowanie (undo log + ramka WAL + wpis outboksu) – co tłumaczy wolniejsze od SQLite inserty i aktualizacje w H4;
-- ARIES [S2] – Flat-SQL nie potrzebuje fazy undo na dysku, bo niezatwierdzone zmiany nigdy nie trafiają do WAL (bufor transakcji staje się ramką dopiero przy `COMMIT`).
+- [P1, rozdz. 3] – bazy w pamięci zawdzięczają szybkość głównie brakowi kodowania struktur do formatu dyskowego, a trwałość zapewniają logiem i snapshotami; WAL nie potrzebuje fazy undo, bo niezatwierdzone zmiany nigdy do niego nie trafiają;
+- H-Store [S4] – w klasycznym silniku OLTP większość pracy idzie na logowanie, blokady, latche i bufor stron; jednowątkowy silnik w pamięci eliminuje trzy z czterech. Flat-SQL płaci tylko za logowanie (undo log + ramka WAL + wpis outboksu) – co tłumaczy wolniejsze od SQLite inserty i aktualizacje w H4.
 
-Wybór logu fizycznego zamiast logowania poleceń: Malviya i in. [S6] mierzą ok. 1,5× większą przepustowość logowania poleceń kosztem dłuższego odtwarzania i wymogu deterministycznego wykonania. W Flat-SQL log fizyczny jest lepszy z dwóch powodów: wpisy WAL służą jednocześnie synchronizacji (zmiana = pełny wiersz + znacznik), a odtworzenie nie zależy od zegara ani od wyników wcześniejszych zapytań. **Zgodne**; warto ten argument przytoczyć w pracy.
+Wybór logu fizycznego zamiast logowania poleceń: Malviya i in. [S6] mierzą ok. 1,5× większą przepustowość logowania poleceń kosztem dłuższego odtwarzania i wymogu deterministycznego wykonania. W Flat-SQL log fizyczny jest lepszy, bo wpisy WAL służą jednocześnie synchronizacji (zmiana = pełny wiersz + znacznik), a odtworzenie nie zależy od zegara ani wyników zapytań. **Zgodne.**
 
-Koszt checkpointu (kopiowanie całej bazy, 35 ms dla 3 MB) i odtwarzania (200 ms dla 100 tys. wierszy) ma znane kierunki optymalizacji: równoległe odtwarzanie [S7], struktury LSM [S3] lub snapshoty przyrostowe.
-
-Dobrym kontrastem jest Zeta-Lite [D5] (preprint, 2026): przeglądarkowy silnik SQL o tej samej architekturze (jeden rdzeń dla serwera i przeglądarki, `wasm32-unknown-unknown` + `wasm-bindgen`), który zapisuje do OPFS tylko snapshot całej bazy na żądanie. Autor wprost przyznaje, że zmiany po ostatnim snapshocie giną przy zamknięciu karty. Flat-SQL rozwiązuje to przyrostowym WAL – to mocny argument na rzecz wyboru z H5.
+Dobrym kontrastem jest Zeta-Lite [D5]: silnik o tej samej architekturze (jeden rdzeń, `wasm32-unknown-unknown` + `wasm-bindgen`), który zapisuje do OPFS tylko snapshot na żądanie, więc zmiany po ostatnim snapshocie giną przy zamknięciu karty. Flat-SQL rozwiązuje to przyrostowym WAL – mocny argument dla H5.
 
 ### 6.2 Group commit
 
 Zatwierdzenia z jednego „tiku” pętli zdarzeń zapisywane jednym zapisem do IndexedDB to group commit opisany po raz pierwszy w druku przez DeWitta i in. [S1]. Wynik H5 (1000 zatwierdzeń + jeden `flush()` = 5,6 µs na zatwierdzenie) jest dobrą ilustracją. **Zgodne.**
 
-### 6.3 Trwałość w przeglądarce (IndexedDB)
+### 6.3 Checkpoint i przestoje
 
-`IndexedDbStore` otwiera transakcje z `durability: 'default'` ([bridge/stores/indexeddb.js](../../bridge/stores/indexeddb.js)). Od Chrome 121 domyślna trwałość to `relaxed` – zdarzenie `complete` następuje po przekazaniu danych do bufora systemu operacyjnego, a nie po zapisie na dysk ([Q1]); Firefox i Safari działały tak wcześniej. Zatem po `await db.flush()`:
+Checkpoint kopiuje całą bazę synchronicznie: 35 ms dla 3 MB w przeglądarce, 49 ms dla snapshotu 100 tys. wierszy w Node.js. Cao i in. [S10] nazywają to „naiwnym snapshotem” i pokazują na przykładzie gier MMO (stan spójny na granicy ticku), że daje on skoki latencji; algorytmy z kopiowaniem przy aktualizacji i ich warianty bez blokad dają niemal stałą latencję kosztem dodatkowej pamięci. Przy budżecie 16 ms na klatkę [D4] obecny checkpoint to 2–3 klatki przerwy – istotne dla gier, czyli pierwszego zastosowania z prezentacji.
 
-- dane przetrwają zamknięcie karty i awarię przeglądarki,
-- mogą zginąć przy awarii systemu lub zaniku zasilania.
+**Rekomendacja:** checkpoint porcjami między zadaniami pętli zdarzeń z kopiowaniem wierszy zmienianych w trakcie albo snapshot przyrostowy ([todo.md 2.6](../todo.md)), mierzony najdłuższą pauzą ([todo.md 4.10](../todo.md)). Odrzucono równoległe odtwarzanie: wymaga wątków WASM, czyli nagłówków COOP/COEP, co przeczy atutowi „zero konfiguracji”. **Częściowo.**
 
-Analogia z `synchronous=NORMAL` w SQLite z [architecture.md §4.3](../architecture.md) jest trafna, ale zdanie „po `await flush()` dane są trwałe” należy doprecyzować. `IndexedDbStore` już przyjmuje opcję `durability: 'strict'` – warto ją opisać w dokumentacji i zmierzyć jej koszt w H5 (spodziewany wzrost latencji pojedynczego zatwierdzenia). **Częściowo.**
+### 6.4 Trwałość w przeglądarce (IndexedDB)
 
-### 6.4 Backend plikowy (CLI, serwer)
+`IndexedDbStore` otwiera transakcje z `durability: 'default'` ([bridge/stores/indexeddb.js](../../bridge/stores/indexeddb.js)). Od Chrome 121 domyślna trwałość to `relaxed` – zdarzenie `complete` następuje po przekazaniu danych do bufora systemu operacyjnego ([Q1]). Po `await db.flush()` dane przetrwają zamknięcie karty i awarię przeglądarki, ale mogą zginąć przy awarii systemu.
 
-`FileStorage::write_snapshot` ([storage/file.rs](../../crates/flatsql-core/src/storage/file.rs)) wykonuje: zapis `snapshot.fsql.tmp` → `sync_all` → `rename` → `set_len(0)` na WAL → `sync_all` WAL. Pillai i in. [S8] pokazali, że kolejność utrwalania operacji na **różnych plikach** nie jest gwarantowana bez `fsync` katalogu po `rename`. Możliwy stan po zaniku zasilania: katalog nadal wskazuje stary snapshot (rename nieutrwalony), a WAL jest już pusty (obcięcie utrwalone) – utrata transakcji zatwierdzonych między dwoma checkpointami. Test „każdy prefiks WAL” tego nie wykryje, bo dotyczy jednego pliku.
+Analogia z `synchronous=NORMAL` w SQLite z [architecture.md §4.3](../architecture.md) jest trafna, ale zdanie „po `await flush()` dane są trwałe” należy doprecyzować. `IndexedDbStore` już przyjmuje `durability: 'strict'` – warto udostępnić ją w `FlatDB`, opisać i zmierzyć ([todo.md 1.4, 4.9](../todo.md)). **Częściowo.**
 
-`FsStore` w Node.js ([bridge/stores/fs.js](../../bridge/stores/fs.js)) nie wywołuje `fsync` w ogóle, choć tabela w [architecture.md §4.2](../architecture.md) przypisuje mu „opcjonalnie `fsync`” – rozbieżność dokumentacji.
+### 6.5 Backend plikowy (CLI, serwer)
 
-**Rekomendacja:** po `rename` wykonać `fsync` katalogu (Linux/macOS) lub użyć zapisu z flagą write-through (Windows), a dopiero potem obcinać WAL; alternatywnie nie obcinać WAL, tylko zaczynać nowy plik WAL i usuwać stary po utrwaleniu snapshotu (ramki o LSN ≤ snapshot i tak są pomijane). W `FsStore` dodać `FileHandle.sync()` i poprawić tabelę w dokumentacji. **Luka.**
+`FileStorage::write_snapshot` ([storage/file.rs](../../crates/flatsql-core/src/storage/file.rs)) wykonuje: zapis `snapshot.fsql.tmp` → `sync_all` → `rename` → `set_len(0)` na WAL → `sync_all` WAL. Pillai i in. [S8] pokazali, że kolejność utrwalania operacji na **różnych plikach** nie jest gwarantowana bez `fsync` katalogu po `rename`. Możliwy stan po zaniku zasilania: katalog nadal wskazuje stary snapshot, a WAL jest już pusty – utrata transakcji zatwierdzonych między dwoma checkpointami. `FsStore` w Node.js ([bridge/stores/fs.js](../../bridge/stores/fs.js)) nie wywołuje `fsync` w ogóle, choć [architecture.md §4.2](../architecture.md) przypisuje mu „opcjonalnie `fsync`”.
 
-### 6.5 Testy odtwarzania po awarii
+**Rekomendacja:** `fsync` katalogu po `rename` i dopiero potem obcięcie WAL (albo nowy plik WAL zamiast obcinania); `fsync` w `FsStore` i poprawka dokumentacji ([todo.md 1.2, 1.3](../todo.md)). **Luka.**
 
-Model awarii z [S9] – utrwalony jest prefiks strumienia operacji wejścia/wyjścia, reszta ginie – odpowiada testowi `every_wal_prefix_recovers_to_a_committed_state` (ucięcie WAL w każdym bajcie). To dobra praktyka: w [S9] wszystkie 8 badanych baz zachowało się w tym modelu błędnie. Brakuje testu protokołu checkpointu między plikami w stylu ALICE [S8] (symulacja stanów: rename utracony / obcięcie utrwalone itd.). **Zgodne, do rozszerzenia.**
+### 6.6 Testy odtwarzania po awarii
 
-### 6.6 Usuwanie danych przez przeglądarkę
+Test `every_wal_prefix_recovers_to_a_committed_state` (ucięcie WAL w każdym bajcie) odpowiada modelowi awarii, w którym utrwalony jest prefiks zapisu jednego pliku – dobra praktyka. Brakuje testu protokołu checkpointu między plikami w stylu ALICE [S8] ([todo.md 1.6](../todo.md)). **Zgodne, do rozszerzenia.**
 
-Lokalne dane w przeglądarce nie są gwarantowane:
+### 6.7 Usuwanie danych przez przeglądarkę
 
 - [L1] przypomina, że wyczyszczenie danych witryny usuwa też magazyn lokalny;
-- Safari usuwa IndexedDB, LocalStorage i rejestracje Service Workera po 7 dniach używania przeglądarki bez interakcji użytkownika z witryną; aplikacje dodane do ekranu głównego mają własny licznik ([Q2]);
-- magazyn jest domyślnie „best-effort” i może zostać usunięty przy braku miejsca; tryb trwały wymaga `navigator.storage.persist()` ([Q3], [Q4]).
+- Safari usuwa IndexedDB po 7 dniach używania przeglądarki bez interakcji z witryną ([Q2]);
+- magazyn jest domyślnie „best-effort”; tryb trwały wymaga `navigator.storage.persist()` ([Q3], [Q4]).
 
-W kodzie nie ma wywołania `navigator.storage.persist()`. Dla Local-First oznacza to, że **niewysłany outbox może zniknąć bez winy aplikacji**, co podważa ideał 3 i 7 z [L1]. **Rekomendacja:** wywołać `navigator.storage.persist()` przy pierwszym zapisie i pokazać stan w demo; w pracy opisać ograniczenie i wskazać instalację jako PWA oraz synchronizację jako zabezpieczenie. **Luka.**
+W kodzie nie ma wywołania `navigator.storage.persist()`, więc **niewysłany outbox może zniknąć bez winy aplikacji**. Analiza wdrożeń pokazuje, że kasy i gry dodają z tego powodu kopię na serwerze lub eksport do pliku. **Rekomendacja:** `persist()` przy otwarciu bazy ([todo.md 1.5](../todo.md)), eksport do pliku ([todo_future.md 1.3](../todo_future.md)); w pracy opisać ograniczenie. **Luka.**
 
 ## 7. Edge computing i Local-First vs Cloud-First (H1)
 
-Literatura edge computing ([E1], [E2]) przenosi obliczenia bliżej użytkownika, by skrócić latencję, egzekwować polityki prywatności i maskować awarie chmury. Flat-SQL idzie krok dalej – wykonuje zapytania na urządzeniu. Uruchomienie tego samego modułu `.wasm` na serwerze odpowiada wizji WASM jako wspólnej warstwy kontinuum chmura–brzeg [E6] i pracom o lekkiej izolacji WASM na brzegu ([E3], [E4], [E5]). Prototyp ma jednak jeden centralny serwer, który jest jednocześnie hubem synchronizacji i bazą główną; zakładanych w prezentacji węzłów brzegowych synchronizowanych z bazą główną jeszcze nie ma ([conclusions.md §3.6](conclusions.md#36-edge-computing), [todo.md 4.10](../todo.md)).
+Shi i in. [E1] definiują „edge” jako dowolne zasoby obliczeniowe na drodze między źródłem danych a chmurą – także smartfon. Flat-SQL realizuje tę definicję wprost: zapytania wykonują się na urządzeniu. Prototyp ma przy tym jeden centralny serwer, który jest jednocześnie hubem synchronizacji i bazą główną; zakładanych w prezentacji węzłów brzegowych synchronizowanych z bazą główną jeszcze nie ma ([conclusions.md §3.6](conclusions.md#36-edge-computing), [todo_future.md §7](../todo_future.md)). W literaturze replikacji taki układ to replikacja dwuwarstwowa Graya i in. [C9] – z węzłami bazowymi jako warstwą zatwierdzającą – a w wariancie z rozstrzyganiem na węzłach: multi-leader w topologii drzewa ([P1] rozdz. 5) i scenariusz CRR [L24].
 
-Wynik H1 (11 µs lokalnie vs 20,9–102,5 ms przy RTT 20–100 ms) jest zgodny z tym, co przewiduje literatura: czas zapytania sieciowego jest ograniczony od dołu przez RTT. Riffle [D4] daje dobry punkt odniesienia dla interpretacji: przy budżecie 16 ms na klatkę jedno zapytanie przez sieć z RTT 20 ms już go przekracza. Colosi i in. [E7] pokazują ponadto, że przeglądarka jest konkurencyjna przy małych danych (wymiana w pamięci), a serwery z kompilacją AOT wygrywają przy dużych – co wspiera podział: dane operacyjne lokalnie (Flat-SQL), ciężka analityka gdzie indziej (DuckDB-Wasm [D1] albo serwer). **Zgodne.**
+Wynik H1 (11 µs lokalnie vs 20,9–102,5 ms przy RTT 20–100 ms) jest zgodny z tym, co przewiduje literatura: czas zapytania sieciowego jest ograniczony od dołu przez RTT. Riffle [D4] daje punkt odniesienia: przy budżecie 16 ms na klatkę jedno zapytanie przez sieć z RTT 20 ms już go przekracza. Podział „dane operacyjne lokalnie, ciężka analityka gdzie indziej” wspiera DuckDB-Wasm [D1] jako inna klasa systemu. **Zgodne.**
 
-Uwaga metodyczna: symulacja opóźnienia w [benchmark-scenario.md](../research/benchmark-scenario.md) jest uczciwie opisana jako dolne ograniczenie (bez TLS, strat pakietów i zestawiania połączeń). Prace o sieciach mobilnych pokazałyby jeszcze większą przewagę Local-First – ale nie zostały zebrane w tej bazie (zob. [search-methodology.md](search-methodology.md)).
+Uwaga metodyczna: symulacja opóźnienia w [benchmark-scenario.md](../research/benchmark-scenario.md) jest uczciwie opisana jako dolne ograniczenie (bez TLS, strat pakietów i zestawiania połączeń). Analiza wdrożeń dodaje zastrzeżenie w drugą stronę: na wolnych urządzeniach lokalny odczyt z dysku bywa wolniejszy od sieci (Notion „ściga” oba odczyty) – stąd pomiar na telefonie ([todo.md 4.7](../todo.md)).
 
 ## 8. Metodyka benchmarków
 
-Zestawienie z listą pułapek [B3] i pracami o pomiarach w środowiskach z JIT:
-
 | Pułapka / zalecenie | Stan w projekcie | Ocena | Co zrobić |
 |---|---|---|---|
-| Powtarzalność [B3 §3.1], [B4] | skrypty, wersje, stałe ziarno, wyniki w JSON | zgodne | dołączyć surowe JSON do pracy (załącznik) |
-| Brak optymalizacji systemu porównywanego [B3 §3.2] | SQLite w najlepszym układzie (`INTEGER PRIMARY KEY`), prepared statements | zgodne | – |
-| Jabłka i pomarańcze [B3 §3.3] | trwałość porównywana z eksportem sql.js – opisane w zagrożeniach | częściowo | dodać SQLite WASM z VFS OPFS (`opfs-sahpool`, [Q7]) jako uczciwy punkt odniesienia dla H5 |
-| Przebiegi zimne i gorące [B3 §3.5–3.6] | raportowane przebiegi po rozgrzewce; start częściowo (kompilacja, otwarcie bazy) | częściowo | osobna tabela „zimny start”: pobranie + kompilacja + otwarcie bazy + pierwsze zapytanie |
-| Niepoprawne wyniki [B3 §3.8] | porównanie liczby wierszy | częściowo | porównywać sumę kontrolną wyników, nie tylko liczbę wierszy |
-| Wiele uruchomień, przedziały ufności [B1] | jeden przebieg na konfigurację; szum ±30% opisany | częściowo | ≥ 10 uruchomień procesu, średnia z 95% przedziałem ufności lub mediana z IQR |
-| Stabilny stan po rozgrzewce [B2] | stała rozgrzewka | częściowo | sprawdzić stabilność (np. wykres czasu kolejnych iteracji) dla najkrótszych operacji |
-| Realistyczny rozkład dostępu [B5], [B4], [W7] | klucze losowane równomiernie | częściowo | dodać obciążenie w stylu YCSB (np. 95% odczytów, rozkład Zipfa) oraz pomiar na scenariuszu demo |
-| Rozdzielczość zegara [B6], [Q5] | 100 µs w przeglądarce, opisane | zgodne | strona benchmarku z nagłówkami COOP/COEP daje 5 µs |
+| Powtarzalność [B3] | skrypty, wersje, stałe ziarno, wyniki w JSON | zgodne | dołączyć surowe JSON do pracy |
+| Brak optymalizacji systemu porównywanego [B3] | SQLite w najlepszym układzie (`INTEGER PRIMARY KEY`), prepared statements | zgodne | – |
+| Jabłka i pomarańcze [B3] | trwałość porównywana z eksportem sql.js – opisane w zagrożeniach | częściowo | SQLite WASM z `opfs-sahpool` [Q7] jako uczciwy punkt odniesienia dla H5 ([todo.md 4.1](../todo.md)) |
+| Przebiegi zimne i gorące [B3] | raportowane przebiegi po rozgrzewce | częściowo | osobna tabela „zimny start” ([todo.md 4.3](../todo.md)) |
+| Niepoprawne wyniki [B3] | porównanie liczby wierszy | częściowo | suma kontrolna wyników ([todo.md 4.6](../todo.md)) |
+| Wiele uruchomień, przedziały ufności [B1] | jeden przebieg na konfigurację; szum ±30% opisany | częściowo | ≥ 10 uruchomień procesu ([todo.md 4.2](../todo.md)) |
+| Realistyczny rozkład dostępu [B5] | klucze losowane równomiernie | częściowo | YCSB z rozkładem Zipfa i scenariusz demo ([todo.md 4.5](../todo.md)) |
+| Ogony latencji, nie tylko średnie | percentyle operacji; brak pomiaru pauz | częściowo | pauza checkpointu na tle 16 ms ([todo.md 4.10](../todo.md), [S10], [D4]) |
+| Rozdzielczość zegara [Q5] | 100 µs w przeglądarce, opisane | zgodne | strona benchmarku z COOP/COEP daje 5 µs ([todo.md 4.8](../todo.md)) |
 
 ## 9. Rekomendacje
 
+Pełna lista z nakładem: [todo.md](../todo.md) (optymalizacja prototypu) i [todo_future.md](../todo_future.md) (rozszerzenia).
+
 **Priorytet 1 – poprawność i rzetelność tez (małe zmiany):**
 
-1. Ograniczenie dryfu HLC: odrzucanie znaczników z przyszłości po stronie serwera i klienta (§4.1) – `crates/flatsql-core/src/sync.rs`, `server/server.js`.
-2. Kolejność `rename` → `fsync` katalogu → obcięcie WAL w `FileStorage`; `fsync` w `FsStore`; poprawka tabeli backendów (§6.4).
-3. Doprecyzowanie gwarancji trwałości w przeglądarce (`relaxed` vs `strict`) w [architecture.md §4.3](../architecture.md) i pomiar `strict` w H5 (§6.3).
-4. `navigator.storage.persist()` w `FlatDB.open` lub w demo (§6.6).
-5. Usunięcie scenariusza „CSV 500 MB” z zastosowań Flat-SQL albo przypisanie go DuckDB-Wasm (§2.5).
+1. Ograniczenie dryfu HLC (§4.1) – todo 1.1.
+2. `fsync` katalogu przed obcięciem WAL, `fsync` w `FsStore` (§6.5) – todo 1.2, 1.3.
+3. Doprecyzowanie trwałości IndexedDB i `persist()` (§6.4, §6.7) – todo 1.4, 1.5.
+4. Doprecyzowanie tez: Privacy by Design, „szybszy niż sql.js”, atomowość per wiersz, przewidywalność (§2.4, §4.3, §5) – todo 0.1.
+5. Scenariusz „CSV 500 MB” przypisany DuckDB-Wasm (§2.5) – todo 0.2.
 
-**Priorytet 2 – semantyka synchronizacji:**
+**Priorytet 2 – ulepszenia istniejącej synchronizacji i składowania:**
 
-6. Zachowanie granic transakcji także przy outboksie większym niż jedna paczka (MAV, §4.3) lub jawny opis gwarancji „atomowość per wiersz”.
-7. Zalecenie kluczy bezkolizyjnych dla wstawień offline w [flat-sql.md](../flat-sql.md) (§4.4).
-8. Jawne wykrywanie konfliktów schematu (§4.6) i wersja formatu w protokole synchronizacji (§3, ideał 5).
-9. Znaczniki per kolumna jako opcja tabeli (§4.2).
+6. LWW per kolumna (§4.2) – todo 3.1.
+7. Trwały log serwera (§4.5) – todo 3.2.
+8. Jawne konflikty schematu i klucza głównego, klucze bez kolizji (§4.4, §4.6) – todo 1.7, 3.3, 0.3.
+9. Checkpoint bez przestoju (§6.3) – todo 2.6.
+10. Usuwanie tombstone'ów (§4.4) – todo 3.4.
 
-**Priorytet 3 – dalsze prace (do rozdziału „kierunki rozwoju”):**
+**Priorytet 3 – rozszerzenia (do rozdziału „kierunki rozwoju”):**
 
-10. Szyfrowanie end-to-end paczek zmian i uwierzytelnianie klientów (§2.4, [L11], [L18]).
-11. Zapytania reaktywne i proste złączenia bez więzów (§5, [D4]).
-12. Push zamiast pull w synchronizacji, usuwanie tombstone'ów po stabilności (§4.4–4.5).
-13. Rozszerzenie metodyki benchmarków według §8.
+11. Reguły serwera według replikacji dwuwarstwowej: tabele serwera, walidacja, zamiary, liczniki `MERGE ADD` (§4.2, §4.5) – future §2.
+12. Replikacja częściowa z filtrami (§4.5) – future 3.2.
+13. Szyfrowanie end-to-end i uwierzytelnianie (§2.4) – future §4.
+14. Zapytania reaktywne i złączenia po kluczu (§5) – future 5.1, 5.2.
+15. Push zamiast pull, wersjonowanie schematu (§4.5, §4.6) – future 6.1, 6.2.
 
 ## 10. Co projekt wnosi względem literatury
 
-Uczciwie: żaden pojedynczy element nie jest nowy – LWW na HLC, WAL ze snapshotem, group commit, outbox i log z kursorami mają dobrze opisane odpowiedniki. Wartość prototypu leży w ich **połączeniu i pomiarze**:
+Uczciwie: żaden pojedynczy element nie jest nowy – LWW na HLC, WAL ze snapshotem, group commit, outbox i log z kursorami mają dobrze opisane odpowiedniki, w tym w klasycznych pracach o pracy offline ([C3], [C9], [C10]). Wartość prototypu leży w ich **połączeniu i pomiarze**:
 
-1. jeden rdzeń bez zależności i bez I/O, uruchamiany identycznie w przeglądarce, na węźle edge i natywnie – praktyczna realizacja postulatu z [E6] (podobną drogą idzie Zeta-Lite [D5], ale bez przyrostowej trwałości i synchronizacji, za to z pełnym SQL i modułem ok. 14× większym po kompresji);
-2. pomiar kosztu granicy JS↔WASM dla silnika bazy danych (H3) – obszar, którego nie obejmują [P2] ani [W1];
+1. jeden rdzeń bez zależności i bez I/O, uruchamiany identycznie w przeglądarce, na serwerze i natywnie – realizacja celu przenośności z [P2] (podobną drogą idzie Zeta-Lite [D5], ale bez przyrostowej trwałości i synchronizacji, za to z pełnym SQL i modułem ok. 14× większym po kompresji);
+2. pomiar kosztu granicy JS↔WASM dla silnika bazy danych (H3) – obszar bez recenzowanych pomiarów;
 3. pomiar przyrostowej trwałości w IndexedDB z group commitem wobec eksportu całej bazy (H5);
-4. dialekt SQL celowo ograniczony do modelu encji pod kluczem (w duchu [C7] i CQL), z wbudowaną synchronizacją – w odróżnieniu od CRR [L24], [L25], cr-sqlite czy Teilen-SQL [X5], które dodają warstwę replikacji do pełnej bazy relacyjnej (PostgreSQL przez Ecto w [L24], SQLite w [L25] i cr-sqlite).
+4. dialekt SQL celowo ograniczony do modelu encji pod kluczem (w duchu [C7], [M2] i CQL), z synchronizacją wbudowaną w format WAL – w odróżnieniu od CRR [L24], cr-sqlite czy Teilen-SQL [X5], które dodają warstwę replikacji do pełnej bazy relacyjnej, i od Simby [L27], która jest usługą obok bazy, a nie silnikiem.
 
 Porównując się z tymi systemami, warto podkreślić różnicę celu: one zachowują pełny SQL i dokładają warstwę synchronizacji, Flat-SQL rezygnuje z części SQL w zamian za prostszy silnik, mniejszy moduł i synchronizację wbudowaną w format WAL.
