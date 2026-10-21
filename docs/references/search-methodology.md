@@ -8,6 +8,7 @@ Opis, jak zebrano [bazę wiedzy](README.md), czy wyszukiwanie objęło obszary, 
 |---|---|
 | Runda 1 (18.10.2026) | wyszukiwanie według obszarów technologicznych (§2), pobranie 77 PDF-ów |
 | Runda 2 (20.10.2026) | audyt pokrycia atutów i planów projektu (§3), wyszukiwanie uzupełniające w lukach, ponowna ocena wszystkich pozycji i wybór rdzenia (§4) |
+| Rewizja 3 (22.10.2026) | bez nowego wyszukiwania: ocena każdej pozycji według podrozdziału pracy dyplomowej, w którym będzie cytowana (§4.1) |
 | Punkt wyjścia | dokumenty projektu ([architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)), dwie pozycje polecone przez promotora, w rundzie 2 także [analiza rzeczywistych wdrożeń](../research/real-world-usage.md) i obie listy zadań |
 | Narzędzia | ogólnodostępna wyszukiwarka internetowa (indeks anglojęzyczny), strony wydawców (ACM DL, USENIX, VLDB, CIDR), arXiv, repozytoria uczelniane, strony autorów i kursów |
 | Pobieranie | z weryfikacją tytułu i autorów na pierwszej stronie; w rundzie 2 tezy z każdej nowej pracy sprawdzono w pełnym tekście przed dodaniem (wyjątek: [M3]) |
@@ -87,6 +88,24 @@ Kryteria wyłączenia:
 
 Wynik: **38 pozycji rdzenia** – 30 z rundy 1 i 8 nowych ([C9], [C10], [C11], [L27], [L28], [M2], [M3], [S10]); dwie pozycje rundy 1 dołączono do wpisów prac promotora (wersja CACM do [P2], notatki do wykładu do [P1]); **46 pozycji poza rdzeniem** z uzasadnieniem w [README.md §13](README.md#13-pozycje-poza-rdzeniem), pliki w `papers/_poza-rdzeniem/` (zachowane). Liczba 30 nie była limitem – nowe prace dodano, bo wypełniają luki w obszarach, w których leżą atuty i plany projektu.
 
+### 4.1 Rewizja 3 – cytowania w pracy dyplomowej
+
+Kryterium z rundy 2 przyjmowało każdą podstawę zadania, także z [todo_future.md](../todo_future.md), choć tylko część rozszerzeń trafi do pracy (kierunki rozwoju w podrozdziale 9.5). Przed pisaniem pracy każdą pozycję – z rdzenia i spoza niego – oceniono pytaniem: w którym podrozdziale pracy będzie cytowana i czy inna pozycja rdzenia nie daje tam tej samej tezy ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-pracy.md)). Wynik zapisano w [mapie rozdziałów](README.md#mapa-rozdziały-pracy-dyplomowej--literatura).
+
+| Pozycja | Zmiana | Powód |
+|---|---|---|
+| [W6] Döllerer i Engelke, VMIL 2024 | do rdzenia | jedyne recenzowane źródło dla [ADR-0007](../adr/0007-wasm32-bez-memory64.md), który trafia do tabeli 3.2 pracy; [Q6] to wpisy z blogów, które nie liczą się do 15 publikacji |
+| [L11] Kuessner i in., PLF 2022 | poza rdzeń | szyfrowanie end-to-end jest w pracy tylko kierunkiem rozwoju; tę samą tezę daje recenzowane [L1] (ideał 6) – kryteria 1 i 5 |
+| [L26] Cambria, PaPoC 2021 | poza rdzeń | problem opisują [L1] i [P1] rozdz. 4; soczewki są odrzuconą alternatywą w [ADR-0027](../adr/0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) (etap po pracy); todo 1.7 tylko zgłasza konflikt |
+| [M3] Gupta i Mumick, 1995 | poza rdzeń | podstawa tylko future 5.1; zapytania reaktywne w kierunkach rozwoju uzasadnia [D4]; oceniona ze streszczenia |
+| [C8] Bailis i in., PVLDB 2013 | poza rdzeń | w pracy tylko jedna uwaga w podrozdziale 8.5 (MAV jako opcja na później); atomowość wiersza uzasadniają [C7] i [L27], potrzebę koordynacji – [C9] i [P1] rozdz. 9 |
+| [L8] Antidote SQL, 2019 | poza rdzeń | w pracy tylko jedna uwaga w podrozdziale 3.3; dialekt uzasadniają [C7], [M2], [M1], aktualizacje przemienne – [C9] i [L2]; preprint |
+| [L20] Niinikoski, 2025 | poza rdzeń | model hybrydowy uzasadniają recenzowane [C9] i [C3]; praca magisterska – kryterium 5 |
+
+Ostatnie trzy pozycje miały w mapie po jednym zdaniu, które da się oprzeć na innych pracach rdzenia, więc przy pierwszym cięciu objętości i tak wypadłyby z tekstu.
+
+Wynik: **33 pozycje rdzenia** (34 pliki PDF – bez pliku [P1], z wersją CACM [P2] i notatkami do wykładu [P1]) i **51 pozycji poza rdzeniem** (50 plików; [M3] nie ma pliku). Spośród pozostałych pozycji spoza rdzenia żadna nie ma podrozdziału, w którym byłaby potrzebna: [C1] Lamport – HLC w podrozdziale 2.4 wystarczy opisać przez [C2] i [P1] rozdz. 8–9 (do przywrócenia, jeśli tekst wyprowadzi HLC z zegarów logicznych); [S7] SiloR i [E5] Faasm – odrzucone kierunki z [todo.md §5](../todo.md) opisuje się w podrozdziale 7.7 przez powód odrzucenia, bez omawiania tych systemów; [S5] Harizopoulos i in. – koszt logowania w podrozdziale 7.4 uzasadniają [S4] i [S6].
+
 Znalezione w rundzie 2 i **nie** włączone:
 
 | Pozycja | Powód |
@@ -128,7 +147,6 @@ Lista kontrolna:
 - [ ] Wypożyczyć DDIA (wydanie polskie: Helion 2018) i zweryfikować [notatkę](notes/ddia-kleppmann.md) z tekstem książki.
 - [ ] Ustawić alerty Google Scholar („cytowane przez”) dla [P2], [W1], [L1], [D4], [L24], [C11].
 - [ ] Zapytać autorów Teilen-SQL o tekst [X5]; sprawdzić publikację artykułu Niinikoski i Fagerholm [X6].
-- [ ] Pobrać [M3] z bezpłatnego archiwum IEEE Data Engineering Bulletin.
 - [ ] Przejrzeć programy PaPoC, PLF, Local-First Conf i VLDB z 2026 r.
 - [ ] Przed rozpoczęciem future 5.5–5.6 i 9.6 zebrać literaturę tych obszarów.
 - [ ] W pracy cytować wersje wydawnicze (DOI), nie lokalne kopie.

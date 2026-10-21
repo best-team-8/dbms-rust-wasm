@@ -32,4 +32,4 @@ Silnik zostaje przy celu `wasm32-unknown-unknown`. Memory64 nie jest planowane.
 
 ## Źródła
 
-[Q6], [D1], [W11]; praca o kosztach memory64 (Döllerer i Engelke 2024) – poza rdzeniem literatury.
+[W6] (Döllerer i Engelke 2024, koszt memory64 – w rdzeniu od ADR-0031), [Q6], [D1], [W11].

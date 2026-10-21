@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; kryterium włączenia i skład rdzenia zastąpione przez [ADR-0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) |
 | Data | 2026-10-20 |
 | Rodzaj | proces |
 | Powiązane | ADR-0022; [search-methodology.md](../references/search-methodology.md) |

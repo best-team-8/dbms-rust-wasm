@@ -251,9 +251,9 @@ Serwer dopasowuje nazwę przestrzeni od bramki do wzorca, a bez dopasowania uży
 | log z numerami przyjęcia, kursor, pełny stan przy nieznanym kursorze | Bayou [C3], offsety i CDC ze snapshotem [P1] rozdz. 11 |
 | trwały outbox, idempotentne rundy | Coda [C10], [C7], [P1] rozdz. 12 |
 | tryb z silnikiem dla danych wspólnych, zatwierdzanie zmian przez backend | replikacja dwuwarstwowa [C9], kontrole zależności dostarczane przez aplikację w Bayou [C3] |
-| magazyn paczek i szyfrowanie end-to-end | [L11], [L1] ideał 6 |
+| magazyn paczek i szyfrowanie end-to-end | [L1] ideał 6; szyfrowane typy replikowane (Kuessner i in. 2022 – praca poza rdzeniem) |
 | przestrzenie jako zgrubna replikacja częściowa | Cimbiosys [C11]; migracja Productlane ([real-world-usage.md](../../research/real-world-usage.md)) |
-| struktura w kodzie, tylko dokładanie | zgodność wstecz i w przód [P1] rozdz. 4; problem otwarty w [L1]; Cambria [L26] jako odrzucona alternatywa |
+| struktura w kodzie, tylko dokładanie | zgodność wstecz i w przód [P1] rozdz. 4; problem otwarty w [L1]; soczewki Cambria (praca poza rdzeniem) jako odrzucona alternatywa |
 | bramka i reguły w backendzie | praktyka: ElectricSQL (proxy auth), PowerSync (zapisy przez backend) |
 
 ## Decyzje i zadania

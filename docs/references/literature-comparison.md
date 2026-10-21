@@ -18,11 +18,11 @@ Ocena w tabelach:
 | 4 | Siedem ideałów local-first | szybkość, offline, synchronizacja | [L1] | 3 zgodne, 4 częściowo (§3) |
 | 5 | Zegar HLC | 48 bitów ms + 16 bitów licznika, wchłanianie obcych znaczników | [C2] §4: także ignorowanie znaczników zbyt daleko w przyszłości; [P1] rozdz. 8 | luka |
 | 6 | LWW per wiersz | deterministyczna zbieżność bez koordynacji | [L2], [L28]: poprawny CRDT; [C9]: znaczniki czasu gubią aktualizacje; [L24]: LWW per atrybut | częściowo |
-| 7 | Atomowość między replikami | transakcja atomowa lokalnie, między replikami – wiersz | [C7], [L27]: wiersz/encja jako jednostka atomowości; [C8]: MAV osiągalne bez koordynacji | zgodne (do udokumentowania) |
+| 7 | Atomowość między replikami | transakcja atomowa lokalnie, między replikami – wiersz | [C7], [L27]: wiersz/encja jako jednostka atomowości | zgodne (do udokumentowania) |
 | 8 | Trwały outbox, praca offline | outbox odbudowywany z WAL, przetrwa restart | [C10]: trwały, skracany log reintegracji; [L27]: aplikacje bez tego tracą dane | zgodne |
 | 9 | Log synchronizacji serwera | log w pamięci, nowa epoka po każdym restarcie | [P1] rozdz. 11, [C10]: trwały log z offsetami | luka |
-| 10 | Ewolucja schematu w replikach | „replikowana w uproszczony sposób” | [L1], [L26]: problem otwarty, wzór soczewek | luka (znana) |
-| 11 | Model „bez JOIN” | upraszcza wykonanie i replikację | [C7] za; [M1], [D4] przeciw; [M2]: przewidywalny koszt tylko dla zapytań ograniczonych; [L8]: trudność leży w więzach | częściowo |
+| 10 | Ewolucja schematu w replikach | „replikowana w uproszczony sposób” | [L1]: problem otwarty; [P1] rozdz. 4: zgodność wersji | luka (znana) |
+| 11 | Model „bez JOIN” | upraszcza wykonanie i replikację | [C7] za; [M1], [D4] przeciw; [M2]: przewidywalny koszt tylko dla zapytań ograniczonych | częściowo |
 | 12 | Baza w pamięci + WAL + snapshot, group commit | trwałość przyrostowa, koszt ∝ zmianie | [S1], [S4], [S6], [P1] rozdz. 3 | zgodne |
 | 13 | Checkpoint | synchroniczna kopia całej bazy (35–49 ms) | [S10]: „naiwny snapshot” daje skoki latencji; są algorytmy bez przestoju | częściowo |
 | 14 | Trwałość w przeglądarce | „po `await flush()` dane są trwałe” | [Q1]: od Chrome 121 domyślnie `relaxed` – trwałe wobec awarii karty, nie systemu | częściowo (doprecyzować) |
@@ -63,13 +63,13 @@ README obiecuje „przetwarzanie wrażliwych danych w izolowanym środowisku prz
 |---|---|---|---|
 | Moduł nie zaszkodzi hostowi | [P2]: pamięć liniowa oddzielona od kodu i stosu silnika | zapewnia przeglądarka | zgodne |
 | Błąd w module nie zaszkodzi danym modułu | [W2]: w pamięci liniowej brak kanarków stosu, ASLR, stron ochronnych | rdzeń i `flatsql-wasm` bez `unsafe`, rdzeń bez zależności – klasy ataków z [W2] w większości nie dotyczą bezpiecznego Rusta | zgodne (warto podkreślić w pracy) |
-| Dane są chronione przed innymi | [L1] ideał 6: szyfrowanie end-to-end; [L11]: szyfrowane typy replikowane; [V1]: prywatność domyślnie i ochrona w całym cyklu życia | IndexedDB nie jest szyfrowana i jest dostępna dla każdego skryptu tej samej domeny (np. przy XSS); serwer synchronizacji dostaje dane jawnym tekstem i nie uwierzytelnia klientów | **częściowo** |
+| Dane są chronione przed innymi | [L1] ideał 6: szyfrowanie end-to-end, serwer przechowuje tylko szyfrogram; [V1]: prywatność domyślnie i ochrona w całym cyklu życia | IndexedDB nie jest szyfrowana i jest dostępna dla każdego skryptu tej samej domeny (np. przy XSS); serwer synchronizacji dostaje dane jawnym tekstem i nie uwierzytelnia klientów | **częściowo** |
 
-**Wniosek:** „Privacy by Design” oznacza dziś minimalizację przesyłanych danych (lokalne przetwarzanie, synchronizacja opcjonalna – zasada 2 z [V1]), a nie ochronę kryptograficzną ([todo.md 0.1](../todo.md)). Szyfrowanie end-to-end paczek `FSB1` jest architektonicznie możliwe, jeśli serwer stanie się przekaźnikiem nieprzezroczystych zmian: do rozstrzygnięcia LWW wystarczy jawny znacznik i skrót klucza, a wartości mogą być zaszyfrowane [L11]. Kosztem jest utrata `/api/query` i walidacji po stronie serwera dla zaszyfrowanych tabel ([todo_future.md 4.3–4.4](../todo_future.md)).
+**Wniosek:** „Privacy by Design” oznacza dziś minimalizację przesyłanych danych (lokalne przetwarzanie, synchronizacja opcjonalna – zasada 2 z [V1]), a nie ochronę kryptograficzną ([todo.md 0.1](../todo.md)). Szyfrowanie end-to-end paczek `FSB1` jest architektonicznie możliwe, jeśli serwer stanie się przekaźnikiem nieprzezroczystych zmian (ideał 6 z [L1]): do rozstrzygnięcia LWW wystarczy jawny znacznik i skrót klucza, a wartości mogą być zaszyfrowane. Wzorem są szyfrowane typy replikowane synchronizowane przez niezaufanych pośredników (Kuessner i in. 2022 – praca poza rdzeniem). Kosztem jest utrata `/api/query` i walidacji po stronie serwera dla zaszyfrowanych tabel ([todo_future.md 4.3–4.4](../todo_future.md)).
 
 ### 2.5 Pamięć i skala danych
 
-MVP z [P2] ma 32-bitowe adresy (do 4 GiB pamięci liniowej). Wasm 3.0 dodał memory64, ale 64-bitowa pamięć jest wyraźnie wolniejsza i twórcy SpiderMonkey zalecają ją tylko przy faktycznej potrzebie > 4 GiB [Q6]. Yan i in. [W11] zmierzyli, że programy WASM zużywają znacznie więcej pamięci niż JS, bo pamięć liniowa rośnie, ale nie jest oddawana. Flat-SQL trzyma każdy wiersz jako osobną alokację w `BTreeMap` (snapshot 100 tys. wierszy: 5,27 MB na dysku, w pamięci wielokrotnie więcej). Scenariusz „plik CSV 500 MB w przeglądarce” jest poza zasięgiem tej reprezentacji – właściwym narzędziem jest DuckDB-Wasm [D1]. **Rekomendacja:** przypisać scenariusz DuckDB-Wasm ([todo.md 0.2](../todo.md)), zmierzyć pamięć ([todo.md 4.4](../todo.md)) i zmniejszyć ją zwartą reprezentacją wierszy ([todo.md 2.7](../todo.md)).
+MVP z [P2] ma 32-bitowe adresy (do 4 GiB pamięci liniowej). Wasm 3.0 dodał memory64, ale 64-bitowa pamięć jest wyraźnie wolniejsza: granic nie da się już sprawdzać samymi stronami ochronnymi, a programowe sprawdzanie przed każdym dostępem – tak robią V8 i SpiderMonkey – w pomiarze autorów na SPEC CPU2017 wydłuża wykonanie średnio ok. dwukrotnie (narzut ok. 110%) [W6]. Twórcy SpiderMonkey zalecają memory64 tylko przy faktycznej potrzebie > 4 GiB [Q6]. Yan i in. [W11] zmierzyli, że programy WASM zużywają znacznie więcej pamięci niż JS, bo pamięć liniowa rośnie, ale nie jest oddawana. Flat-SQL trzyma każdy wiersz jako osobną alokację w `BTreeMap` (snapshot 100 tys. wierszy: 5,27 MB na dysku, w pamięci wielokrotnie więcej). Scenariusz „plik CSV 500 MB w przeglądarce” jest poza zasięgiem tej reprezentacji – właściwym narzędziem jest DuckDB-Wasm [D1]. **Rekomendacja:** przypisać scenariusz DuckDB-Wasm ([todo.md 0.2](../todo.md)), zmierzyć pamięć ([todo.md 4.4](../todo.md)) i zmniejszyć ją zwartą reprezentacją wierszy ([todo.md 2.7](../todo.md)).
 
 ### 2.6 Determinizm
 
@@ -82,10 +82,10 @@ Ocena według siedmiu ideałów z [L1]:
 | Ideał [L1] | Flat-SQL | Ocena | Uwagi z literatury |
 |---|---|---|---|
 | 1. Brak spinnerów | zapytanie po kluczu ~10 µs, synchronicznie (H1) | zgodne | [D4]: cel 16 ms na interakcję – zapytania lokalne zużywają ułamek budżetu; wyjątek: checkpoint (§6.3) |
-| 2. Praca nie jest uwięziona na jednym urządzeniu | synchronizacja przez serwer, repliki zbieżne (H6) | zgodne | [L20]: modele hybrydowe z serwerem są w praktyce najbardziej wykonalne |
+| 2. Praca nie jest uwięziona na jednym urządzeniu | synchronizacja przez serwer, repliki zbieżne (H6) | zgodne | [C9]: replikacja dwuwarstwowa – lokalna kopia i węzeł bazowy zatwierdzający zmiany |
 | 3. Sieć jest opcjonalna | Service Worker, IndexedDB, trwały outbox, test offline | zgodne, z zastrzeżeniem | wzorzec pracy bez połączenia z [C10]; [L1] ostrzega, że magazyn przeglądarki bywa czyszczony (§6.7) |
 | 4. Płynna współpraca | LWW na cały wiersz | częściowo | współbieżne edycje różnych kolumn jednego wiersza – jedna ginie [C9]; scalanie na poziomie pól [L24] |
-| 5. Długowieczność danych | udokumentowane formaty binarne z nagłówkami (`FLATSQL1`, `FSB1`), wspólne dla Rust i Node.js | częściowo | brak polityki zgodności wersji formatów i schematu dla klientów długo offline ([P1] rozdz. 4, [L26]) |
+| 5. Długowieczność danych | udokumentowane formaty binarne z nagłówkami (`FLATSQL1`, `FSB1`), wspólne dla Rust i Node.js | częściowo | brak polityki zgodności wersji formatów i schematu dla klientów długo offline ([P1] rozdz. 4) |
 | 6. Bezpieczeństwo i prywatność domyślnie | dane lokalne domyślnie | częściowo | brak szyfrowania i uwierzytelniania (§2.4) |
 | 7. Pełna kontrola użytkownika | eksport stanu (`exportState`, snapshot), przełącznik synchronizacji w demo | częściowo | brak eksportu do pliku w otwartym formacie – jest `changes_to_json` ([todo_future.md 1.3](../todo_future.md)) |
 
@@ -112,7 +112,7 @@ Zastrzeżenie dotyczy tego, co zbieżność kosztuje. Gray i in. [C9] opisali to
 | Scenariusz offline | Wynik | Rozwiązania w literaturze i praktyce |
 |---|---|---|
 | A zmienia `qty`, B zmienia `player` w tym samym wierszu | zostaje cały wiersz z późniejszym znacznikiem, druga zmiana ginie bez śladu | LWW per kolumna: CRR [L24], cr-sqlite, Teilen-SQL [X5] – [todo_future.md 12.3](../todo_future.md) |
-| A i B zwiększają licznik o 1 | wynik +1 zamiast +2 | aktualizacje przemienne [C9], licznik CRDT [L2], kolumny addytywne [L8] – [todo_future.md 2.5](../todo_future.md) |
+| A i B zwiększają licznik o 1 | wynik +1 zamiast +2 | aktualizacje przemienne [C9], licznik CRDT [L2], kolumny addytywne w Antidote SQL (praca poza rdzeniem) – [todo_future.md 2.5](../todo_future.md) |
 | wspólna edycja pola tekstowego | wygrywa jedna wersja | CRDT tekstu poza silnikiem [L1] – poza zakresem ([todo_future.md](../todo_future.md#poza-zakresem-decyzja-autora)) |
 
 **Rekomendacja:** w pracy wskazać, dla jakich danych LWW na wiersz jest właściwe (ekwipunek, ustawienia, katalog – dane rzadko edytowane współbieżnie; Coda w praktyce prawie nie miała konfliktów [C10]), a jako pierwsze ulepszenie wprowadzić znaczniki per kolumna – protokół się nie zmienia, rośnie tylko rozmiar wiersza.
@@ -121,13 +121,13 @@ Zastrzeżenie dotyczy tego, co zbieżność kosztuje. Gray i in. [C9] opisali to
 
 Lokalnie transakcja jest atomowa (undo log, jedna ramka WAL). W synchronizacji ta granica nie jest zachowywana: `export_outbox(max)` bierze do `max` wpisów w kolejności `seq` (`batchSize` = 1000 w [bridge/sync.js](../../bridge/sync.js)), a wiersz modyfikowany ponownie przesuwa się na koniec kolejki. Gdy outbox jest większy niż jedna paczka, zmiany jednej transakcji mogą trafić do różnych paczek i inne repliki mogą przez chwilę widzieć stan pośredni.
 
-Literatura daje tu dwie odpowiedzi. Bailis i in. [C8] pokazują, że **Monotonic Atomic View** (widoczne wszystkie albo żadne zapisy transakcji) da się zapewnić bez koordynacji. Z drugiej strony Helland [C7] przyjmuje atomowość jednej encji, a Simba [L27] – system synchronizacji tabel dla aplikacji mobilnych – świadomie daje atomowość tylko pojedynczego wiersza, bo atomowa synchronizacja wielu wierszy okazała się dla większości aplikacji zbędna i kosztowna. Flat-SQL daje dziś dokładnie gwarancję Simby.
+Literatura daje tu dwie odpowiedzi. Bailis i in. (praca poza rdzeniem) pokazują, że **Monotonic Atomic View** (widoczne wszystkie albo żadne zapisy transakcji) da się zapewnić bez koordynacji. Z drugiej strony Helland [C7] przyjmuje atomowość jednej encji, a Simba [L27] – system synchronizacji tabel dla aplikacji mobilnych – świadomie daje atomowość tylko pojedynczego wiersza, bo atomowa synchronizacja wielu wierszy okazała się dla większości aplikacji zbędna i kosztowna. Flat-SQL daje dziś dokładnie gwarancję Simby.
 
 **Rekomendacja:** udokumentować gwarancję wprost („transakcje są atomowe lokalnie; między replikami atomowa jest zmiana pojedynczego wiersza”) i dopiero przy konkretnej potrzebie grupować outbox po transakcjach ([todo_future.md 12.7](../todo_future.md)).
 
 ### 4.4 Usunięcia, tombstone'y i unikalność klucza
 
-- Tombstone ze znacznikiem chroni przed „wskrzeszeniem” wiersza przez spóźniony `UPDATE` – zgodne z [L2]. Antidote SQL [L8] pozwala wybrać per tabela semantykę update-wins lub delete-wins; Flat-SQL stosuje czysty porządek znaczników, co przy braku kluczy obcych jest spójne.
+- Tombstone ze znacznikiem chroni przed „wskrzeszeniem” wiersza przez spóźniony `UPDATE` – zgodne z [L2]. Antidote SQL (praca poza rdzeniem) pozwala wybrać per tabela semantykę update-wins lub delete-wins; Flat-SQL stosuje czysty porządek znaczników, co przy braku kluczy obcych jest spójne.
 - CRR [L24] zamiast tombstone'a ze znacznikiem używa „długości przyczynowej” – licznika wstawień i usunięć (nieparzysta = wiersz istnieje, scalanie = maksimum), więc ponowne wstawienie po usunięciu nie zależy od zegarów.
 - Tombstone'y nie są usuwane. Bezpieczne kryterium to stabilność przyczynowa – usunięcie, gdy wszystkie repliki potwierdziły znacznik [L28]. Przy serwerze centralnym wystarczy minimalny potwierdzony kursor aktywnych klientów; klienci nieaktywni dłużej niż próg dostają pełny stan ([todo_future.md 12.6](../todo_future.md)).
 - **Unikalność klucza głównego jest lokalna.** Dwa urządzenia offline wstawiające wiersz o tym samym `id` nie dostaną błędu – po synchronizacji jeden wiersz po cichu zastąpi drugi. [P1, rozdz. 9]: ograniczenia unikalności między replikami wymagają konsensusu. CRR [L24] wykrywa takie naruszenie przy scalaniu i cofa przegrywającą zmianę, Simba [L27] zgłasza konflikty aplikacji, a Coda [C10] unikała kolizji tymczasowymi identyfikatorami zastępowanymi przy reintegracji. **Rekomendacja:** klucze bez kolizji w [flat-sql.md](../flat-sql.md) ([todo_future.md 12.1](../todo_future.md)) i raport konfliktów ([todo_future.md 12.5](../todo_future.md)).
@@ -147,7 +147,7 @@ Literatura daje tu dwie odpowiedzi. Bailis i in. [C8] pokazują, że **Monotonic
 
 ### 4.6 Ewolucja schematu
 
-`CREATE TABLE` z innej repliki jest ignorowany, jeśli tabela o tej nazwie już istnieje – bez porównania schematów ([db.rs, `apply_remote`](../../crates/flatsql-core/src/db.rs)). Dwie repliki, które offline utworzą tabelę o tej samej nazwie i różnych kolumnach, rozjadą się trwale: wiersze drugiej repliki będą odrzucane przez `check_row`. [L1] opisuje brak „autorytatywnego” schematu jako problem otwarty, a Cambria [L26] rozwiązuje go soczewkami tłumaczącymi dane między wersjami schematu.
+`CREATE TABLE` z innej repliki jest ignorowany, jeśli tabela o tej nazwie już istnieje – bez porównania schematów ([db.rs, `apply_remote`](../../crates/flatsql-core/src/db.rs)). Dwie repliki, które offline utworzą tabelę o tej samej nazwie i różnych kolumnach, rozjadą się trwale: wiersze drugiej repliki będą odrzucane przez `check_row`. [L1] opisuje brak „autorytatywnego” schematu jako problem otwarty. Tłumaczenie danych między wersjami schematu soczewkami (Cambria – praca poza rdzeniem) odrzucono w [ADR-0027](../adr/0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) na rzecz struktury w kodzie aplikacji i samego dokładania kolumn.
 
 **Rekomendacja:** w prototypie – wykrywać konflikt i zgłaszać go jawnie ([todo.md 1.7](../todo.md)); w dalszych pracach – wersjonowanie schematu i migracje ([todo_future.md 6.1](../todo_future.md)) oraz schemat zarządzany przez backend ([todo_future.md 2.6](../todo_future.md)).
 
@@ -168,7 +168,7 @@ Argumenty **przeciw**:
 
 Dwie obserwacje ważne dla uzasadnienia w pracy:
 
-1. **Granulacja replikacji nie zależy od języka zapytań.** CRR [L24] i cr-sqlite replikują wiersze i kolumny tabel relacyjnych, a Antidote SQL [L8] pokazuje, że prawdziwa trudność to więzy integralności (klucze obce, kaskady) przy współbieżnych usunięciach – nie same złączenia.
+1. **Granulacja replikacji nie zależy od języka zapytań.** CRR [L24] i cr-sqlite replikują wiersze i kolumny tabel relacyjnych, a Antidote SQL (praca poza rdzeniem) pokazuje, że prawdziwa trudność to więzy integralności (klucze obce, kaskady) przy współbieżnych usunięciach – nie same złączenia.
 2. **„Przewidywalne” nie znaczy „ograniczone”.** Plan Flat-SQL jest zawsze jednotabelowy i widoczny w `EXPLAIN` oraz `rowsScanned`, ale pełny skan i `GROUP BY` rosną z tabelą. W sensie [M2] ograniczony koszt mają tylko odczyty po kluczu lub indeksie z `LIMIT`. Z tej samej pracy wynika, że złączenie po unikalnym kluczu głównym nie psuje przewidywalności.
 
 **Rekomendacja:** uzasadniać brak JOIN prostotą i przewidywalnością planu oraz brakiem więzów między tabelami, a nie samą replikacją; doprecyzować tezę o przewidywalności ([todo.md 0.1](../todo.md)); jako dalsze prace – zapytania reaktywne ([todo_future.md 5.1](../todo_future.md)). Złączeń po kluczu głównym autor nie przewiduje: Flat-SQL pozostaje dialektem jednotabelowym ([todo_future.md – poza zakresem](../todo_future.md#poza-zakresem-decyzja-autora)).

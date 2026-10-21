@@ -7,15 +7,15 @@ Identyfikatory w nawiasach (np. [W1]) odsyłają do wpisów w [README.md](README
 ## 1. Najważniejsze wnioski
 
 1. **Flat-SQL nie jest lepszy od dojrzałych silników ogólnie, ale jest konkurencyjny w swojej kategorii:** mała baza SQL na dane operacyjne aplikacji, działająca w przeglądarce bez dodatkowej konfiguracji, z przyrostową trwałością i wbudowaną synchronizacją. Żadne z porównywanych rozwiązań nie łączy tych cech w jednym module.
-2. **Architektura ma solidne oparcie w klasycznych pracach o pracy offline.** Trwały, skracany log zmian z idempotentną reintegracją to wzorzec z Coda [C10], lokalne zapisy porządkowane przez serwer – z Bayou [C3], a hybryda „lokalna kopia + serwer zatwierdzający” – z replikacji dwuwarstwowej Graya i in. [C9]. Współcześnie potwierdzają ją badanie aplikacji mobilnych, które bez takiego mechanizmu tracą dane [L27], i wywiady z twórcami aplikacji webowych [L20].
+2. **Architektura ma solidne oparcie w klasycznych pracach o pracy offline.** Trwały, skracany log zmian z idempotentną reintegracją to wzorzec z Coda [C10], lokalne zapisy porządkowane przez serwer – z Bayou [C3], a hybryda „lokalna kopia + serwer zatwierdzający” – z replikacji dwuwarstwowej Graya i in. [C9]. Współcześnie potwierdzają ją badanie aplikacji mobilnych, które bez takiego mechanizmu tracą dane [L27], i wywiady z twórcami aplikacji webowych (Niinikoski 2025 – praca poza rdzeniem).
 3. **Wyniki pomiarów są zgodne z literaturą.** Narzut WebAssembly (1,1–1,8×) mieści się w przedziale z [P2] i [W1].
 4. **Największym kosztem jest granica JS↔WASM i reprezentacja danych w pamięci, a nie sam WebAssembly.** Recenzowanych pomiarów tej granicy dla silników baz nadal nie ma – pomiar H3 jest wkładem własnym; kierunek optymalizacji wskazuje DuckDB-Wasm [D1].
 5. **Warstwa składowania realizuje klasyczny wzorzec** (dane w pamięci, WAL fizyczny, snapshot, group commit – [S1], [S4], [S6]). Przyrostowy WAL daje przewagę nad sql.js i nad Zeta-Lite [D5]. Słabym punktem jest checkpoint: synchroniczna kopia całej bazy to „naiwny snapshot” [S10], który w grze oznacza 2–3 klatki przerwy.
 6. **Synchronizacja LWW per wiersz zapewnia zbieżność, ale gubi aktualizacje** – Gray i in. opisali to dla schematów ze znacznikami czasu już w 1996 r. [C9]. Kierunek: LWW per kolumna [L24] (optymalizacja istniejącego protokołu) i aktualizacje przemienne (`MERGE ADD`, rozszerzenie).
-7. **Gwarancja „atomowy wiersz między replikami” jest uznanym wyborem, nie usterką** – taką samą daje Simba [L27], w duchu modelu encji Hellanda [C7]; Monotonic Atomic View [C8] jest osiągalne, gdyby okazała się za słaba.
-8. **Wykryto luki poprawności w istniejących mechanizmach:** brak ograniczenia dryfu HLC [C2], niepewna kolejność utrwalania przy checkpoincie [S8], domyślnie „luźna” trwałość IndexedDB [Q1], możliwość usunięcia danych przez przeglądarkę [Q2]–[Q4], log serwera tylko w pamięci (każdy restart = pełny stan do wszystkich klientów), ciche konflikty schematu [L26] i klucza głównego [L24].
+7. **Gwarancja „atomowy wiersz między replikami” jest uznanym wyborem, nie usterką** – taką samą daje Simba [L27], w duchu modelu encji Hellanda [C7]; Monotonic Atomic View jest osiągalne bez koordynacji (Bailis i in. – praca poza rdzeniem), gdyby okazała się za słaba.
+8. **Wykryto luki poprawności w istniejących mechanizmach:** brak ograniczenia dryfu HLC [C2], niepewna kolejność utrwalania przy checkpoincie [S8], domyślnie „luźna” trwałość IndexedDB [Q1], możliwość usunięcia danych przez przeglądarkę [Q2]–[Q4], log serwera tylko w pamięci (każdy restart = pełny stan do wszystkich klientów), ciche konflikty schematu [L1] i klucza głównego [L24].
 9. **„Privacy by Design” jest spełnione częściowo:** dane są domyślnie lokalne, ale nie są szyfrowane ani lokalnie, ani w synchronizacji, a serwer nie uwierzytelnia klientów ([L1], [W2], [V1]).
-10. **Model „bez JOIN” ma mocne oparcie** ([C7], [M2]), **ale jest krytykowany** ([M1], [D4]). Teza o „przewidywalnym wykonaniu” wymaga doprecyzowania: przewidywalny jest plan, a ograniczony koszt mają tylko odczyty po kluczu lub indeksie z limitem [M2]. Złączenie po unikalnym kluczu nie psułoby przewidywalności ani replikacji ([M2], [L8]).
+10. **Model „bez JOIN” ma mocne oparcie** ([C7], [M2]), **ale jest krytykowany** ([M1], [D4]). Teza o „przewidywalnym wykonaniu” wymaga doprecyzowania: przewidywalny jest plan, a ograniczony koszt mają tylko odczyty po kluczu lub indeksie z limitem [M2]. Złączenie po unikalnym kluczu nie psułoby przewidywalności ([M2]) ani replikacji.
 11. **Najmocniej potwierdzone zastosowania** to zbieranie danych w terenie offline, aplikacje osobiste na wielu urządzeniach i pamięć podręczna danych serwera w aplikacjach SaaS ([real-world-usage.md §4](../research/real-world-usage.md#4-zastosowania-flat-sql-potwierdzone-analizą)). Blokuje je niedojrzałość (replikacja częściowa, reguły serwera, uwierzytelnianie, wiele kart), nie koncepcja – i każde z tych rozszerzeń ma oparcie w literaturze ([C11], [C9], [Q12]).
 12. **Tryb edge zrealizowano tylko częściowo.** Silnik działa na serwerze (ten sam moduł `.wasm` w Node.js), ale jako jeden centralny serwer, który jest hubem synchronizacji i bazą główną naraz. Węzłów brzegowych synchronizowanych z bazą główną jeszcze nie ma; fundamenty istnieją (rdzeń bez I/O, protokół push/pull, zbieżność LWW niezależna od topologii).
 13. **Metodyka benchmarku jest staranna,** ale do mocnych tez brakuje porównania z SQLite WASM na OPFS, statystyki z wielu uruchomień i pomiaru pauz ([B1], [B3], [S10]).
@@ -70,19 +70,19 @@ Identyfikatory w nawiasach (np. [W1]) odsyłają do wpisów w [README.md](README
 ### 3.2 Local-First
 
 - Projekt spełnia ideały szybkości, pracy na wielu urządzeniach i pracy offline; częściowo – współpracę, długowieczność danych, prywatność i kontrolę użytkownika ([L1]).
-- W praktyce najbardziej wykonalne są modele hybrydowe z serwerem koordynującym – taki jest Flat-SQL ([L20], [C9]).
-- Local-first nie zastąpi serwera przy transakcjach finansowych: urządzenie offline nie wie, czy środki nie zostały wydane gdzie indziej ([C9], [C8]); wszystkie znalezione systemy kasowe zatwierdzają płatności na serwerze.
+- W praktyce najbardziej wykonalne są modele hybrydowe z serwerem koordynującym – taki jest Flat-SQL ([C9], [C3]).
+- Local-first nie zastąpi serwera przy transakcjach finansowych: urządzenie offline nie wie, czy środki nie zostały wydane gdzie indziej ([C9], [P1] rozdz. 9); wszystkie znalezione systemy kasowe zatwierdzają płatności na serwerze.
 - Dane w przeglądarce nie są gwarantowane: Safari usuwa je po 7 dniach bez interakcji, magazyn jest domyślnie „best-effort” ([Q2]–[Q4]).
 
 ### 3.3 Synchronizacja i konflikty
 
 - Zegar HLC jest zaimplementowany w zwartej postaci z [C2], ale bez reguły ignorowania znaczników zbyt daleko w przyszłości – urządzenie ze złym zegarem wygrywa wszystkie konflikty ([C2] §4, [P1] rozdz. 8).
-- LWW to poprawny CRDT ([L2], [L28]), ale gubi aktualizacje ([C9]); aktualizacje przemienne tego nie robią ([C9], [L8]).
-- Atomowość per wiersz między replikami wystarcza typowym aplikacjom ([L27]); MAV jest osiągalne bez koordynacji, zapobieganie utraconym aktualizacjom – nie ([C8]).
+- LWW to poprawny CRDT ([L2], [L28]), ale gubi aktualizacje ([C9]); aktualizacje przemienne tego nie robią ([C9], [L2]).
+- Atomowość per wiersz między replikami wystarcza typowym aplikacjom ([L27]); uniknięcie utraconych aktualizacji wymaga kopii głównej zatwierdzającej zmiany ([C9]).
 - Unikalność klucza głównego jest gwarantowana tylko lokalnie; CRR [L24] wykrywa takie konflikty przy scalaniu, Coda [C10] unikała ich tymczasowymi identyfikatorami.
 - Protokół (log z kursorami, scalanie zmian w outboksie, idempotentne rundy) odpowiada wzorcom z [C3], [C10], [C7] i [P1] rozdz. 11–12; luką jest log serwera tylko w pamięci.
 - Replikacja częściowa ma gotowy wzór: filtr klienta i usuwanie lokalne wierszy, które z niego wyszły ([C11]).
-- Ewolucja schematu w replikach to problem otwarty; Cambria [L26] tłumaczy dane między wersjami schematu.
+- Ewolucja schematu w replikach to problem otwarty ([L1]); zgodność wersji formatów opisuje [P1] rozdz. 4.
 
 ### 3.4 Składowanie i trwałość
 
@@ -97,7 +97,7 @@ Identyfikatory w nawiasach (np. [W1]) odsyłają do wpisów w [README.md](README
 - Encja pod kluczem jako jednostka atomowości: [C7]; przemysłowy odpowiednik – CQL w Cassandrze ([M1]).
 - Systemy NoSQL niemal powszechnie dodały SQL, a brak złączeń uznaje się za ograniczenie ([M1]).
 - Przewidywalny koszt mają zapytania ograniczone – z limitem, bez złączeń albo ze złączeniem po kluczu głównym ([M2]).
-- W aplikacjach local-first złączenia i reaktywność decydują o responsywności UI ([D4]); w modelu jednotabelowym zapytania reaktywne z aktualizacją przyrostową są prostsze do zrealizowania ([M3]) – to szansa, nie tylko ograniczenie.
+- W aplikacjach local-first złączenia i reaktywność decydują o responsywności UI ([D4]); w modelu jednotabelowym zapytania reaktywne z aktualizacją przyrostową są prostsze do zrealizowania (przyrostowe utrzymanie widoków – Gupta i Mumick 1995, praca poza rdzeniem) – to szansa, nie tylko ograniczenie.
 
 ### 3.6 Edge computing
 
@@ -147,7 +147,7 @@ Katalog zastosowań z ocenami i warunkami: [../use-cases.md](../use-cases.md); d
 ## 6. Wnioski z samego przeglądu literatury
 
 - Pierwotny zbiór (77 PDF-ów) pokrywał dobrze WebAssembly, CRDT i składowanie, ale miał luki dokładnie tam, gdzie leżą atuty i plany projektu: praca offline klientów mobilnych, replikacja częściowa, synchronizacja tabel w aplikacjach, przewidywalność ograniczonego języka zapytań, checkpointy stanu w pamięci, utrzymanie widoków ([search-methodology.md §3](search-methodology.md#3-audyt-pokrycia-atutów-projektu)). Uzupełniono je ośmioma pracami.
-- Rdzeń liczy 38 pozycji: 30 z pierwotnego zbioru i 8 nowych; 46 pozycji przeniesiono poza rdzeń z uzasadnieniem ([README.md §13](README.md#13-pozycje-poza-rdzeniem)).
+- Rdzeń liczy 33 pozycje – po rewizji z 22.10.2026 tylko prace, które będą cytowane w pracy dyplomowej ([mapa rozdziałów](README.md#mapa-rozdziały-pracy-dyplomowej--literatura), [ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-pracy.md)); 51 pozycji jest poza rdzeniem z uzasadnieniem ([README.md §13](README.md#13-pozycje-poza-rdzeniem)).
 - Trzy ważne pozycje pozostają niedostępne: książka [P1] (płatna), Teilen-SQL [X5] (tylko streszczenie), artykuł Niinikoski i Fagerholm [X6].
 - Nadal nie ma recenzowanych badań wydajności IndexedDB i OPFS ani kosztu granicy JS↔WASM w silnikach baz – pomiary projektu częściowo wypełniają tę lukę.
 - Notatka do [P1] powstała bez dostępu do tekstu książki – przed cytowaniem trzeba ją zweryfikować z egzemplarzem.
