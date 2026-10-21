@@ -147,7 +147,7 @@ Katalog zastosowań z ocenami i warunkami: [../use-cases.md](../use-cases.md); d
 ## 6. Wnioski z samego przeglądu literatury
 
 - Pierwotny zbiór (77 PDF-ów) pokrywał dobrze WebAssembly, CRDT i składowanie, ale miał luki dokładnie tam, gdzie leżą atuty i plany projektu: praca offline klientów mobilnych, replikacja częściowa, synchronizacja tabel w aplikacjach, przewidywalność ograniczonego języka zapytań, checkpointy stanu w pamięci, utrzymanie widoków ([search-methodology.md §3](search-methodology.md#3-audyt-pokrycia-atutów-projektu)). Uzupełniono je ośmioma pracami.
-- Rdzeń liczy 39 pozycji: 31 z pierwotnego zbioru (w tym [S5], przywrócona 21.10.2026) i 8 nowych; 45 pozycji przeniesiono poza rdzeń z uzasadnieniem ([README.md §13](README.md#13-pozycje-poza-rdzeniem)).
+- Rdzeń liczy 38 pozycji: 30 z pierwotnego zbioru i 8 nowych; 46 pozycji przeniesiono poza rdzeń z uzasadnieniem ([README.md §13](README.md#13-pozycje-poza-rdzeniem)).
 - Trzy ważne pozycje pozostają niedostępne: książka [P1] (płatna), Teilen-SQL [X5] (tylko streszczenie), artykuł Niinikoski i Fagerholm [X6].
 - Nadal nie ma recenzowanych badań wydajności IndexedDB i OPFS ani kosztu granicy JS↔WASM w silnikach baz – pomiary projektu częściowo wypełniają tę lukę.
 - Notatka do [P1] powstała bez dostępu do tekstu książki – przed cytowaniem trzeba ją zweryfikować z egzemplarzem.

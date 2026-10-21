@@ -9,8 +9,8 @@ Rdzeń literatury projektu: silnik SQL w Rust kompilowany do WebAssembly, płask
 | [search-methodology.md](search-methodology.md) | jak szukano, audyt pokrycia atutów projektu, kryteria doboru rdzenia, ograniczenia |
 | [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md) | notatka do pracy poleconej przez promotora [P2] |
 | [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md) | notatka do książki poleconej przez promotora [P1], z mapą rozdziałów na moduły |
-| `papers/` | 39 plików PDF rdzenia (lokalnie, wykluczone z gita w `.git/info/exclude`) |
-| `papers/_poza-rdzeniem/` | 45 plików PDF odrzuconych w rewizji (§13) – zachowane, nie usunięte |
+| `papers/` | 38 plików PDF rdzenia (lokalnie, wykluczone z gita w `.git/info/exclude`) |
+| `papers/_poza-rdzeniem/` | 46 plików PDF odrzuconych w rewizji (§13) – zachowane, nie usunięte |
 
 > **Prawa autorskie.** Pliki w `papers/` służą do własnej nauki. Wiele z nich to wersje autorskie z dopiskiem „for personal use, not for redistribution” albo kopie z serwisów kursów uniwersyteckich, dlatego katalog jest wykluczony z repozytorium i nie należy go publikować. W pracy dyplomowej cytuje się wersję wydawniczą (DOI), nie lokalną kopię.
 
@@ -18,7 +18,7 @@ Rdzeń literatury projektu: silnik SQL w Rust kompilowany do WebAssembly, płask
 
 Każdy wpis ma identyfikator używany w pozostałych dokumentach, opis bibliograficzny, plik, streszczenie i odpowiedź na pytanie, **co z pracy wynika dla Flat-SQL**, oraz zadania, które się na nią powołują ([todo.md](../todo.md) – optymalizacja prototypu, [todo_future.md](../todo_future.md) – rozszerzenia). Hipotezy H1–H6 pochodzą z [benchmark-scenario.md](../research/benchmark-scenario.md).
 
-**Identyfikatory zachowano z poprzedniej wersji bazy**, żeby nie unieważniać odwołań; luki w numeracji to pozycje przeniesione poza rdzeń (§13). Nowe prace z rewizji: [C9]–[C11], [L27]–[L28], [M2]–[M3], [S10]. 21.10.2026 przywrócono do rdzenia [S5] jako podstawę zadań todo 2.3 i 2.8 (rozbicie kosztu ścieżki zapisu).
+**Identyfikatory zachowano z poprzedniej wersji bazy**, żeby nie unieważniać odwołań; luki w numeracji to pozycje przeniesione poza rdzeń (§13). Nowe prace z rewizji: [C9]–[C11], [L27]–[L28], [M2]–[M3], [S10].
 
 Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przeglądarce i porównywane silniki · [L] Local-First, CRDT, synchronizacja · [C] replikacja, zegary, praca offline · [S] składowanie i odtwarzanie · [M] model danych i zapytania · [E] edge computing · [B] metodyka pomiarów · [V] prywatność · [X] do pobrania · [Q] dokumentacja platform i źródła branżowe.
 
@@ -38,7 +38,6 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 | Ewolucja schematu w replikach | [L26] Cambria |
 | Mały moduł WASM, ten sam rdzeń wszędzie | [P2] Haas, [W1] Jangda, [W11] Yan |
 | Granica JS↔WASM (H3) | [D1] DuckDB-Wasm (Arrow IPC); brak badań recenzowanych – wkład własny |
-| Koszt ścieżki zapisu w silniku w pamięci (H4) | [S4] Stonebraker, [S5] Harizopoulos, [S6] Malviya |
 | Lokalne zapytania zamiast sieci (H1) | [L1] Local-first, [D4] Riffle (budżet 16 ms), [E1] Shi |
 | Hybryda: lokalny silnik + serwer koordynujący | [L20] Niinikoski, [C9] Gray (two-tier), [C3] Bayou |
 | Privacy by Design | [V1] Cavoukian, [L1], [W2] Lehmann, [L11] Kuessner |
@@ -168,10 +167,6 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
   **Plik:** [papers/2007-stonebraker-end-of-an-architectural-era.pdf](papers/2007-stonebraker-end-of-an-architectural-era.pdf).
   — H-Store: dane w pamięci, wykonanie jednowątkowe, specjalizacja zamiast „jednego rozmiaru dla wszystkich”; logowanie, blokady, latche i bufor stron to większość pracy klasycznego silnika. **Dla projektu:** uzasadnienie wąsko wyspecjalizowanego, jednowątkowego silnika w pamięci; Flat-SQL nie płaci za blokady i bufor stron, płaci za logowanie (undo log + WAL + outbox – H4).
 
-- **[S5]** Harizopoulos S., Abadi D. J., Madden S., Stonebraker M. *OLTP Through the Looking Glass, and What We Found There.* SIGMOD 2008, s. 981–992. DOI: [10.1145/1376616.1376713](https://doi.org/10.1145/1376616.1376713). *(przywrócona do rdzenia 21.10.2026)*
-  **Plik:** [papers/2008-harizopoulos-oltp-through-the-looking-glass.pdf](papers/2008-harizopoulos-oltp-through-the-looking-glass.pdf).
-  — Autorzy stopniowo usuwali z silnika Shore kolejne mechanizmy (logowanie, blokady, latche, menedżer bufora, optymalizacje kodu) i po każdym kroku mierzyli liczbę instrukcji na transakcję TPC-C New Order: od ok. 640 do ok. 12 700 transakcji na sekundę, czyli ok. 20×. Koszt rozkłada się na kilka składników (m.in. logowanie ok. 12%, blokady ok. 16%, latche ok. 14% instrukcji) – nie ma jednego dominującego. **Dla projektu:** metoda rozbicia kosztu ścieżki zapisu „usuń składnik i zmierz” oraz punkt odniesienia dla kosztu logowania we Flat-SQL (undo log, WAL, outbox – H4); [S4] podaje tylko wniosek. **Zadania:** todo 2.3, 2.8.
-
 - **[S6]** Malviya N., Weisberg A., Madden S., Stonebraker M. *Rethinking Main Memory OLTP Recovery.* ICDE 2014, s. 604–615.
   **Plik:** [papers/2014-malviya-rethinking-main-memory-oltp-recovery.pdf](papers/2014-malviya-rethinking-main-memory-oltp-recovery.pdf).
   — W VoltDB logowanie poleceń daje ok. 1,5× większą przepustowość niż logowanie fizjologiczne w stylu ARIES, kosztem dłuższego odtwarzania i wymogu determinizmu. **Dla projektu:** uzasadnienie logu fizycznego – te same wpisy WAL służą synchronizacji, a odtworzenie nie zależy od zegara ani wyników zapytań.
@@ -292,6 +287,7 @@ Pliki przeniesiono do `papers/_poza-rdzeniem/`. Kryteria wyłączenia: [search-m
 | [C6] | Bigtable, OSDI 2006 | atomowość per wiersz pokrywają [C7] i [L27] |
 | [S2] | ARIES, TODS 1992 | WAL opisany w [P1] rozdz. 3 i 7; Flat-SQL ma log tylko-redo |
 | [S3] | LSM-tree, 1996 | kierunek dla checkpointu lepiej pokrywa [S10] |
+| [S5] | Harizopoulos i in., OLTP, SIGMOD 2008 | wniosek zawarty w [S4] |
 | [S7] | SiloR, OSDI 2014 | równoległe odtwarzanie wymaga wątków, czyli COOP/COEP – sprzeczne z atutem |
 | [S9] | Zheng i in., awarie zasilania, OSDI 2014 | model awarii pokrywa [S8] |
 | [E2] | Satyanarayanan, 2017 | definicję edge daje [E1] |
