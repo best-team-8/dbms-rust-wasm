@@ -135,7 +135,7 @@ Katalog zastosowań z ocenami i warunkami: [../use-cases.md](../use-cases.md); d
 
 | Zastosowanie | Dowody z wdrożeń | Co jest potrzebne |
 |---|---|---|
-| Zbieranie danych w terenie offline | mocne | replikacja częściowa, uwierzytelnianie, reguły serwera, eksport do PostgreSQL (future 3.2, 4.1, §2, 11.1) |
+| Zbieranie danych w terenie offline | mocne | replikacja częściowa, uwierzytelnianie, reguły serwera (future 3.2, 4.1, §2); analityka w PostgreSQL – osobnym narzędziem, poza zakresem |
 | Aplikacje osobiste na wielu urządzeniach | mocne (architektura jak w Actual Budget) | baza na użytkownika, uwierzytelnianie, szyfrowanie (future 3.1, 4.1, 4.3) |
 | Pamięć podręczna danych serwera (SaaS) | mocne | wiele kart, tabele serwera, tryb pamięci podręcznej, replikacja częściowa (future 1.1, 2.1, 1.2, 3.2) |
 | Gry przeglądarkowe – zapis i ekwipunek | słabe–średnie (zapisy w chmurze) | checkpoint bez przestoju (todo 2.6), LWW per kolumna (future 12.3), `MERGE ADD` (future 2.5); w grach wieloosobowych serwer jako autorytet (future 2.1) |

@@ -27,7 +27,7 @@ Przy pracy offline (ADR-0002) każde urządzenie przyjmuje zapisy, więc konflik
 
 - **Wektory wersji i scalanie przez aplikację** – większe metadane i obowiązek pisania procedur scalania.
 - **Pełna historia operacji (event sourcing, CRDT operacyjne)** – rosnący log; Flat-SQL przesyła stan wierszy (delta-state, [L28]).
-- **CRDT tekstu w silniku** – poza modelem; wspólną edycję tekstu realizuje zewnętrzna biblioteka (future 6.3).
+- **CRDT tekstu w silniku** – poza modelem; wspólną edycję tekstu realizuje zewnętrzna biblioteka (dawne future 6.3, poza zakresem według ADR-0030).
 
 ## Konsekwencje
 

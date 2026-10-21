@@ -14,7 +14,7 @@ Najmocniej potwierdzone zastosowania ([real-world-usage.md §4](research/real-wo
 
 | Zastosowanie | Dowody | Potrzebne rozszerzenia |
 |---|---|---|
-| Zbieranie danych w terenie offline | mocne (CHT, DHIS2, KoboToolbox, PowerSync) | 4.1, 3.1 lub 3.2, 2.1–2.3, 11.1 |
+| Zbieranie danych w terenie offline | mocne (CHT, DHIS2, KoboToolbox, PowerSync) | 4.1, 3.1 lub 3.2, 2.1–2.3 |
 | Aplikacje osobiste na wielu urządzeniach | mocne (Actual Budget, Dexie Cloud) | 4.1, 3.1, 4.3 |
 | Pamięć podręczna danych serwera w aplikacjach SaaS | mocne (Notion, Linear) | 1.1, 1.2, 2.1, 3.2 |
 | Kasy i sprzedaż offline | średnie | 2.1, 2.4, 4.1 |
@@ -37,11 +37,9 @@ Jeśli scenariusze edge z prezentacji mają zostać pokazane na obronie, 7.1 war
 | Zapytania reaktywne | Linear, Riffle, LiveStore | 5.1 |
 | Migracje schematu | gry, aplikacje z długim życiem danych | 6.1 |
 | Węzły edge z bazą główną, platformy edge | LiteFS, Turso, Durable Objects | 7.1–7.3 |
-| Łącznik z PostgreSQL, eksport do analityki | PowerSync, CHT | 11.1–11.4 |
 | Interfejs C, aplikacje natywne | PowerSync, Turso (aplikacje mobilne) | 9.1, 9.5 |
 | Eksport bazy do pliku, punkty przywracania | gry, kasy, Logseq | 1.3, 5.4 |
 | Wyszukiwanie pełnotekstowe, wektory | rozszerzenia przeglądarki, notatki, pamięć asystentów | 5.5, 5.6 |
-| Współdzielona treść edytowana na żywo | tldraw, Excalidraw | 6.3 |
 
 ## 1. Platforma przeglądarki
 
@@ -123,7 +121,6 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 ## 5. Zapytania
 
 - [ ] **5.1 Zapytania reaktywne** (średni) – subskrypcja zapytania jednotabelowego; po zatwierdzeniu sprawdzane tylko zmienione klucze. `COUNT` i `SUM` aktualizowane przyrostowo, `MIN`/`MAX` po usunięciu bieżącego ekstremum wymagają ponownego przeliczenia (lub indeksu) [M3]; cel: aktualizacja w mikrosekundach, w budżecie 16 ms [D4]. Wymaga 1.1 (powiadomienia między kartami).
-- [ ] **5.2 Złączenia tylko do odczytu po kluczu głównym** (duży) – równościowe, bez `FOREIGN KEY`: złączenie po unikalnym kluczu zachowuje ograniczony koszt zapytania [M2] i nie zmienia replikacji (dalej per wiersz – trudność leży w więzach, nie w złączeniach [L8]). Brak złączeń jest najczęstszym zarzutem wobec modeli NoSQL [M1], a w aplikacjach local-first złączenia stanowią dużą część kodu UI [D4]. **Decyzja autora:** zmienia tożsamość dialektu „bez JOIN”.
 - [ ] **5.3 `CASE` w wyrażeniach** (mały) – najczęściej brakująca konstrukcja w obrębie jednej tabeli.
 - [ ] **5.4 Punkty przywracania i sloty** (średni) – nazwany punkt przywracania zapamiętujący LSN; przywrócenie stanu (snapshot + odtworzenie WAL do LSN) albo kopia bazy do osobnego slotu; zastosowania: sloty zapisu w grach, „spróbuj i cofnij”. Pliki: `crates/flatsql-core/src/db.rs`, `storage/`, `bridge/flatdb.js`.
 - [ ] **5.5 Wyszukiwanie pełnotekstowe** (średni) – indeks słów dla kolumny `TEXT`, operator wyszukiwania, podział na słowa z obsługą Unicode i wielkości liter, proste ustalanie trafności; limit wzrostu modułu: kilkadziesiąt KiB. Literatury nie zebrano – przy rozpoczęciu zadania: indeks odwrócony (np. Zobel i Moffat, *Inverted files for text search engines*, ACM CSUR 2006).
@@ -132,8 +129,7 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 ## 6. Ewolucja schematu, protokół i współpraca
 
 - [ ] **6.1 Wersjonowanie protokołu i struktury** (średni) – według [ADR-0027](adr/0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md): kroki budowy bazy z numerami wersji w `FlatDB.open` (lokalna baza pamięta wersję i wykonuje tylko brakujące kroki), `ALTER TABLE … ADD COLUMN`, przechowywanie wartości nieznanych kolumn w wierszu, polecenia struktury nierozsyłane do innych replik; ustalić, skąd serwer w trybie z silnikiem zna strukturę przestrzeni (deklaracje scalane jako suma tabel i kolumn albo szablon w konfiguracji). Do tego wersja formatu paczek – klient offline może wrócić po miesiącach ze starszą wersją aplikacji ([P1] rozdz. 4). Na bazie [todo.md 1.7](todo.md).
-- [ ] **6.2 Powiadomienia push** (średni) – WebSocket lub SSE zamiast samego odpytywania co kilka sekund ([P1] rozdz. 12); potrzebne do współpracy na żywo (6.3) i szybkiego rozsyłania zmian z centrali (7.1).
-- [ ] **6.3 Współdzielona treść edytowana na żywo przez bibliotekę CRDT** (średni) – każda aktualizacja dokumentu z biblioteki CRDT (np. Yjs) zapisywana jako osobny, niezmienny wiersz (unikalny klucz, więc bez konfliktów LWW), a dokument składany przez bibliotekę w aplikacji; Flat-SQL zapewnia trwałość, pracę offline i transport [L1], [L28]. Wymaga 6.2.
+- [ ] **6.2 Powiadomienia push** (średni) – WebSocket lub SSE zamiast samego odpytywania co kilka sekund ([P1] rozdz. 12); przydatne, gdy ktoś czeka na cudzą zmianę (np. ruch przeciwnika w grze turowej), i do szybkiego rozsyłania zmian z centrali (7.1).
 
 ## 7. Edge – węzły synchronizowane z bazą główną
 
@@ -184,15 +180,6 @@ Pakiet Pythona i synchronizacja w FastAPI (dawne 9.2–9.4) wypadły z planów �
 - [ ] **10.2 Wiele instancji serwera** (duży) – przypisanie użytkowników do instancji (np. po identyfikatorze) albo węzły z sekcji 7.
 - [ ] **10.3 Monitoring** (mały) – liczba klientów, rozmiar logu, czas `push`/`pull`, liczba odrzuconych zmian i konfliktów (rozszerzenie `/api/status`).
 
-## 11. Integracja z istniejącą bazą główną (np. PostgreSQL)
-
-Jeśli backend ma już własną bazę główną, Flat-SQL staje się warstwą synchronizacji obok niej – tak działają PowerSync i ElectricSQL [Q11]. Analityka wszystkich użytkowników i tak trafia do bazy serwerowej (Community Health Toolkit przenosi dane z CouchDB do PostgreSQL).
-
-- [ ] **11.1 Jednokierunkowy eksport do PostgreSQL** (średni) – zmiany z logu serwera przekazywane do tabel PostgreSQL na potrzeby analityki; prostszy krok przed 11.2.
-- [ ] **11.2 Łącznik PostgreSQL ↔ Flat-SQL** (duży) – przechwytywanie zmian PostgreSQL (np. replikacja logiczna) i zapis do niego zmian klientów po walidacji (2.2). Wzorzec: Change Data Capture ([P1] rozdz. 11).
-- [ ] **11.3 Mapowanie typów i kluczy** (średni) – typy PostgreSQL na `INT/FLOAT/TEXT/BOOL`, klucze złożone na jednokolumnowe.
-- [ ] **11.4 Konflikty między źródłami** (średni) – znaczniki HLC dla zapisów pochodzących z PostgreSQL, żeby LWW rozstrzygało je spójnie z zapisami klientów [C2]; dla tabel z 2.1 PostgreSQL jest jedynym autorem i konfliktów nie ma.
-
 ## 12. Optymalizacje prototypu po pracy inżynierskiej
 
 Zadania przeniesione z [todo.md](todo.md) ([ADR-0029](adr/0029-listy-zadan-wedlug-zakresu-pracy.md)): ulepszają to, co prototyp już ma, ale nie są potrzebne w pracy – obecna synchronizacja wystarcza do walidacji pracy offline, a obecny zestaw operacji do porównania w niszy. W nawiasach dawne numery z todo.md, nieużywane ponownie.
@@ -213,3 +200,13 @@ Zadania przeniesione z [todo.md](todo.md) ([ADR-0029](adr/0029-listy-zadan-wedlu
 Możliwości zgodne z koncepcją, na które nie ma jeszcze zadań ani terminu.
 
 - **Weryfikacja przepustek JWT przez serwer synchronizacji** – dla aplikacji bez backendu (aplikacje osobiste, gry indie), w których nie ma kto postawić bramki z [ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md). Serwer sprawdza podpis przepustki kluczem publicznym wydawcy (np. usługi logowania) i bierze przestrzeń z jej treści (`sub`); w serwerze to drugie źródło tego samego identyfikatora przestrzeni, więc nie wymaga przebudowy. Wymaga publicznego wystawienia serwera (HTTPS, CORS, limity żądań).
+
+## Poza zakresem (decyzja autora)
+
+Zadania usunięte z planu ([ADR-0030](adr/0030-zlaczenia-postgresql-i-edycja-na-zywo-poza-zakresem.md)). Numery usuniętych zadań nie są używane ponownie, żeby odnośniki w innych dokumentach pozostały jednoznaczne.
+
+| Dawne zadanie | Dlaczego poza zakresem |
+|---|---|
+| Złączenia tylko do odczytu po kluczu głównym (dawne 5.2) | Flat-SQL pozostaje dialektem jednotabelowym – to część definicji języka ([flat-sql.md](flat-sql.md), [ADR-0004](adr/0004-dialekt-flat-sql-bez-zlaczen.md)); dane z kilku tabel składa aplikacja. Krytykę modelu bez złączeń [M1], [D4] omawia [literature-comparison.md §5](references/literature-comparison.md#5-model-danych-flat-sql-bez-join). |
+| Współdzielona treść edytowana na żywo przez bibliotekę CRDT (dawne 6.3) | wspólna edycja dokumentów na żywo nie jest docelowym zastosowaniem ([real-world-usage.md §4](research/real-world-usage.md#4-zastosowania-flat-sql-potwierdzone-analizą)); takie edytory opierają się na CRDT tekstu (Yjs, Automerge) |
+| Integracja z PostgreSQL – eksport do analityki, łącznik CDC, mapowanie typów, konflikty między źródłami (dawna sekcja 11) | serwer Flat-SQL jest własną bazą główną; synchronizacja z istniejącą bazą serwerową to zakres osobnych produktów (PowerSync, ElectricSQL [Q11]); paczki można trzymać w bazie SQL backendu przez adapter magazynu ([sync-server.md §6](future/components/sync-server.md#6-dane-na-serwerze)) |

@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-06 (silnik, [flat-sql.md](../flat-sql.md)) |
 | Rodzaj | założenie |
-| Powiązane | ADR-0015, ADR-0018; todo 0.1; future 5.2 |
+| Powiązane | ADR-0015, ADR-0018, ADR-0030; todo 0.1 |
 
 ## Kontekst
 
@@ -36,7 +36,7 @@ Składnia SQL, model danych klucz–wiersz:
 - Relacje wiele-do-wielu składa aplikacja; brak złączeń to najczęstszy zarzut wobec takich modeli ([M1], [D4]).
 - „Przewidywalne wykonanie” znaczy: plan jest zawsze jednotabelowy i widoczny; ograniczony koszt mają tylko odczyty po kluczu lub indeksie z limitem – pełny skan i `GROUP BY` rosną z tabelą (todo 0.1).
 - To, co ma zmieniać się atomowo między replikami, modeluje się jako jeden wiersz (ADR-0018).
-- Złączenia tylko do odczytu po kluczu głównym (future 5.2) nie psułyby przewidywalności ani replikacji [M2], [L8], ale zmieniają tę decyzję – ich wprowadzenie wymaga nowego ADR.
+- Złączenia tylko do odczytu po kluczu głównym (dawne future 5.2, poza zakresem według ADR-0030) nie psułyby przewidywalności ani replikacji [M2], [L8], ale zmieniają tę decyzję – ich wprowadzenie wymaga nowego ADR.
 
 ## Źródła
 

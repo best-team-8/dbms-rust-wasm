@@ -49,10 +49,11 @@ Oznaczenia w kolumnie „Dojrzały Flat-SQL”: **tak** – nadaje się bez utra
 | Uwierzytelnianie, reguły serwera, tabele tylko do odczytu | niedojrzałość | tak ([todo_future.md §2, §4](../todo_future.md)) |
 | Obsługa wielu kart | niedojrzałość | tak ([todo_future.md 1.1](../todo_future.md)) |
 | Zapytania reaktywne | niedojrzałość | tak ([todo_future.md 5.1](../todo_future.md)) |
-| Łącznik z PostgreSQL, interfejs C | niedojrzałość (integracja) | tak ([todo_future.md §9, §11](../todo_future.md)) |
+| Interfejs C | niedojrzałość (integracja) | tak ([todo_future.md §9](../todo_future.md)) |
+| Łącznik z PostgreSQL | integracja | nie – poza zakresem projektu ([todo_future.md – poza zakresem](../todo_future.md#poza-zakresem-decyzja-autora)) |
 | Węzły edge z bazą główną | niedojrzałość | tak ([todo_future.md §7](../todo_future.md)) |
 | Wyszukiwanie pełnotekstowe, typ wektorowy | niedojrzałość (rozszerzenie zgodne z koncepcją) | tak, kosztem niewielkiego wzrostu modułu ([todo_future.md 5.5–5.6](../todo_future.md)) |
-| Złączenia | koncepcja „bez JOIN” | złączenia tylko do odczytu nie psują pozostałych atutów (replikacja dalej per wiersz), ale zmieniają tożsamość dialektu – świadoma decyzja autora |
+| Złączenia | koncepcja „bez JOIN” | nie – złączenia tylko do odczytu nie psułyby pozostałych atutów (replikacja dalej per wiersz), ale zmieniłyby tożsamość dialektu; decyzja autora ([todo_future.md – poza zakresem](../todo_future.md#poza-zakresem-decyzja-autora)) |
 | Zgodność z dialektem PostgreSQL / SQLite | koncepcja (własny dialekt) | nie |
 | Przetwarzanie kolumnowe dużych zbiorów | koncepcja (silnik wierszowy w pamięci, mały moduł) | nie |
 | Dane większe niż pamięć urządzenia | koncepcja (dane w pamięci) | nie – stronicowanie na OPFS wymaga Web Workera i zmienia architekturę |
@@ -106,7 +107,7 @@ Wyraźnie rosnąca kategoria (PGlite + pgvector w wielu projektach, Zeta-Lite). 
 3. **Rozmiar biblioteki ma znaczenie** – Notion ładuje SQLite asynchronicznie, bo blokował start strony. To wzmacnia argument małego modułu Flat-SQL.
 4. **Na wolnych urządzeniach lokalny odczyt bywa wolniejszy od sieci** – Notion „ściga” odczyt lokalny z API. Warto to uwzględnić w benchmarku na telefonie ([todo.md 4.7](../todo.md)).
 5. **Przeglądarka może usunąć dane** – kasy dodają zapis na serwerze lub kopie do pliku, gry eksport zapisu, Logseq ostrzega przed czyszczeniem pamięci podręcznej. W Flat-SQL: `navigator.storage.persist()` i synchronizacja jako kopia ([todo.md 1.5](../todo.md)).
-6. **Analityka trafia do bazy serwerowej** – CHT przenosi dane do PostgreSQL. Łącznik z PostgreSQL ([todo_future.md §11](../todo_future.md)) nie jest dodatkiem, tylko warunkiem dla zastosowań C i D.
+6. **Analityka trafia do bazy serwerowej** – CHT przenosi dane do PostgreSQL. W zastosowaniach C i D analityka wymaga więc osobnego narzędzia, bo łącznik z PostgreSQL jest poza zakresem projektu ([todo_future.md – poza zakresem](../todo_future.md#poza-zakresem-decyzja-autora)).
 7. **Wybór zegarów HLC jest zgodny z praktyką** – stosuje je Actual Budget.
 8. **Płatności zawsze przechodzą przez serwer** – we wszystkich znalezionych systemach kasowych.
 

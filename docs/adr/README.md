@@ -43,6 +43,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) | Struktura tabel w kodzie aplikacji, między wersjami tylko dokładanie | architektura | przyjęta |
 | [0028](0028-kursor-jako-numer-przyjecia.md) | Kursor synchronizacji jako numer przyjęcia nadany przez serwer | architektura | przyjęta |
 | [0029](0029-listy-zadan-wedlug-zakresu-pracy.md) | Listy zadań według zakresu pracy inżynierskiej | proces | przyjęta |
+| [0030](0030-zlaczenia-postgresql-i-edycja-na-zywo-poza-zakresem.md) | Złączenia, integracja z PostgreSQL i wspólna edycja na żywo poza zakresem | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

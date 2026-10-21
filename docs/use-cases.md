@@ -151,7 +151,7 @@ Czego brakuje do realnego użycia: rozdzielenia danych użytkowników, uwierzyte
 | Sytuacja | Czy potrzebna synchronizacja z inną bazą | Jak |
 |---|---|---|
 | Zapis w chmurze dla jednego użytkownika, aplikacje osobiste, aplikacje terenowe z własnym serwerem | nie – baza główna może być Flat-SQL | obecny protokół synchronizacji |
-| Dane wspólne (rankingi, rynek), analityka wszystkich użytkowników | tak – zwykle PostgreSQL jako baza główna | łącznik przechwytujący zmiany PostgreSQL (CDC, [P1] rozdz. 11) i zapisujący do niego zmiany klientów po walidacji ([todo_future.md §11](todo_future.md)) |
+| Dane wspólne (rankingi, rynek), analityka wszystkich użytkowników | tak – zwykle PostgreSQL jako baza główna | łącznik przechwytujący zmiany PostgreSQL (CDC, [P1] rozdz. 11) i zapisujący do niego zmiany klientów po walidacji – poza zakresem projektu ([todo_future.md – poza zakresem](todo_future.md#poza-zakresem-decyzja-autora)) |
 | Istniejący backend z PostgreSQL | tak | jak wyżej; to dokładnie zakres PowerSync i ElectricSQL [Q11] |
 | Aplikacje natywne (mobilne, desktopowe) używające SQLite | zależy | albo łącznik SQLite ↔ Flat-SQL, albo natywny Flat-SQL zamiast SQLite przez interfejs C ([todo_future.md §9](todo_future.md)) – wtedy synchronizacja działa bez tłumaczenia |
 | Serwer lub edge na SQLite (np. Durable Objects, Turso) | zależy | backend `Storage` dla magazynu platformy albo łącznik jak dla PostgreSQL |
@@ -184,7 +184,6 @@ Możliwa unikalna propozycja: **pamięć trzymana na urządzeniu, trwała przy k
 | LWW per kolumna i liczniki `MERGE ADD` (future 2.5, 12.3) | wspólne listy i tablice zadań, stany magazynowe liczone z wielu skanerów, wspólna skrzynia w grze, ekonomia gry na wielu urządzeniach |
 | Zapytania reaktywne (future 5.1) | interfejsy i pulpity aktualizowane bez ręcznego odświeżania |
 | Szyfrowanie end-to-end i lokalne (future 4.3, 4.4) | zdrowie, dzienniki, śledzenie wydatków, dokumenty firmowe – dopiero wtedy „Privacy by Design” jest w pełni prawdziwe |
-| Złączenia tylko do odczytu po kluczu (future 5.2) | proste CRM, katalogi z relacjami |
 | Węzły edge z bazą główną (future 7.1–7.3) | scenariusze edge z prezentacji w rzeczywistym układzie |
 | Wyszukiwanie wektorowe i pełnotekstowe (future 5.5, 5.6) | pamięć asystentów (§10), wyszukiwanie w notatkach |
 | Interfejs C (future 9.1, 9.5) | aplikacje natywne zamiast SQLite, panel administracyjny |

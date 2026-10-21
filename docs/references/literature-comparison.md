@@ -113,7 +113,7 @@ Zastrzeżenie dotyczy tego, co zbieżność kosztuje. Gray i in. [C9] opisali to
 |---|---|---|
 | A zmienia `qty`, B zmienia `player` w tym samym wierszu | zostaje cały wiersz z późniejszym znacznikiem, druga zmiana ginie bez śladu | LWW per kolumna: CRR [L24], cr-sqlite, Teilen-SQL [X5] – [todo_future.md 12.3](../todo_future.md) |
 | A i B zwiększają licznik o 1 | wynik +1 zamiast +2 | aktualizacje przemienne [C9], licznik CRDT [L2], kolumny addytywne [L8] – [todo_future.md 2.5](../todo_future.md) |
-| wspólna edycja pola tekstowego | wygrywa jedna wersja | CRDT tekstu poza silnikiem [L1] – [todo_future.md 6.3](../todo_future.md) |
+| wspólna edycja pola tekstowego | wygrywa jedna wersja | CRDT tekstu poza silnikiem [L1] – poza zakresem ([todo_future.md](../todo_future.md#poza-zakresem-decyzja-autora)) |
 
 **Rekomendacja:** w pracy wskazać, dla jakich danych LWW na wiersz jest właściwe (ekwipunek, ustawienia, katalog – dane rzadko edytowane współbieżnie; Coda w praktyce prawie nie miała konfliktów [C10]), a jako pierwsze ulepszenie wprowadzić znaczniki per kolumna – protokół się nie zmienia, rośnie tylko rozmiar wiersza.
 
@@ -171,7 +171,7 @@ Dwie obserwacje ważne dla uzasadnienia w pracy:
 1. **Granulacja replikacji nie zależy od języka zapytań.** CRR [L24] i cr-sqlite replikują wiersze i kolumny tabel relacyjnych, a Antidote SQL [L8] pokazuje, że prawdziwa trudność to więzy integralności (klucze obce, kaskady) przy współbieżnych usunięciach – nie same złączenia.
 2. **„Przewidywalne” nie znaczy „ograniczone”.** Plan Flat-SQL jest zawsze jednotabelowy i widoczny w `EXPLAIN` oraz `rowsScanned`, ale pełny skan i `GROUP BY` rosną z tabelą. W sensie [M2] ograniczony koszt mają tylko odczyty po kluczu lub indeksie z `LIMIT`. Z tej samej pracy wynika, że złączenie po unikalnym kluczu głównym nie psuje przewidywalności.
 
-**Rekomendacja:** uzasadniać brak JOIN prostotą i przewidywalnością planu oraz brakiem więzów między tabelami, a nie samą replikacją; doprecyzować tezę o przewidywalności ([todo.md 0.1](../todo.md)); jako dalsze prace – złączenia tylko do odczytu po kluczu głównym ([todo_future.md 5.2](../todo_future.md), decyzja autora) i zapytania reaktywne ([todo_future.md 5.1](../todo_future.md)).
+**Rekomendacja:** uzasadniać brak JOIN prostotą i przewidywalnością planu oraz brakiem więzów między tabelami, a nie samą replikacją; doprecyzować tezę o przewidywalności ([todo.md 0.1](../todo.md)); jako dalsze prace – zapytania reaktywne ([todo_future.md 5.1](../todo_future.md)). Złączeń po kluczu głównym autor nie przewiduje: Flat-SQL pozostaje dialektem jednotabelowym ([todo_future.md – poza zakresem](../todo_future.md#poza-zakresem-decyzja-autora)).
 
 ## 6. Składowanie i trwałość
 
@@ -268,7 +268,7 @@ Pełna lista z nakładem: [todo.md](../todo.md) (optymalizacja prototypu) i [tod
 11. Reguły serwera według replikacji dwuwarstwowej: tabele serwera, walidacja, zamiary, liczniki `MERGE ADD` (§4.2, §4.5) – future §2.
 12. Replikacja częściowa z filtrami (§4.5) – future 3.2.
 13. Szyfrowanie end-to-end i uwierzytelnianie (§2.4) – future §4.
-14. Zapytania reaktywne i złączenia po kluczu (§5) – future 5.1, 5.2.
+14. Zapytania reaktywne (§5) – future 5.1.
 15. Push zamiast pull, wersjonowanie schematu (§4.5, §4.6) – future 6.1, 6.2.
 
 ## 10. Co projekt wnosi względem literatury
