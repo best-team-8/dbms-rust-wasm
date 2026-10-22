@@ -1,13 +1,39 @@
-# Flat-SQL – silnik bazy danych SQL w Rust kompilowany do WebAssembly
+# Project Specification: WASM Database Engine for Edge Computing & Local-First Architecture
 
-Prototyp silnika bazy danych realizującego paradygmat **Edge Computing / Local-First**: zapytania SQL wykonują się bezpośrednio na urządzeniu użytkownika (w przeglądarce lub na węźle brzegowym) jako moduł WebAssembly, dane są trwale zapisywane lokalnie (IndexedDB, pliki), a stan jest asynchronicznie synchronizowany z serwerem, gdy sieć jest dostępna.
+## 1. Concept and Core Principles
 
-- **Latencja ~0 ms** – zapytanie po kluczu głównym trwa ok. 10 µs lokalnie, wobec 20–100 ms przy architekturze Cloud-First ([wyniki](docs/research/benchmark-results.md)).
-- **Privacy by Design** – dane są przetwarzane w izolowanym środowisku przeglądarki; na serwer trafiają tylko zmiany, które aplikacja sama synchronizuje.
-- **Local-First** – pełna funkcjonalność offline (Service Worker + IndexedDB), trwały outbox zmian, synchronizacja z rozwiązywaniem konfliktów (last-writer-wins na zegarze hybrydowym).
-- **Flat-SQL** – autorski dialekt: składnia SQL, model danych NoSQL (płaskie tabele adresowane kluczem, bez JOIN-ów i relacji).
+The primary objective is to implement the **Edge Computing** paradigm by shifting database operations directly to the end-user device.
 
-> Projekt inżynierski: „Projekt i implementacja silnika bazy danych SQL kompilowanego do WebAssembly z panelem administracyjnym w WinUI”. Ten etap obejmuje: analizę porównawczą silników baz danych WASM i scenariusz badawczy, implementację warstwy lokalnego składowania danych, benchmarki wydajnościowe oraz walidację architektury Local-First w warunkach offline. Panel WinUI jest kolejnym etapem (patrz [Dalsze prace](#ograniczenia-i-dalsze-prace)).
+### Key Project Assumptions:
+
+* **0 ms Latency:** Elimination of network delays (typical of *Cloud-First* architectures) through local processing of SQL queries.
+* **Privacy by Design:** Processing sensitive data within an isolated browser environment without transmitting it to a server.
+* **Local-First Architecture:** Ensuring full offline functionality combined with asynchronous state synchronization.
+
+## Practical Applications of a WASM-Compiled Database
+
+1. **Browser Games:**
+   Local storage of inventory, character statistics, and match history. Enables instantaneous read operations during gameplay without network lag.
+
+2. **Video & Graphic Editors:**
+   Cataloging thousands of assets (images, fonts) and fast filtering using SQL directly inside the application (e.g., in a web-based alternative to Adobe Premiere or Canva).
+
+3. **Data Analytics:**
+   A user loads a 500 MB CSV file into the browser, and the WASM database enables sub-second queries without uploading the file to a server.
+
+4. **Crypto Wallets:**
+   A local database for indexing transaction history and managing cryptographic keys within a secure, isolated WASM sandbox.
+
+## 2. Scope of Work and Detailed Objectives
+
+1. **Comparative Analysis & Research Scenario:**
+   Comparative analysis of WASM database engines and the development of a testing scenario.
+
+2. **Storage Layer Implementation:**
+   Implementation of the local data storage layer on the end device.
+
+3. **Benchmarking & Validation:**
+   Conducting performance benchmarks and validating the *Local-First* architecture under offline conditions.
 
 ## Spis treści
 
@@ -16,6 +42,7 @@ Prototyp silnika bazy danych realizującego paradygmat **Edge Computing / Local-
 - [Korzystanie](#korzystanie)
 - [Architektura](#architektura)
 - [Przepływ danych](#przepływ-danych)
+- [Tryby działania w przeglądarce](#tryby-działania-w-przeglądarce)
 - [Struktura repozytorium](#struktura-repozytorium)
 - [Wyniki badań w skrócie](#wyniki-badań-w-skrócie)
 - [Ograniczenia i dalsze prace](#ograniczenia-i-dalsze-prace)
@@ -234,6 +261,26 @@ sequenceDiagram
 
 **Start aplikacji / odtwarzanie** – snapshot + odtworzenie ramek WAL o LSN większym niż w snapshocie; urwana końcówka WAL (zamknięta karta, awaria) jest odrzucana i od razu sprzątana checkpointem. Outbox (zmiany jeszcze niewysłane) jest odbudowywany z WAL, więc przetrwa zamknięcie aplikacji w trybie offline.
 
+## Tryby działania w przeglądarce
+
+Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego **wątek i magazyn wybiera aplikacja przy otwarciu bazy, a nie silnik**. Magazyn podaje się parametrem `store` w `FlatDB.open` (dziś `IndexedDbStore` i `MemoryStore`, w Node.js także `FsStore`). Inaczej jest w SQLite, którego magazyn czyta strony z dysku synchronicznie z wnętrza silnika, przez co SQLite z trwałością w przeglądarce musi działać w Web Workerze.
+
+| | Wątek główny – tryb domyślny (zaimplementowany) | Web Worker – opcja (planowana: [todo_future 1.1, 1.5](docs/todo_future.md)) |
+|---|---|---|
+| API | synchroniczne – `db.exec()` od razu zwraca wynik | asynchroniczne – wynik przychodzi wiadomością z workera |
+| Magazyn | IndexedDB | IndexedDB albo OPFS z szybkim dostępem synchronicznym (dostępnym tylko w Workerze) |
+| Długie operacje (checkpoint, otwarcie dużej bazy) | blokują stronę, więc muszą być krótkie | nie blokują strony |
+| Wiele kart | dziś blokada Web Locks w demo – zapisuje tylko pierwsza karta | jeden `SharedWorker` obsługuje wszystkie karty |
+| Integracja | jeden import; działa w rozszerzeniach, widżetach na cudzych stronach i na zwykłym hostingu | osobny plik workera, konfiguracja bundlera |
+| Koszt zapytania | ok. 10 µs (odczyt po kluczu) | dodatkowo przesłanie zapytania i wyniku między wątkami (do zmierzenia – [todo 4.12](docs/todo.md)) |
+| Nagłówki COOP/COEP | niepotrzebne | niepotrzebne |
+
+**Kiedy który:** wątek główny – małe i średnie dane, gry, rozszerzenia przeglądarki, dodanie bazy do istniejącej strony; Worker – duże bazy, wiele kart, aplikacje w rodzaju Notion. Wielowątkowy WASM (wymagający nagłówków COOP/COEP) nie jest planowany w żadnym trybie.
+
+**Dlaczego domyślnie IndexedDB, a nie OPFS:** Flat-SQL czyta z pamięci, a na dysk zapisuje tylko małe ramki WAL (trwałe zatwierdzenie ok. 0,34 ms). Wolne są obliczenia – kodowanie snapshotu i odtwarzanie bazy – których szybszy dysk nie przyspieszy. Szybki interfejs OPFS działa tylko w Workerze, a IndexedDB pozwala zapisać snapshot i wyczyścić WAL w jednej transakcji.
+
+Uzasadnienie: [ADR-0005](docs/adr/0005-rdzen-rust-bez-io-i-zaleznosci.md), [ADR-0012](docs/adr/0012-indexeddb-domyslnie-opfs-jako-opcja.md), [ADR-0013](docs/adr/0013-watek-glowny-domyslnie-worker-jako-opcja.md).
+
 ## Struktura repozytorium
 
 ```text
@@ -282,6 +329,7 @@ W przeglądarce trwałe zatwierdzenie pojedynczej transakcji (WAL → IndexedDB)
 ## Dokumentacja
 
 - [Architektura i formaty danych](docs/architecture.md)
+- [Rejestr decyzji projektowych (ADR)](docs/adr/README.md)
 - [Specyfikacja Flat-SQL](docs/flat-sql.md)
 - [Analiza porównawcza silników baz danych WASM](docs/research/wasm-engines-comparison.md)
 - [Scenariusz badawczy i metodyka benchmarków](docs/research/benchmark-scenario.md)

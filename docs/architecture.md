@@ -176,3 +176,5 @@ Dla zapisów masowych `execute` zwraca tylko liczbę zmienionych wierszy. Błęd
 | WAL fizyczny + snapshot | proste i odporne odtwarzanie, przyrostowa trwałość – koszt zatwierdzenia ∝ rozmiarowi zmiany | okresowy checkpoint kopiuje całą bazę |
 | LWW z HLC i tombstone'ami | deterministyczna zbieżność bez koordynacji, działa offline | konflikt rozstrzygany dla całego wiersza; tombstone'y rosną (do zbierania po potwierdzeniu przez wszystkie repliki) |
 | Rdzeń bez zależności | mały moduł `.wasm` (545 KiB, 206 KiB gzip), pełna kontrola nad formatami | własny parser, kodek i CRC zamiast bibliotek |
+
+Pełne zapisy decyzji – kontekst, uzasadnienie, odrzucone alternatywy i konsekwencje – oraz decyzje spoza tej tabeli (m.in. tryb wątku, magazyn przeglądarki, `wasm32`, atomowość między replikami) są w [rejestrze decyzji (ADR)](adr/README.md).
