@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/flatsql-core",
+    "crates/flatsql-wasm",
+    "crates/flatsql-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Patryk Piotrowski"]
+repository = "https://github.com/best-team-8/dbms-rust-wasm"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

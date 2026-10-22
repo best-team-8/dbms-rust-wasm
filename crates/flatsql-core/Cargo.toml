@@ -1,0 +1,13 @@
+[package]
+name = "flatsql-core"
+description = "Flat-SQL database engine: parser, planner, executor, WAL/snapshot storage and Local-First sync"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+# The core is intentionally dependency-free: it has to compile to
+# wasm32-unknown-unknown without pulling extra code into the .wasm binary.
+[dependencies]

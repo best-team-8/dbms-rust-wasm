@@ -1,0 +1,16 @@
+[package]
+name = "flatsql-cli"
+description = "Command line shell and native benchmark of the Flat-SQL engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "flatsql"
+path = "src/main.rs"
+
+[dependencies]
+flatsql-core = { path = "../flatsql-core" }

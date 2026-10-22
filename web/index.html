@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flat-SQL – Local-First demo</title>
+  <meta name="description" content="Silnik SQL w Rust skompilowany do WebAssembly: zapytania lokalne, IndexedDB, praca offline i synchronizacja.">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="28" height="28">
+      <div>
+        <h1>Flat-SQL</h1>
+        <p>Rust → WebAssembly · Local-First</p>
+      </div>
+    </div>
+    <div class="chips" aria-live="polite">
+      <span class="chip" id="chip-engine">Silnik: ładowanie…</span>
+      <span class="chip" id="chip-store">Magazyn: –</span>
+      <span class="chip" id="chip-network">Sieć: –</span>
+      <span class="chip" id="chip-sync">Sync: –</span>
+    </div>
+  </header>
+
+  <div class="banner hidden" id="banner"></div>
+
+  <main class="layout">
+    <section class="panel console" aria-labelledby="console-title">
+      <div class="panel-head">
+        <h2 id="console-title">Konsola SQL</h2>
+        <div class="actions">
+          <select id="samples" aria-label="Przykładowe zapytania">
+            <option value="">Przykłady…</option>
+          </select>
+          <button id="btn-explain" class="secondary" title="Pokaż plan zapytania">EXPLAIN</button>
+          <button id="btn-run" title="Ctrl+Enter">Uruchom ▶</button>
+        </div>
+      </div>
+      <textarea id="editor" spellcheck="false" aria-label="Zapytanie SQL">SHOW TABLES;</textarea>
+      <div class="result-meta" id="result-meta">Wpisz zapytanie i naciśnij Ctrl+Enter. Zapytania wykonują się lokalnie, bez sieci.</div>
+      <div class="error hidden" id="error" role="alert"></div>
+      <div class="result" id="result"></div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="panel" aria-labelledby="tables-title">
+        <div class="panel-head">
+          <h2 id="tables-title">Tabele</h2>
+        </div>
+        <ul class="tables" id="tables"><li class="muted">brak tabel</li></ul>
+        <div class="button-row">
+          <button class="secondary" id="btn-seed-game">Dane: ekwipunek gry</button>
+          <button class="secondary" id="btn-seed-assets">Dane: 10 000 assetów</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="sync-title">
+        <div class="panel-head">
+          <h2 id="sync-title">Synchronizacja</h2>
+        </div>
+        <dl class="kv">
+          <dt>Status</dt><dd id="sync-status">–</dd>
+          <dt>Oczekujące zmiany</dt><dd id="sync-pending">0</dd>
+          <dt>Ostatnia synchronizacja</dt><dd id="sync-last">–</dd>
+          <dt>Kursor serwera</dt><dd id="sync-cursor">–</dd>
+        </dl>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-offline">
+          <span>Symuluj brak sieci</span>
+        </label>
+        <div class="button-row">
+          <button class="secondary" id="btn-sync">Synchronizuj teraz</button>
+        </div>
+        <p class="hint">Otwórz tę stronę w drugiej przeglądarce (lub oknie prywatnym), żeby zobaczyć replikację między klientami. Zatrzymaj serwer – aplikacja dalej działa z pamięci podręcznej i IndexedDB.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="storage-title">
+        <div class="panel-head">
+          <h2 id="storage-title">Magazyn lokalny</h2>
+        </div>
+        <dl class="kv">
+          <dt>Replika (node id)</dt><dd id="st-node">–</dd>
+          <dt>Wiersze / tabele</dt><dd id="st-rows">–</dd>
+          <dt>LSN</dt><dd id="st-lsn">–</dd>
+          <dt>WAL</dt><dd id="st-wal">–</dd>
+          <dt>Snapshot</dt><dd id="st-snapshot">–</dd>
+          <dt>Odtworzenie przy starcie</dt><dd id="st-recovery">–</dd>
+        </dl>
+        <div class="button-row">
+          <button class="secondary" id="btn-checkpoint">Checkpoint</button>
+          <button class="danger" id="btn-reset">Usuń lokalną bazę</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="panel log-panel" aria-labelledby="log-title">
+      <div class="panel-head">
+        <h2 id="log-title">Dziennik</h2>
+        <a href="bench.html" class="link">Benchmark w przeglądarce →</a>
+      </div>
+      <ol class="log" id="log"></ol>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "flatsql",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Flat-SQL: SQL database engine in Rust compiled to WebAssembly (Local-First, offline sync)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "wasm-pack build crates/flatsql-wasm --release --target web --out-dir ../../pkg --out-name flatsql",
+    "build:dev": "wasm-pack build crates/flatsql-wasm --dev --target web --out-dir ../../pkg --out-name flatsql",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:rust": "cargo test --workspace",
+    "start": "node server/server.js",
+    "start:persistent": "node server/server.js --data server/data",
+    "bench": "node bench/run.js",
+    "bench:full": "cargo build --release -p flatsql-cli && node bench/run.js --native"
+  },
+  "devDependencies": {
+    "sql.js": "^1.14.2"
+  }
+}
