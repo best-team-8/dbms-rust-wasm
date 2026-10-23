@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flat-SQL – pomiar ręczny</title>
+  <style>
+    body { font: 15px/1.4 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+    label { display: block; margin: 8px 0; }
+    select, input, button { font: inherit; padding: 4px 6px; }
+  </style>
+</head>
+<body>
+  <h1>Pomiar ręczny</h1>
+  <p>Każde zadanie otwiera stronę pomiarową w tej karcie; po zakończeniu wynik można zapisać jako JSON. Zimny start ma sens tylko w nowej karcie po wyczyszczeniu danych witryny.</p>
+  <label>Zadanie
+    <select id="kind">
+      <option value="workload">workload – całe obciążenie</option>
+      <option value="cold">cold – zimny start</option>
+      <option value="memory">memory – pamięć</option>
+      <option value="checkpoint">checkpoint – pauza checkpointu</option>
+      <option value="network">network – lokalnie vs serwer</option>
+    </select>
+  </label>
+  <label>Silnik <select id="engine"></select></label>
+  <label>Wiersze <input id="rows" type="number" value="100000" step="10000" min="1000"></label>
+  <label>Numer uruchomienia <input id="run" type="number" value="1" min="1"></label>
+  <button id="go">Uruchom</button>
+  <p id="info"></p>
+  <script type="module">
+    import { ENGINES } from '../engines/index.js';
+    const $ = (id) => document.getElementById(id);
+    for (const [id, e] of Object.entries(ENGINES)) {
+      if (!e.where.includes('browser') && !e.where.includes('worker')) continue;
+      $('engine').append(new Option(`${id} – ${e.label} (${e.group})`, id));
+    }
+    $('info').textContent = `crossOriginIsolated: ${globalThis.crossOriginIsolated}, secure context: ${globalThis.isSecureContext}`;
+    $('go').onclick = () => {
+      const task = {
+        kind: $('kind').value,
+        engine: $('engine').value,
+        rows: Number($('rows').value),
+        run: Number($('run').value),
+        sizes: [10000, 50000, 100000],
+        syncUrl: new URLSearchParams(location.search).get('sync'),
+      };
+      location.href = `index.html?manual=1&task=${encodeURIComponent(JSON.stringify(task))}`;
+    };
+  </script>
+</body>
+</html>

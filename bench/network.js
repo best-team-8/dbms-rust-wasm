@@ -4,6 +4,32 @@
 
 import { makeRow, Rng } from './suite.js';
 
+/**
+ * Minimal fetch() over node:http with keep-alive (Node.js only). Node's
+ * built-in fetch (undici) adds ~15 ms per request on Windows (timer
+ * granularity), which would distort the cloud API numbers; browsers use
+ * their own fetch.
+ */
+export async function nodeFetchFactory() {
+  const http = await import('node:http');
+  const agent = new http.Agent({ keepAlive: true });
+  const fetch = (url, { method = 'GET', body } = {}) =>
+    new Promise((resolve, reject) => {
+      const req = http.request(url, { method, agent }, (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          resolve({ ok: res.statusCode < 400, status: res.statusCode, json: async () => JSON.parse(text), text: async () => text });
+        });
+      });
+      req.on('error', reject);
+      req.end(body);
+    });
+  fetch.close = () => agent.destroy();
+  return fetch;
+}
+
 const now = () => performance.now();
 
 function stats(samples) {

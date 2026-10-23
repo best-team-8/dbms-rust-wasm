@@ -18,6 +18,17 @@
     "bench:full": "cargo build --release -p flatsql-cli && node bench/run.js --native"
   },
   "devDependencies": {
-    "sql.js": "^1.14.2"
+    "@duckdb/duckdb-wasm": "1.32.0",
+    "@electric-sql/pglite": "0.5.11",
+    "@journeyapps/wa-sqlite": "2.0.8",
+    "@sqlite.org/sqlite-wasm": "3.54.1-build1",
+    "alasql": "4.21.0",
+    "dexie": "4.4.7",
+    "esbuild": "0.28.2",
+    "events": "3.3.0",
+    "playwright-core": "1.64.1",
+    "pouchdb-browser": "9.0.0",
+    "rxdb": "17.6.0",
+    "sql.js": "1.14.2"
   }
 }
