@@ -326,7 +326,7 @@ W przeglądarce trwałe zatwierdzenie pojedynczej transakcji (WAL → IndexedDB)
 - **Panel WinUI 3** (C#) – kolejny etap: komunikacja z silnikiem przez FFI (biblioteka `cdylib` z interfejsem C) lub named pipes; rdzeń jest już niezależny od środowiska.
 - Dane są w całości w pamięci (model przeglądarkowego „working set”); bardzo duże zbiory wymagałyby stronicowanego magazynu (np. OPFS w Web Workerze).
 - Wiersze jako osobne alokacje w `BTreeMap` – wolniejsze od stronicowego formatu SQLite przy odtwarzaniu snapshotu i lookupach przez indeks; kierunki optymalizacji opisane w wynikach badań.
-- Synchronizacja LWW per wiersz (bez scalania pól), zmiany schematu replikowane w uproszczony sposób, brak uwierzytelniania na serwerze (prototyp, nasłuch na `127.0.0.1`).
+- Synchronizacja LWW per wiersz (bez scalania pól), zmiany schematu replikowane w uproszczony sposób (różne definicje tej samej tabeli są zgłaszane jako konflikt schematu, a wiersze drugiej definicji odrzucane), brak uwierzytelniania na serwerze (prototyp, nasłuch na `127.0.0.1`).
 - Flat-SQL: brak `CASE`, podzapytań i indeksów złożonych/unikalnych – zgodnie z założeniem „płaskiego” modelu część z nich nie jest planowana.
 
 ## Dokumentacja

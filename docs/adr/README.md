@@ -49,11 +49,12 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0033](0033-checkpoint-plikowy-fsync-katalogu.md) | Checkpoint na plikach: synchronizacja katalogu przed obcięciem WAL | architektura | przyjęta |
 | [0034](0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md) | Magazyn domyślny: IndexedDB w przeglądarce, jawny wybór poza nią | architektura | przyjęta |
 | [0035](0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md) | Granica dryfu zegara: odrzucenie, wstrzymanie synchronizacji i nowe znaczniki | architektura | przyjęta |
+| [0036](0036-jawne-konflikty-schematu-przed-wersjami-struktury.md) | Jawne konflikty schematu przed wersjami struktury | architektura | proponowana |
 
 ## Zasady prowadzenia rejestru
 
 1. Nowa decyzja dostaje kolejny numer i plik `NNNN-krotki-opis.md` według szablonu poniżej; wpis trafia do spisu.
-2. Treści przyjętej decyzji się nie zmienia. Gdy decyzja się zmienia, powstaje nowy zapis, a stary dostaje status „zastąpiona przez ADR-NNNN” (dozwolone są tylko poprawki literówek i odnośników).
+2. Decyzja tymczasowa, którą rozstrzygnie późniejszy pomiar albo zadanie, ma status „proponowana” i sekcję „Otwarte kwestie”; po rozstrzygnięciu dostaje status „przyjęta” albo zostaje zastąpiona nowym zapisem. Treści przyjętej decyzji się nie zmienia. Gdy decyzja się zmienia, powstaje nowy zapis, a stary dostaje status „zastąpiona przez ADR-NNNN” (dozwolone są tylko poprawki literówek i odnośników).
 3. Odrzucone ważne alternatywy zapisuje się w sekcji „Odrzucone alternatywy” decyzji, której dotyczą; osobny zapis ze statusem „odrzucona” – gdy alternatywa była wcześniej planowana.
 4. Decyzja, która wynika z wykonanego zadania, odsyła do tego zadania, a zadanie – do decyzji.
 
@@ -83,6 +84,9 @@ Co rozważano i dlaczego odrzucono.
 
 ## Konsekwencje
 Co zyskujemy, co tracimy, jakie zadania z tego wynikają.
+
+## Otwarte kwestie
+(Opcjonalnie, przy statusie „proponowana”.) Dla każdej kwestii: co jest nieznane, co przyjęto tymczasowo, jaki pomiar albo zadanie to rozstrzygnie, co się wtedy zmieni.
 
 ## Źródła
 ```

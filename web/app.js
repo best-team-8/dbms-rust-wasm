@@ -371,6 +371,13 @@ async function main() {
     renderNetwork();
     if (e.detail.status === 'offline') log('Serwer niedostępny – praca offline, zmiany czekają w outboksie', 'warn');
   });
+  app.sync.addEventListener('conflict', (e) => {
+    for (const c of e.detail.conflicts) {
+      const kind = c.additive === true ? 'nowsza wersja dodała kolumny' : c.additive === false ? 'niezgodne definicje' : 'wiersze nie pasują';
+      const where = e.detail.direction === 'push' ? 'serwer odrzucił' : 'odrzucono';
+      log(`Konflikt schematu tabeli ${c.table} (${kind}): ${where} ${c.rows} zmian; lokalnie ${c.local}, po drugiej stronie ${c.remote ?? '?'}`, 'error');
+    }
+  });
   app.sync.addEventListener('clock', (e) => {
     const { skewMs, rejected } = e.detail;
     const why = rejected ? `serwer odrzucił ${rejected} zmian ze znacznikiem z przyszłości` : 'odchylenie zegara';

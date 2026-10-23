@@ -126,6 +126,35 @@ test('conflicting offline edits: the later write wins on every replica', async (
   }
 });
 
+test('a table defined differently on two devices is reported as a schema conflict', async () => {
+  const srv = await createServer({ port: 0, quiet: true });
+  try {
+    const a = await replica(srv.url);
+    const b = await replica(srv.url);
+    a.db.exec("CREATE TABLE notes (id INT PRIMARY KEY, body TEXT); INSERT INTO notes VALUES (1, 'from A');");
+    await a.sync.drain();
+
+    // B runs a newer version of the application (one more column) and worked offline.
+    b.db.exec("CREATE TABLE notes (id INT PRIMARY KEY, body TEXT, tags TEXT); INSERT INTO notes VALUES (2, 'from B', 'x'), (3, 'from B', 'y');");
+    const events = [];
+    b.sync.addEventListener('conflict', (e) => events.push(e.detail));
+    const r = await b.sync.syncNow();
+    assert.equal(r.error, undefined, String(r.error));
+
+    const older = 'notes (id INT PRIMARY KEY, body TEXT)';
+    const newer = 'notes (id INT PRIMARY KEY, body TEXT, tags TEXT)';
+    const push = events.find((e) => e.direction === 'push').conflicts;
+    assert.deepEqual(push, [{ table: 'notes', local: older, remote: newer, additive: true, rows: 2 }]);
+    const pull = events.find((e) => e.direction === 'pull').conflicts;
+    assert.deepEqual(pull, [{ table: 'notes', local: newer, remote: older, additive: true, rows: 1 }]);
+    assert.equal(r.conflicts.length, 2);
+    assert.equal(b.db.outboxLength(), 0, 'reported once, not sent again and again');
+    assert.equal(srv.db.query('SELECT COUNT(*) AS n FROM notes')[0].n, 1, 'no rows of the other definition');
+  } finally {
+    await srv.close();
+  }
+});
+
 test('cloud API writes reach local replicas through sync', async () => {
   const srv = await createServer({ port: 0, quiet: true });
   try {

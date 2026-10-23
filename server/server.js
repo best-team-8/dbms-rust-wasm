@@ -169,6 +169,7 @@ export async function createServer(options = {}) {
       }
       await db.flush();
       log_(`push  client=${client} applied=${report.applied} ignored=${report.ignored} rejected=${report.rejected}`);
+      for (const c of report.conflicts) log_(`schema conflict client=${client} table=${c.table} local=${c.local} remote=${c.remote}`);
       return json(
         res,
         200,
@@ -177,6 +178,7 @@ export async function createServer(options = {}) {
           ignored: report.ignored,
           rejected: report.rejected,
           clockDrift: report.clockDrift,
+          conflicts: report.conflicts,
           errors: report.errors,
           seq,
           serverTime: Date.now(),

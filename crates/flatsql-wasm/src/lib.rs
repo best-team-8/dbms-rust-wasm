@@ -331,9 +331,11 @@ impl Database {
     }
 
     /// Applies a batch of remote changes (last-writer-wins). Returns
-    /// `{ applied, ignored, rejected, clockDrift, errors, accepted }` where
-    /// `clockDrift` counts the rejected changes stamped too far ahead and
-    /// `accepted` is a batch with only the changes that took effect.
+    /// `{ applied, ignored, rejected, clockDrift, conflicts, errors, accepted }`
+    /// where `clockDrift` counts the rejected changes stamped too far ahead,
+    /// `conflicts` lists tables defined differently on the sender
+    /// (`{ table, local, remote, additive, rows }`) and `accepted` is a batch
+    /// with only the changes that took effect.
     #[wasm_bindgen(js_name = applyChanges)]
     pub fn apply_changes(&mut self, batch: &[u8]) -> Result<JsValue, JsValue> {
         let r = self.inner.apply_changes(batch).map_err(js_error)?;
@@ -344,6 +346,20 @@ impl Database {
         set(&obj, "clockDrift", &JsValue::from_f64(r.clock_drift as f64));
         let errors: Array = r.errors.iter().map(|e| JsValue::from_str(e)).collect();
         set(&obj, "errors", &errors);
+        let conflicts: Array = r
+            .conflicts
+            .iter()
+            .map(|c| {
+                let o = Object::new();
+                set(&o, "table", &JsValue::from_str(&c.table));
+                set(&o, "local", &JsValue::from_str(&c.local));
+                set(&o, "remote", &c.remote.as_deref().map_or(JsValue::NULL, JsValue::from_str));
+                set(&o, "additive", &c.additive.map_or(JsValue::NULL, JsValue::from_bool));
+                set(&o, "rows", &JsValue::from_f64(c.rows as f64));
+                JsValue::from(o)
+            })
+            .collect();
+        set(&obj, "conflicts", &conflicts);
         set(&obj, "accepted", &Uint8Array::from(&r.accepted[..]));
         Ok(obj.into())
     }

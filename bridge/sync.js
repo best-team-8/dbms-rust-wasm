@@ -169,6 +169,12 @@ export class SyncClient extends EventTarget {
     return res;
   }
 
+  /** Emits `conflict` for tables defined differently here and on the server. */
+  #reportConflicts(conflicts = [], direction) {
+    if (conflicts.length) this.dispatchEvent(new CustomEvent('conflict', { detail: { direction, conflicts } }));
+    return conflicts;
+  }
+
   /** Pauses synchronisation when the clocks differ too much. */
   #checkClock(rejected = 0) {
     if (rejected > 0 || (this.clockSkewMs !== null && Math.abs(this.clockSkewMs) > this.maxDriftMs)) {
@@ -203,6 +209,7 @@ export class SyncClient extends EventTarget {
       if (this.db.clockAhead()) restamped = await this.db.rebaseClock();
 
       let pushed = 0;
+      const conflicts = [];
       for (let guard = 0; this.db.outboxLength() > 0 && guard < 10_000; guard++) {
         const batch = this.db.exportOutbox(this.batchSize);
         if (batch.count === 0) break;
@@ -214,6 +221,9 @@ export class SyncClient extends EventTarget {
         const reply = await res.json().catch(() => ({}));
         // Not acknowledged: changes rejected for the clock stay in the outbox.
         this.#checkClock(reply.clockDrift ?? 0);
+        // Rows of a table the server defines differently cannot be applied by
+        // sending them again; they leave the outbox and are reported.
+        conflicts.push(...this.#reportConflicts(reply.conflicts, 'push'));
         this.db.ackOutbox(batch.lastSeq);
         pushed += batch.count;
         batch.free();
@@ -225,6 +235,7 @@ export class SyncClient extends EventTarget {
       const body = new Uint8Array(await res.arrayBuffer());
       let report = { applied: 0, ignored: 0, rejected: 0, clockDrift: 0, errors: [] };
       if (body.length > 0) report = this.db.applyChanges(body);
+      conflicts.push(...this.#reportConflicts(report.conflicts, 'pull'));
 
       // Pulled rows and acks must be durable before the cursor moves on.
       await this.db.flush();
@@ -250,6 +261,7 @@ export class SyncClient extends EventTarget {
         rejected: report.rejected,
         clockDrift: report.clockDrift ?? 0,
         restamped,
+        conflicts,
         ms: performance.now() - t0,
       };
       this.#setStatus('idle', { result });

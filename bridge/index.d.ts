@@ -41,9 +41,31 @@ export interface ApplyReport {
   rejected: number;
   /** Rejected changes stamped more than maxDriftMs() ahead of the local clock (part of `rejected`). */
   clockDrift: number;
+  /** Tables defined differently on the sender; their rows were rejected (part of `rejected`). */
+  conflicts: SchemaConflict[];
   errors: string[];
   /** Batch with only the changes that took effect. */
   accepted: Uint8Array;
+}
+
+/**
+ * A table another replica defines differently. Until table versions exist,
+ * its rows are not applied; the conflict is reported once per table.
+ */
+export interface SchemaConflict {
+  table: string;
+  /** Local definition, e.g. "t (id INT PRIMARY KEY, v INT)". */
+  local: string;
+  /** The other replica's definition; null when only rows arrived. */
+  remote: string | null;
+  /**
+   * true: one definition only adds nullable columns at the end of the other
+   * (allowed between application versions); false: incompatible (type,
+   * primary key, order or names); null: the other definition is unknown.
+   */
+  additive: boolean | null;
+  /** Rejected rows and deletes of the table. */
+  rows: number;
 }
 
 /** Durable home of a database: one snapshot plus an append-only WAL. */
@@ -222,6 +244,8 @@ export interface SyncResult {
   clockDrift: number;
   /** Changes that got new stamps after the device clock was fixed. */
   restamped: number;
+  /** Schema conflicts reported by the server (push) or found locally (pull). */
+  conflicts: SchemaConflict[];
   ms: number;
 }
 
@@ -235,9 +259,11 @@ export class ClockError extends Error {
 
 /**
  * Background replication with the sync server. Events: `status`
- * (detail: { status, result?, error? }), `synced` (detail: SyncResult) and
+ * (detail: { status, result?, error? }), `synced` (detail: SyncResult),
  * `clock` (detail: { skewMs, rejected, maxDriftMs }) when synchronisation is
- * paused because the device clock is wrong.
+ * paused because the device clock is wrong, and `conflict` (detail:
+ * { direction: 'push' | 'pull', conflicts: SchemaConflict[] }) when a table
+ * is defined differently here and on the server.
  */
 export class SyncClient extends EventTarget {
   constructor(db: FlatDB, options: SyncOptions);

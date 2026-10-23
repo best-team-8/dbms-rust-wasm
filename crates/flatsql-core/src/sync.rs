@@ -316,6 +316,28 @@ pub struct ApplyReport {
     pub accepted: Vec<u8>,
     /// First few rejection reasons.
     pub errors: Vec<String>,
+    /// Tables defined differently here and on the sending replica; their
+    /// rows were rejected (included in `rejected`).
+    pub conflicts: Vec<SchemaConflict>,
+}
+
+/// A table that another replica defines differently. Until table versions
+/// exist, rows of such a table are not applied; the conflict is reported
+/// once per table instead of one error per row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SchemaConflict {
+    pub table: String,
+    /// The local definition (`name (column TYPE, ...)`).
+    pub local: String,
+    /// The other replica's definition, `None` when only rows arrived.
+    pub remote: Option<String>,
+    /// `Some(true)`: one definition only adds nullable columns at the end of
+    /// the other, the change allowed between application versions;
+    /// `Some(false)`: incompatible (type, primary key, order or names);
+    /// `None`: the other definition is unknown.
+    pub additive: Option<bool>,
+    /// Rejected rows and deletes of the table.
+    pub rows: usize,
 }
 
 /// Entry of the outbox: either a dirty row (its current state is read when

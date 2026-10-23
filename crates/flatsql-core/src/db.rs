@@ -20,7 +20,7 @@ use crate::storage::snapshot;
 use crate::storage::wal::{self, LogOp, WalReader, OP_ACK, OP_CHANGE};
 use crate::sync::{
     decode_batch, encode_batch, encode_change, encode_delete, encode_put, system_now_ms, ApplyReport, Change, Hlc,
-    Mutation, Outbox, OutboxItem, Stamp, MAX_DRIFT_MS,
+    Mutation, Outbox, OutboxItem, SchemaConflict, Stamp, MAX_DRIFT_MS,
 };
 use crate::table::{Index, RowEntry, Table, TableSchema};
 use crate::value::Value;
@@ -37,6 +37,19 @@ pub(crate) fn catalog_key(name: &str) -> Cow<'_, str> {
 
 fn no_table(name: &str) -> Error {
     Error::Schema(format!("no such table '{name}'"))
+}
+
+/// Outcome of one remote change.
+enum Remote {
+    Applied,
+    /// The local state is newer (or the same).
+    Ignored,
+    /// The change does not fit the local definition of its table; `remote`
+    /// is the other definition when the change carries it.
+    Conflict {
+        table: String,
+        remote: Option<TableSchema>,
+    },
 }
 
 /// What happened while opening a database from a snapshot + WAL.
@@ -687,6 +700,8 @@ impl Database {
         self.txn = Some(Txn { seq_start: self.next_seq, ..Default::default() });
         let mut report = ApplyReport::default();
         let mut accepted = Vec::new();
+        // Tables in conflict, by catalog key -> index in `report.conflicts`.
+        let mut conflicted: BTreeMap<String, usize> = BTreeMap::new();
         for change in changes {
             if !self.clock.observe(change.stamp.time) {
                 // Not applied and not absorbed: a replica with a clock far
@@ -704,12 +719,50 @@ impl Database {
                 }
                 continue;
             }
+            // Rows from a replica that defines the table differently mean
+            // something else, even when they happen to fit.
+            let row_table = match &change.mutation {
+                Mutation::Put { table, .. } | Mutation::Delete { table, .. } => Some(catalog_key(table).into_owned()),
+                _ => None,
+            };
+            if let Some(&i) = row_table.as_ref().and_then(|t| conflicted.get(t)) {
+                report.rejected += 1;
+                report.conflicts[i].rows += 1;
+                continue;
+            }
             match self.apply_remote(&change) {
-                Ok(true) => {
+                Ok(Remote::Applied) => {
                     report.applied += 1;
                     accepted.push(change);
                 }
-                Ok(false) => report.ignored += 1,
+                Ok(Remote::Ignored) => report.ignored += 1,
+                Ok(Remote::Conflict { table, remote }) => {
+                    report.rejected += 1;
+                    let key = catalog_key(&table).into_owned();
+                    let i = match conflicted.get(&key) {
+                        Some(&i) => i,
+                        None => {
+                            let local = self.tables[&key].schema.to_string();
+                            report.conflicts.push(SchemaConflict {
+                                table,
+                                local,
+                                remote: None,
+                                additive: None,
+                                rows: 0,
+                            });
+                            conflicted.insert(key.clone(), report.conflicts.len() - 1);
+                            report.conflicts.len() - 1
+                        }
+                    };
+                    let c = &mut report.conflicts[i];
+                    match remote {
+                        Some(r) => {
+                            c.additive = self.tables[&key].schema.compare(&r);
+                            c.remote = Some(r.to_string());
+                        }
+                        None => c.rows += 1,
+                    }
+                }
                 Err(e) => {
                     report.rejected += 1;
                     if report.errors.len() < 5 {
@@ -718,73 +771,90 @@ impl Database {
                 }
             }
         }
+        for c in &report.conflicts {
+            if report.errors.len() < 5 {
+                let remote = c.remote.as_deref().unwrap_or("unknown, rows do not fit");
+                report.errors.push(format!(
+                    "schema conflict on table '{}': local {}, remote {}; {} row change(s) rejected",
+                    c.table, c.local, remote, c.rows
+                ));
+            }
+        }
         self.commit();
         report.accepted = encode_batch(&accepted);
         Ok(report)
     }
 
-    /// Returns `Ok(true)` if the change won and was applied, `Ok(false)` if
-    /// the local state is newer.
-    fn apply_remote(&mut self, change: &Change) -> Result<bool> {
+    /// Applies one remote change if it wins last-writer-wins.
+    fn apply_remote(&mut self, change: &Change) -> Result<Remote> {
         let stamp = change.stamp;
+        // A row that does not fit the local definition of its table.
+        let conflict = |t: &Table| Remote::Conflict { table: t.schema.name.clone(), remote: None };
         match &change.mutation {
             Mutation::Put { table, values } => {
                 let tkey = catalog_key(table);
                 let t = self.tables.get(&*tkey).ok_or_else(|| no_table(table))?;
-                let values = t.schema.check_row(values.clone())?;
+                let values = match t.schema.check_row(values.clone()) {
+                    Ok(v) => v,
+                    Err(Error::Schema(_) | Error::Type(_)) => return Ok(conflict(t)),
+                    Err(e) => return Err(e),
+                };
                 let key = &values[t.schema.pk];
                 if t.rows.get(key).is_some_and(|r| r.stamp >= stamp)
                     || t.tombstones.get(key).is_some_and(|ts| *ts >= stamp)
                 {
-                    return Ok(false);
+                    return Ok(Remote::Ignored);
                 }
                 self.write_put(&tkey, values, stamp, false)?;
-                Ok(true)
+                Ok(Remote::Applied)
             }
             Mutation::Delete { table, key } => {
                 let tkey = catalog_key(table);
                 let t = self.tables.get(&*tkey).ok_or_else(|| no_table(table))?;
-                let key = key.clone().coerce(t.schema.pk_column().data_type)?;
+                let Ok(key) = key.clone().coerce(t.schema.pk_column().data_type) else { return Ok(conflict(t)) };
                 let newer_local = match t.rows.get(&key) {
                     Some(r) => r.stamp >= stamp,
                     None => t.tombstones.get(&key).is_some_and(|ts| *ts >= stamp),
                 };
                 if newer_local {
-                    return Ok(false);
+                    return Ok(Remote::Ignored);
                 }
                 self.write_delete(&tkey, key, stamp, false)?;
-                Ok(true)
+                Ok(Remote::Applied)
             }
             Mutation::CreateTable(schema) => {
-                if self.tables.contains_key(&*catalog_key(&schema.name)) {
-                    return Ok(false);
+                if let Some(t) = self.tables.get(&*catalog_key(&schema.name)) {
+                    return Ok(match t.schema.compare(schema) {
+                        None => Remote::Ignored,
+                        Some(_) => Remote::Conflict { table: t.schema.name.clone(), remote: Some(schema.clone()) },
+                    });
                 }
                 self.write_schema(change.clone(), false)?;
-                Ok(true)
+                Ok(Remote::Applied)
             }
             Mutation::DropTable(name) => match self.tables.get(&*catalog_key(name)) {
                 Some(t) if t.created < stamp => {
                     self.write_schema(change.clone(), false)?;
-                    Ok(true)
+                    Ok(Remote::Applied)
                 }
-                _ => Ok(false),
+                _ => Ok(Remote::Ignored),
             },
             Mutation::CreateIndex { table, name, .. } => {
                 if !self.tables.contains_key(&*catalog_key(table)) {
                     return Err(no_table(table));
                 }
                 if self.find_index(name).is_some() {
-                    return Ok(false);
+                    return Ok(Remote::Ignored);
                 }
                 self.write_schema(change.clone(), false)?;
-                Ok(true)
+                Ok(Remote::Applied)
             }
             Mutation::DropIndex { name, .. } => {
                 if self.find_index(name).is_none() {
-                    return Ok(false);
+                    return Ok(Remote::Ignored);
                 }
                 self.write_schema(change.clone(), false)?;
-                Ok(true)
+                Ok(Remote::Applied)
             }
         }
     }

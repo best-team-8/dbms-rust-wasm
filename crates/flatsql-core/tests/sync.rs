@@ -195,14 +195,63 @@ fn export_state_bootstraps_a_new_replica() {
 fn rejected_changes_are_reported() {
     let mut a = replica(1);
     a.execute("CREATE TABLE t (id INT PRIMARY KEY, v INT)").unwrap();
+    let (_, last) = a.export_outbox(usize::MAX).unwrap();
+    a.ack_outbox(last);
     a.execute("INSERT INTO t VALUES (1, 1)").unwrap();
     let (batch, _) = a.export_outbox(usize::MAX).unwrap();
+    // A replica that never received the table.
     let mut other = replica(2);
-    // Same table name, incompatible schema.
-    other.execute("CREATE TABLE t (id INT PRIMARY KEY, v INT, extra TEXT)").unwrap();
     let report = other.apply_changes(&batch).unwrap();
-    assert_eq!((report.applied, report.ignored, report.rejected), (0, 1, 1));
-    assert!(report.errors[0].contains("columns"));
+    assert_eq!((report.applied, report.ignored, report.rejected), (0, 0, 1));
+    assert!(report.errors[0].contains("no such table"), "{:?}", report.errors);
+    assert!(report.conflicts.is_empty());
+}
+
+#[test]
+fn a_different_table_definition_is_reported_as_one_schema_conflict() {
+    let mut a = replica(1);
+    a.execute("CREATE TABLE t (id INT PRIMARY KEY, v INT)").unwrap();
+    a.execute("INSERT INTO t VALUES (1, 1), (2, 2), (3, 3)").unwrap();
+    let (batch, _) = a.export_outbox(usize::MAX).unwrap();
+
+    // A newer version of the application added a nullable column.
+    let mut newer = replica(2);
+    newer.execute("CREATE TABLE t (id INT PRIMARY KEY, v INT, extra TEXT)").unwrap();
+    let report = newer.apply_changes(&batch).unwrap();
+    assert_eq!((report.applied, report.ignored, report.rejected), (0, 0, 4), "the definition is not ignored");
+    assert_eq!(report.errors.len(), 1, "one report for the table, not one per row: {:?}", report.errors);
+    assert!(report.errors[0].contains("schema conflict"), "{:?}", report.errors);
+    assert!(dump(&mut newer, "SELECT * FROM t").rows.is_empty());
+    let c = &report.conflicts[..];
+    assert_eq!(c.len(), 1);
+    assert_eq!(c[0].table, "t");
+    assert_eq!(c[0].local, "t (id INT PRIMARY KEY, v INT, extra TEXT)");
+    assert_eq!(c[0].remote.as_deref(), Some("t (id INT PRIMARY KEY, v INT)"));
+    assert_eq!((c[0].additive, c[0].rows), (Some(true), 3), "only a nullable column added");
+
+    // Another type of a column: not a difference between versions.
+    let mut other = replica(3);
+    other.execute("CREATE TABLE t (id INT PRIMARY KEY, v TEXT)").unwrap();
+    let report = other.apply_changes(&batch).unwrap();
+    assert_eq!((report.conflicts[0].additive, report.conflicts[0].rows), (Some(false), 3));
+    assert!(dump(&mut other, "SELECT * FROM t").rows.is_empty(), "rows that happen to fit are not applied");
+
+    // The same definition is no conflict.
+    let mut same = replica(4);
+    same.execute("CREATE TABLE T (ID INT PRIMARY KEY, V INT)").unwrap();
+    let report = same.apply_changes(&batch).unwrap();
+    assert_eq!((report.applied, report.ignored, report.rejected), (3, 1, 0));
+    assert!(report.conflicts.is_empty());
+
+    // Rows sent later, without the definition, are reported the same way.
+    let (_, last) = a.export_outbox(usize::MAX).unwrap();
+    a.ack_outbox(last);
+    a.execute("INSERT INTO t VALUES (4, 4); DELETE FROM t WHERE id = 1;").unwrap();
+    let (later, _) = a.export_outbox(usize::MAX).unwrap();
+    let report = newer.apply_changes(&later).unwrap();
+    assert_eq!((report.rejected, report.errors.len()), (2, 1));
+    assert_eq!((report.conflicts[0].remote.as_deref(), report.conflicts[0].additive), (None, None));
+    assert_eq!(report.conflicts[0].rows, 2);
 }
 
 thread_local! {
