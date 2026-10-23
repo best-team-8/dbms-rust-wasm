@@ -6,7 +6,7 @@ Uzasadnienia: [references/conclusions.md](references/conclusions.md), szczegół
 
 Nakład: **mały** – pojedyncze funkcje i testy; **średni** – kilka modułów, nowe testy i pomiary; **duży** – przebudowa podsystemu.
 
-**Kolejność:** sekcja 1 → 2.1, 2.2, 2.8 → 2.3–2.5 → sekcja 4 → zadania „dobrze mieć”. Sekcja 0 może iść równolegle. Zakres warto uzgodnić z promotorem.
+**Kolejność:** sekcja 1 → sekcja 4 (pomiar prototypu, „Benchmark 1”) → sekcja 2 (2.1, 2.2, 2.8 → 2.3–2.5) i ponowny pomiar tym samym narzędziem → zadania „dobrze mieć”. Sekcja 0 może iść równolegle. Sekcja 4 stoi przed 2, bo optymalizacje mają być oceniane względem prototypu zmierzonego tą samą metodyką ([ADR-0037](adr/0037-pomiar-prototypu-przed-optymalizacjami.md)); numery zadań się nie zmieniają. Zakres warto uzgodnić z promotorem.
 
 ## 0. Doprecyzowanie dokumentacji prototypu
 
@@ -35,21 +35,6 @@ Każde zadanie kończy się testem zaprojektowanym i opisanym według [metodyki 
 - [x] **1.9 Testy synchronizacji w trudnych warunkach** (średni) – rozszerzyć `randomized_offline_sessions_converge` o rozjechane zegary (w tym urządzenie z przyszłości – 1.1), podziały sieci i powtórzone rundy; sprawdzać zbieżność i brak „wskrzeszeń” usuniętych wierszy. Minimum na pracę: urządzenie z zegarem w przyszłości, podział sieci i usunięcie wiersza w trakcie przerwy. [C2], [L2]. Wykonane jako osobny test `sync_converges_despite_skewed_clocks_partitions_and_retries` (40 ziaren w CI, 1000 ręcznie), bez zmian w kodzie produkcyjnym ([tests-results.md §2.3](research/tests-results.md#23-zbieżność-w-trudnych-warunkach)).
 - [x] **1.10 Domyślny magazyn w przeglądarce** (mały) – `FlatDB.open` bez opcji `store` używa `MemoryStore`, więc dane znikają po odświeżeniu strony, choć [ADR-0012](adr/0012-indexeddb-domyslnie-opfs-jako-opcja.md) zakłada IndexedDB jako magazyn domyślny; w przeglądarce domyślnie `IndexedDbStore`, w Node.js jawny wybór magazynu albo ostrzeżenie. Plik: `bridge/flatdb.js`. Wykonane: w Node.js błąd zamiast ostrzeżenia ([ADR-0034](adr/0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md), [tests-results.md §1.6](research/tests-results.md#16-magazyn-domyślny)).
 
-## 2. Wydajność silnika i granicy JS↔WASM
-
-- [ ] **2.1 `COUNT(*)` po indeksie bez czytania wierszy** (mały) – długość zbioru kluczy w indeksie; widoczne w `EXPLAIN`. Odwraca przegraną z SQLite (573 µs vs 100 µs). [D2], [P1] rozdz. 3.
-- [ ] **2.2 Pomijanie zbędnego filtra** (mały) – nie sprawdzać ponownie warunku, który ścieżka dostępu już gwarantuje (np. `category = ?` przy lookupie po indeksie). Pliki: `crates/flatsql-core/src/plan.rs`, `exec.rs`.
-- [ ] **2.3 Profil granicy JS↔WASM** (mały) – rozbić 9,7 µs odczytu po kluczu na przekazanie parametrów, wykonanie, serializację i dekodowanie (natywnie silnik potrzebuje 2,3 µs). Recenzowanych pomiarów tej granicy dla silników baz nie ma – to wkład własny (H3).
-- [ ] **2.4 Binarny format wyników** (średni) – wynik w buforze w pamięci WASM czytany z JS bez pośrednich obiektów, parametry w tablicach typowanych; wzór: Arrow IPC w DuckDB-Wasm [D1]. Cel: odczyt po kluczu < 3,5 µs (Zeta-Lite deklaruje 3,2–3,7 µs [D5]).
-- [ ] **2.5 Poziomy optymalizacji** (mały) – porównać `opt-level = 3 / 2 / "s" / "z"` i flagi `wasm-opt` (rozmiar modułu i czas); optymalizacje LLVM nie są dostrojone do WASM, a mniejszy moduł nie musi być wolniejszy. [W11].
-- [ ] **2.6 Checkpoint bez przestoju** (średni, dobrze mieć) – dziś checkpoint to „naiwny snapshot”: synchroniczne kodowanie całej bazy (35 ms dla 3 MB w przeglądarce, 49 ms dla 100 tys. wierszy), czyli 2–3 klatki przerwy w grze. Kierunki z [S10]: kodowanie porcjami między zadaniami pętli zdarzeń z kopiowaniem wierszy zmienianych w trakcie (copy-on-update) albo przyrostowy snapshot tylko zmienionych wierszy. Bez wątków – zachowuje brak wymagań COOP/COEP. Metryka: najdłuższa pauza (4.10). Pliki: `crates/flatsql-core/src/db.rs`, `storage/snapshot.rs`, `bridge/flatdb.js`.
-- [ ] **2.7 Zwarta reprezentacja wierszy** (duży, dobrze mieć) – wiersze w ciągłych blokach zamiast osobnych alokacji `BTreeMap`; mniej pamięci, szybszy snapshot i odtworzenie (dziś 200 ms dla 100 tys. wierszy, SQLite kopiuje plik). WASM zużywa więcej pamięci niż JS, a pamięć liniowa nie jest zwracana [W11]; przejście na memory64 kosztuje wydajność [W6], [Q6].
-- [ ] **2.8 Szybszy `UPDATE`** (mały–średni) – dziś każdy zmieniany wiersz jest kopiowany w całości (także kolumny tekstowe), drugi raz wyszukiwany w drzewie przy zapisie, a jego klucz jest usuwany i wstawiany ponownie we wszystkich indeksach, także gdy kolumna indeksu się nie zmieniła; znacznik HLC odczytuje zegar JS (`Date.now()`) osobno dla każdego wiersza. Kierunki – hipotezy z analizy kodu, nie wyniki z literatury, do potwierdzenia pomiarem: pomijanie indeksów niezmienionych kolumn (tak robią dojrzałe silniki: SQLite aktualizuje tylko indeksy zmienionych kolumn, PostgreSQL ma HOT updates), zmiana wiersza w miejscu zamiast kopii i drugiego wyszukiwania, jeden odczyt zegara na instrukcję. Każdą zmianę mierzyć osobno, przed i po, razem z profilem z 2.3. Koszt logowania (undo log, WAL, outbox) zostaje – to cena trwałości i synchronizacji ([S4], [S6]). Dziś `UPDATE` 10% ze 100 tys. wierszy: 57,8 ms wobec 18,0 ms w sql.js. Pliki: `crates/flatsql-core/src/exec.rs`, `db.rs`, `table.rs`, `crates/flatsql-wasm/src/lib.rs`.
-
-## 3. Semantyka istniejącej synchronizacji
-
-Wszystkie zadania tej sekcji przeniesiono do [todo_future.md §12](todo_future.md) (§6) – obecna synchronizacja wystarcza do walidacji pracy offline.
-
 ## 4. Badania i benchmarki
 
 - [ ] **4.1 Szeroki zestaw punktów odniesienia** (duży) – scenariusze H1–H5 dla jak najszerszego zestawu silników w `bench/engines.js` i na stronie benchmarku. Wyniki raportowane osobno w grupach o tych samych warunkach uruchomienia, żeby nie porównywać „jabłek z pomarańczami” [B3]; bez SQLite na OPFS teza o trwałości dotyczy tylko sql.js:
@@ -67,6 +52,21 @@ Wszystkie zadania tej sekcji przeniesiono do [todo_future.md §12](todo_future.m
 - [ ] **4.10 Pauza checkpointu** (mały) – najdłuższa przerwa wątku głównego podczas checkpointu dla 10, 50 i 100 tys. wierszy (i po 2.6, jeśli zostanie wykonane), na tle budżetu 16 ms na klatkę; checkpoint to jedyny wyjątek od pracy w wątku głównym bez przestojów [D4], [S10].
 - [ ] **4.12 Koszt trybu Worker** (mały, dobrze mieć) – czas przesłania zapytania i wyniku do Web Workera i z powrotem (`postMessage`) dla odczytu po kluczu i dla 10 000 wierszy, na tle 9,7 µs w wątku głównym; rozstrzyga, od jakiej skali tryb Worker się opłaca ([ADR-0013](adr/0013-watek-glowny-domyslnie-worker-jako-opcja.md)).
 - [ ] **4.13 Koszt utrwalania plików** (mały, dobrze mieć) – czas zatwierdzenia z `fsync` i bez (`--no-fsync`, `fsync: false`) oraz czas checkpointu z `fsync` katalogu w `FileStorage` (CLI) i `FsStore` (serwer: czas `/sync/push`), w Windows i Linuksie; koszt poprawek trwałości ([ADR-0033](adr/0033-checkpoint-plikowy-fsync-katalogu.md)). [S8].
+
+## 2. Wydajność silnika i granicy JS↔WASM
+
+- [ ] **2.1 `COUNT(*)` po indeksie bez czytania wierszy** (mały) – długość zbioru kluczy w indeksie; widoczne w `EXPLAIN`. Odwraca przegraną z SQLite (573 µs vs 100 µs). [D2], [P1] rozdz. 3.
+- [ ] **2.2 Pomijanie zbędnego filtra** (mały) – nie sprawdzać ponownie warunku, który ścieżka dostępu już gwarantuje (np. `category = ?` przy lookupie po indeksie). Pliki: `crates/flatsql-core/src/plan.rs`, `exec.rs`.
+- [ ] **2.3 Profil granicy JS↔WASM** (mały) – rozbić 9,7 µs odczytu po kluczu na przekazanie parametrów, wykonanie, serializację i dekodowanie (natywnie silnik potrzebuje 2,3 µs). Recenzowanych pomiarów tej granicy dla silników baz nie ma – to wkład własny (H3).
+- [ ] **2.4 Binarny format wyników** (średni) – wynik w buforze w pamięci WASM czytany z JS bez pośrednich obiektów, parametry w tablicach typowanych; wzór: Arrow IPC w DuckDB-Wasm [D1]. Cel: odczyt po kluczu < 3,5 µs (Zeta-Lite deklaruje 3,2–3,7 µs [D5]).
+- [ ] **2.5 Poziomy optymalizacji** (mały) – porównać `opt-level = 3 / 2 / "s" / "z"` i flagi `wasm-opt` (rozmiar modułu i czas); optymalizacje LLVM nie są dostrojone do WASM, a mniejszy moduł nie musi być wolniejszy. [W11].
+- [ ] **2.6 Checkpoint bez przestoju** (średni, dobrze mieć) – dziś checkpoint to „naiwny snapshot”: synchroniczne kodowanie całej bazy (35 ms dla 3 MB w przeglądarce, 49 ms dla 100 tys. wierszy), czyli 2–3 klatki przerwy w grze. Kierunki z [S10]: kodowanie porcjami między zadaniami pętli zdarzeń z kopiowaniem wierszy zmienianych w trakcie (copy-on-update) albo przyrostowy snapshot tylko zmienionych wierszy. Bez wątków – zachowuje brak wymagań COOP/COEP. Metryka: najdłuższa pauza (4.10). Pliki: `crates/flatsql-core/src/db.rs`, `storage/snapshot.rs`, `bridge/flatdb.js`.
+- [ ] **2.7 Zwarta reprezentacja wierszy** (duży, dobrze mieć) – wiersze w ciągłych blokach zamiast osobnych alokacji `BTreeMap`; mniej pamięci, szybszy snapshot i odtworzenie (dziś 200 ms dla 100 tys. wierszy, SQLite kopiuje plik). WASM zużywa więcej pamięci niż JS, a pamięć liniowa nie jest zwracana [W11]; przejście na memory64 kosztuje wydajność [W6], [Q6].
+- [ ] **2.8 Szybszy `UPDATE`** (mały–średni) – dziś każdy zmieniany wiersz jest kopiowany w całości (także kolumny tekstowe), drugi raz wyszukiwany w drzewie przy zapisie, a jego klucz jest usuwany i wstawiany ponownie we wszystkich indeksach, także gdy kolumna indeksu się nie zmieniła; znacznik HLC odczytuje zegar JS (`Date.now()`) osobno dla każdego wiersza. Kierunki – hipotezy z analizy kodu, nie wyniki z literatury, do potwierdzenia pomiarem: pomijanie indeksów niezmienionych kolumn (tak robią dojrzałe silniki: SQLite aktualizuje tylko indeksy zmienionych kolumn, PostgreSQL ma HOT updates), zmiana wiersza w miejscu zamiast kopii i drugiego wyszukiwania, jeden odczyt zegara na instrukcję. Każdą zmianę mierzyć osobno, przed i po, razem z profilem z 2.3. Koszt logowania (undo log, WAL, outbox) zostaje – to cena trwałości i synchronizacji ([S4], [S6]). Dziś `UPDATE` 10% ze 100 tys. wierszy: 57,8 ms wobec 18,0 ms w sql.js. Pliki: `crates/flatsql-core/src/exec.rs`, `db.rs`, `table.rs`, `crates/flatsql-wasm/src/lib.rs`.
+
+## 3. Semantyka istniejącej synchronizacji
+
+Wszystkie zadania tej sekcji przeniesiono do [todo_future.md §12](todo_future.md) (§6) – obecna synchronizacja wystarcza do walidacji pracy offline.
 
 ## 5. Zadania usunięte po weryfikacji z literaturą
 

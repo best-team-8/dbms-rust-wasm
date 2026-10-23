@@ -50,6 +50,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0034](0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md) | Magazyn domyślny: IndexedDB w przeglądarce, jawny wybór poza nią | architektura | przyjęta |
 | [0035](0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md) | Granica dryfu zegara: odrzucenie, wstrzymanie synchronizacji i nowe znaczniki | architektura | przyjęta |
 | [0036](0036-jawne-konflikty-schematu-przed-wersjami-struktury.md) | Jawne konflikty schematu przed wersjami struktury | architektura | proponowana |
+| [0037](0037-pomiar-prototypu-przed-optymalizacjami.md) | Pomiar prototypu przed optymalizacjami, ta sama metodyka w obu pomiarach | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 
