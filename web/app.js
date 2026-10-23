@@ -209,8 +209,15 @@ function renderNetwork() {
   setChip('chip-network', online ? 'Sieć: online' : 'Sieć: offline', online ? 'ok' : 'bad');
 }
 
+const DURABILITY_LABEL = {
+  default: 'domyślna przeglądarki (Chrome 121+: relaxed)',
+  relaxed: 'relaxed – po przekazaniu do systemu',
+  strict: 'strict – po zapisie na dysk',
+};
+
 function renderStorage() {
   const s = app.db.stats();
+  $('st-durability').textContent = s.durability ? DURABILITY_LABEL[s.durability] : 'brak (tylko pamięć)';
   $('st-node').textContent = s.nodeId.toString(16).padStart(8, '0');
   $('st-rows').textContent = `${s.rows.toLocaleString('pl-PL')} / ${s.tables}`;
   $('st-lsn').textContent = s.lsn;
@@ -326,7 +333,9 @@ async function main() {
   }
   setChip('chip-store', `Magazyn: ${app.persistent ? 'IndexedDB' : 'pamięć'}`, app.persistent ? 'ok' : 'warn');
 
-  app.db = await FlatDB.open({ store: app.store });
+  // ?durability=strict|relaxed|default selects the IndexedDB durability mode.
+  const durability = new URLSearchParams(location.search).get('durability') ?? undefined;
+  app.db = await FlatDB.open({ store: app.store, durability: app.persistent ? durability : undefined });
   const r = app.db.recovery;
   $('st-recovery').textContent =
     `${fmtDuration(r.ms)} · snapshot ${fmtBytes(r.snapshotBytes)} + ${r.framesReplayed} ramek WAL` + (r.tornBytes ? ` · odrzucono ${r.tornBytes} B` : '');

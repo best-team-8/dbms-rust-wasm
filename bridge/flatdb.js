@@ -11,6 +11,8 @@ import { Database } from '../pkg/flatsql.js';
 import { engineReady, initEngine } from './engine.js';
 import { MemoryStore } from './stores/memory.js';
 
+const DURABILITY = ['default', 'strict', 'relaxed'];
+
 function randomNodeId() {
   const a = new Uint32Array(1);
   globalThis.crypto.getRandomValues(a);
@@ -41,9 +43,19 @@ export class FlatDB extends EventTarget {
    * @param {number} [options.nodeId] replica id (generated and remembered by default)
    * @param {number} [options.checkpointBytes] WAL size that triggers a snapshot
    * @param {'auto'|'manual'} [options.flush] flush WAL automatically after writes
+   * @param {'default'|'strict'|'relaxed'} [options.durability] durability of
+   *   IndexedDB writes: 'strict' completes a flush only after the data reached
+   *   the disk; 'default' leaves it to the browser (relaxed in Chrome 121+)
    */
   static async open(options = {}) {
-    const { store = new MemoryStore(), nodeId, checkpointBytes = 1 << 20, flush = 'auto' } = options;
+    const { store = new MemoryStore(), nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability } = options;
+    if (durability !== undefined) {
+      if (!DURABILITY.includes(durability)) throw new TypeError(`durability must be one of: ${DURABILITY.join(', ')}`);
+      if (!('durability' in store)) {
+        throw new TypeError(`durability applies to IndexedDbStore, not to the ${store.kind} store`);
+      }
+      store.durability = durability;
+    }
     await (engineReady() ?? initEngine());
     const state = await store.load();
     const node = state.meta.nodeId ?? nodeId ?? randomNodeId();
@@ -137,6 +149,7 @@ export class FlatDB extends EventTarget {
     return {
       ...this.#db.stats(),
       store: this.#store.kind,
+      durability: this.#store.durability ?? null,
       walBytes: this.#store.walSize,
       snapshotBytes: this.#store.snapshotSize,
     };

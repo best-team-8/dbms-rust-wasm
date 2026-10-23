@@ -71,10 +71,20 @@ export class MemoryStore implements Store {
   destroy(): Promise<void>;
 }
 
+/**
+ * Durability of IndexedDB transactions: 'strict' – `complete` (and so
+ * `flush()`) after the data reached the disk, survives a system crash or
+ * power loss; 'relaxed' – after the data was handed to the operating system,
+ * survives closing the tab or a browser crash; 'default' – the browser
+ * decides (relaxed in Chrome 121+).
+ */
+export type Durability = 'default' | 'strict' | 'relaxed';
+
 export class IndexedDbStore implements Store {
-  constructor(name?: string, options?: { durability?: 'default' | 'strict' | 'relaxed' });
+  constructor(name?: string, options?: { durability?: Durability });
   readonly kind: 'indexeddb';
   readonly name: string;
+  durability: Durability;
   walSize: number;
   snapshotSize: number;
   load(): Promise<{ snapshot: Uint8Array | null; wal: Uint8Array | null; meta: Record<string, unknown> }>;
@@ -94,6 +104,8 @@ export interface FlatDBOptions {
   checkpointBytes?: number;
   /** 'auto' (default) flushes the WAL on the next microtask after a write. */
   flush?: 'auto' | 'manual';
+  /** Durability of IndexedDB writes (only for IndexedDbStore; default: 'default'). */
+  durability?: Durability;
 }
 
 export interface DbStats {
@@ -108,6 +120,8 @@ export interface DbStats {
   ackedSeq: number;
   inTransaction: boolean;
   store: string;
+  /** Durability of IndexedDB writes, null for other stores. */
+  durability: Durability | null;
   walBytes: number;
   snapshotBytes: number;
 }

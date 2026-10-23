@@ -95,6 +95,16 @@ Wyłączenie `fsync` (`--no-fsync`, `fsync: false`) dotyczy tylko zatwierdzeń: 
 
 Semantyka trwałości jest więc analogiczna do `synchronous=NORMAL` w SQLite: po `await flush()` dane są trwałe; zatwierdzenia z ostatnich milisekund mogą przepaść przy nagłym zamknięciu karty, ale baza zawsze wraca do spójnego stanu.
 
+Co znaczy „trwałe”, zależy od trybu trwałości transakcji IndexedDB, który podaje się w `FlatDB.open({ durability })` (albo w konstruktorze `IndexedDbStore`) i który dotyczy każdego zapisu magazynu: dopisania WAL, checkpointu i metadanych.
+
+| Tryb | `flush()` kończy się, gdy dane | Przetrwa |
+|---|---|---|
+| `relaxed` | zostały przekazane systemowi operacyjnemu | zamknięcie karty, awarię przeglądarki |
+| `strict` | zostały zapisane na dysk | także awarię systemu i utratę zasilania |
+| `default` (domyślny) | według przeglądarki – w Chrome 121+ jak `relaxed` [Q1] | jak wybrany tryb |
+
+Tryb `strict` jest wolniejszy (koszt do zmierzenia: [todo 4.9](todo.md)). Opcja `durability` przy magazynie bez trybów (np. `MemoryStore`, `FsStore` – tam odpowiednikiem jest `fsync`) kończy się błędem. Bieżący tryb zwraca `stats().durability`, a demo pokazuje go w panelu magazynu i przyjmuje parametr adresu `?durability=strict` ([test](research/tests-results.md#15-tryb-trwałości-indexeddb)).
+
 ### 4.4 Wiele kart
 
 Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, rozjechałyby się. Demo używa **Web Locks API**: pierwsza karta trzyma blokadę i zapisuje do IndexedDB, kolejne przechodzą w tryb tylko-pamięć z ostrzeżeniem. Docelowo: jedna instancja silnika we wspólnym `SharedWorker` lub wybór lidera przez `BroadcastChannel`.

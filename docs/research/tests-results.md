@@ -11,6 +11,7 @@ Opisy testów poprawności Flat-SQL i ich wyniki, przygotowane według [metodyki
 | Pamięć | 16 GB |
 | Rust | 1.99.0 (stable), cele `x86_64-pc-windows-msvc` i `wasm32-unknown-unknown` |
 | Node.js | 24.21.0 lokalnie, 22 w CI |
+| Przeglądarka | Chromium 152.0.7977.167 (Windows 11) |
 | CI | GitHub Actions, [.github/workflows/build-test.yml](../../.github/workflows/build-test.yml), `ubuntu-latest` |
 
 Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano. Testy silnika uruchamia `cargo test --workspace`, testy end-to-end `npm run build && npm test`.
@@ -23,6 +24,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [1.2](#12-eksperyment-synchronizacja-katalogu-w-windows) `windows_directory_flush_needs_write_access_and_backup_semantics`, `platform: a directory can be synced…` | Jak w Windows utrwalić wpisy katalogu po zmianie nazwy pliku? | zaliczony (eksperyment) |
 | [1.3](#13-utrwalanie-zapisów-w-magazynie-plikowym-nodejs) `FsStore: flushed transactions survive a crash when only synced writes persist`, `FsStore: fsync can be turned off for WAL appends only` | Czy po `await flush()` i awarii magazyn plikowy Node.js zachowuje wszystkie utrwalone transakcje? | zaliczony |
 | [1.4](#14-wszystkie-stany-po-awarii-dopuszczone-przez-model) `every_permitted_crash_state_recovers_to_a_committed_state`, `FsStore: every permitted crash state recovers to a committed state` | Czy baza wraca do stanu zatwierdzonego w każdym stanie dysku, jaki model systemu plików dopuszcza po awarii, i przyjmuje potem nowe zapisy? | zaliczony (bez `fsync` w Node.js przez losowanie) |
+| [1.5](#15-tryb-trwałości-indexeddb) `FlatDB.open passes the durability option to every IndexedDB write`, `durability is validated…`, sprawdzenie w przeglądarce | Czy tryb trwałości wybrany w `FlatDB.open` dostaje każda transakcja zapisu IndexedDB? | zaliczony |
 | [3.1](#31-ten-sam-zapis-każdego-nan) `equal_data_encodes_to_identical_bytes_whatever_the_nan_bits`, `nan_computed_in_sql_is_stored_canonically` | Czy te same dane dają te same bajty snapshotu, WAL i paczek zmian niezależnie od wzorca bitów NaN? | zaliczony |
 
 ## 1. Trwałość i odtwarzanie po awarii
@@ -99,6 +101,19 @@ Magazyn plikowy przechowuje bazę w dwóch plikach: `snapshot.fsql` (pełny obra
 | Rust, bez `fsync`, próg 150 B | 36 | 2 959 137 | 65 489 (14 punktów losowanych) | 5 327 | wszystkie 2 959 137 stanów, 16 551 zawartości |
 | Node.js, `fsync`, próg 300 B | 85 | 226 | 226 | 70 | jak obok |
 | Node.js, bez `fsync`, próg 300 B | 54 | ok. 4,8·10¹¹ | 3 068 (47 punktów losowanych) | 1 933 | 174 791 stanów (41 punktów losowanych), 40 337 zawartości |
+
+### 1.5 Tryb trwałości IndexedDB
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy tryb trwałości wybrany w `FlatDB.open({ durability })` dostaje każda transakcja zapisu IndexedDB (dopisanie WAL, checkpoint, metadane) i czy przeglądarka go przyjmuje? |
+| Uzasadnienie | Transakcja IndexedDB ma tryb trwałości. W trybie `relaxed` zdarzenie zakończenia następuje po przekazaniu danych systemowi operacyjnemu, w trybie `strict` po zapisie na dysk; od Chrome 121 domyślny jest `relaxed` [Q1]. Od trybu zależy, co gwarantuje `await flush()`: przy `relaxed` dane przetrwają zamknięcie karty i awarię przeglądarki, ale nie awarię systemu ani utratę zasilania. Magazyn `IndexedDbStore` przyjmował tryb w konstruktorze, ale `FlatDB.open` nie pozwalał go wybrać. |
+| Model awarii i założenia | Test sprawdza przekazanie trybu do IndexedDB, nie samą trwałość: czy przeglądarka w trybie `strict` rzeczywiście utrwala dane przed zakończeniem transakcji, można sprawdzić tylko odcięciem zasilania. W Node.js IndexedDB zastępuje atrapa w pamięci (`test/support/fake-indexeddb.js`), która zapisuje tryb każdej transakcji. |
+| Procedura | Plik `test/browser.test.js`. Test `FlatDB.open passes the durability option to every IndexedDB write` otwiera bazę z trybem `strict`, `relaxed` i bez opcji, wykonuje zapis, `flush()` i checkpoint. Wyrocznia: wśród transakcji `readwrite` są zapisy do magazynów `wal` i `snapshot`, a wszystkie mają tryb równy wybranemu (`default` bez opcji); `stats().durability` zwraca ten sam tryb. Test `durability is validated and needs a store that supports it` sprawdza odrzucenie nieznanego trybu i trybu przy `MemoryStore`. Polecenie: `node --test test/browser.test.js`. Sprawdzenie w przeglądarce: (1) `npm run build && npm start`; (2) otworzyć `http://localhost:8080/?durability=strict`; panel „Magazyn lokalny” pokazuje „Trwałość zapisu: strict”; (3) w konsoli zastąpić `IDBDatabase.prototype.transaction` funkcją, która wywołuje oryginał i zapisuje żądany tryb (`options.durability`) oraz tryb transakcji podany przez przeglądarkę (`IDBTransaction.durability`); (4) wykonać w edytorze `CREATE TABLE IF NOT EXISTS durability_check (id INT PRIMARY KEY, note TEXT); INSERT OR REPLACE INTO durability_check VALUES (1, 'strict');` i kliknąć „Checkpoint”; (5) odczytać zapisane tryby transakcji `readwrite`; (6) powtórzyć bez parametru adresu. |
+| Kontrola negatywna | Na kodzie sprzed zmiany pierwszy test zawiódł: `AssertionError: durability strict` (wszystkie transakcje miały tryb `default`), drugi: `Missing expected rejection (TypeError)`. |
+| Wynik | Zaliczony. W Node.js 3 warianty trybu. W przeglądarce z `?durability=strict` 5 transakcji zapisu (2 × `wal`, 2 × `meta`, 1 × `snapshot` + `wal`) miało żądany i rzeczywisty tryb `strict`; bez parametru 4 transakcje miały tryb `default`. 23.10.2026, Chromium 152, commit „bridge: expose IndexedDB durability in FlatDB.open”. |
+| Wpływ na projekt | Opcja `durability` w `FlatDB.open` ustawia tryb magazynu `IndexedDbStore`, a przy innym magazynie lub nieznanej wartości kończy się błędem `TypeError`; tryb zwraca `stats().durability`. Domyślnie tryb wybiera przeglądarka. Demo pokazuje tryb w panelu magazynu i przyjmuje go z parametru adresu. |
+| Ograniczenia | Nie sprawdzono, że tryb `strict` chroni dane przy utracie zasilania ani jaki tryb oznacza `default` w Firefoksie i Safari. Sprawdzenie dotyczy jednej przeglądarki (Chromium 152). |
 
 ## 2. Synchronizacja replik
 

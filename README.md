@@ -139,6 +139,8 @@ const rows = db.query('SELECT item, qty FROM inventory WHERE player = ?', ['ayla
 // [{ item: 'sword', qty: 1 }] – synchronicznie, bez sieci
 
 await db.flush();                       // zmiany są trwałe w IndexedDB
+// FlatDB.open({ …, durability: 'strict' }) – flush() czeka na zapis na dysk
+// (domyślnie decyduje przeglądarka; Chrome 121+: po przekazaniu systemowi)
 
 const sync = new SyncClient(db, { url: 'https://example.org' });
 await sync.start();                     // wysyła outbox / pobiera zmiany w tle

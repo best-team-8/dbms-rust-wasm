@@ -42,7 +42,10 @@ export class IndexedDbStore {
    * @param {string} name database name (one IndexedDB database per FlatDB)
    * @param {object} [options]
    * @param {'default'|'strict'|'relaxed'} [options.durability] IndexedDB
-   *   transaction durability hint used for WAL appends and checkpoints.
+   *   transaction durability hint used for WAL appends and checkpoints:
+   *   'strict' completes after the data reached the disk, 'relaxed' after it
+   *   was handed to the operating system, 'default' lets the browser choose
+   *   (relaxed in Chrome 121+).
    */
   constructor(name = 'default', { durability = 'default' } = {}) {
     this.name = name;
