@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-06 (bridge); uzasadnienie uzupełnione 2026-10-20 |
 | Rodzaj | architektura |
-| Powiązane | ADR-0005, ADR-0010, ADR-0013; todo 1.4, 1.5; future 1.5 |
+| Powiązane | ADR-0005, ADR-0010, ADR-0013; todo 1.4, 1.5, 1.10; future 1.5 |
 
 ## Kontekst
 
