@@ -9,9 +9,22 @@
 
 import { Database } from '../pkg/flatsql.js';
 import { engineReady, initEngine } from './engine.js';
-import { MemoryStore } from './stores/memory.js';
+import { IndexedDbStore } from './stores/indexeddb.js';
 
 const DURABILITY = ['default', 'strict', 'relaxed'];
+
+// Without an explicit store the browser keeps the database in IndexedDB.
+// Elsewhere there is no durable default, and silently keeping the data in
+// memory would lose it when the process ends, so the caller has to choose.
+function defaultStore(name) {
+  if (typeof indexedDB === 'undefined') {
+    throw new Error(
+      'FlatDB.open needs a store outside the browser: { store: new FsStore(dir) } from bridge/node.js ' +
+        'keeps the database in files, { store: new MemoryStore() } only in memory',
+    );
+  }
+  return new IndexedDbStore(name);
+}
 
 function randomNodeId() {
   const a = new Uint32Array(1);
@@ -39,7 +52,9 @@ export class FlatDB extends EventTarget {
    * Opens (or creates) a database persisted in `store`.
    *
    * @param {object} [options]
-   * @param {object} [options.store]  MemoryStore | IndexedDbStore | FsStore
+   * @param {object} [options.store] MemoryStore | IndexedDbStore | FsStore;
+   *   default in the browser: IndexedDbStore(name), required elsewhere
+   * @param {string} [options.name] name of the default IndexedDB store ('default')
    * @param {number} [options.nodeId] replica id (generated and remembered by default)
    * @param {number} [options.checkpointBytes] WAL size that triggers a snapshot
    * @param {'auto'|'manual'} [options.flush] flush WAL automatically after writes
@@ -48,7 +63,9 @@ export class FlatDB extends EventTarget {
    *   the disk; 'default' leaves it to the browser (relaxed in Chrome 121+)
    */
   static async open(options = {}) {
-    const { store = new MemoryStore(), nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability } = options;
+    const { name, nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability } = options;
+    if (name !== undefined && options.store) throw new TypeError('name applies to the default IndexedDB store only');
+    const store = options.store ?? defaultStore(name ?? 'default');
     if (durability !== undefined) {
       if (!DURABILITY.includes(durability)) throw new TypeError(`durability must be one of: ${DURABILITY.join(', ')}`);
       if (!('durability' in store)) {

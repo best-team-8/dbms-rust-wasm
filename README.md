@@ -127,9 +127,9 @@ npm run bench:full
 ### JavaScript (WASM-Bridge)
 
 ```js
-import { FlatDB, IndexedDbStore, SyncClient } from './bridge/index.js';
+import { FlatDB, SyncClient } from './bridge/index.js';
 
-const db = await FlatDB.open({ store: new IndexedDbStore('my-app') });
+const db = await FlatDB.open({ name: 'my-app' }); // w przeglądarce domyślnie IndexedDB
 
 db.exec(`CREATE TABLE IF NOT EXISTS inventory (
   id INT PRIMARY KEY, player TEXT NOT NULL, item TEXT, qty INT)`);
@@ -146,7 +146,7 @@ const sync = new SyncClient(db, { url: 'https://example.org' });
 await sync.start();                     // wysyła outbox / pobiera zmiany w tle
 ```
 
-W Node.js zamiast `bridge/index.js` importuje się `bridge/node.js` (ładuje plik `.wasm` z dysku i udostępnia `FsStore`). Pełne API: [bridge/index.d.ts](bridge/index.d.ts).
+W Node.js zamiast `bridge/index.js` importuje się `bridge/node.js` (ładuje plik `.wasm` z dysku i udostępnia `FsStore`); magazyn trzeba tam podać jawnie: `FlatDB.open({ store: new FsStore('dane') })` albo `new MemoryStore()` dla danych tylko w pamięci. Pełne API: [bridge/index.d.ts](bridge/index.d.ts).
 
 ### CLI
 
@@ -265,7 +265,7 @@ sequenceDiagram
 
 ## Tryby działania w przeglądarce
 
-Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego **wątek i magazyn wybiera aplikacja przy otwarciu bazy, a nie silnik**. Magazyn podaje się parametrem `store` w `FlatDB.open` (dziś `IndexedDbStore` i `MemoryStore`, w Node.js także `FsStore`). Inaczej jest w SQLite, którego magazyn czyta strony z dysku synchronicznie z wnętrza silnika, przez co SQLite z trwałością w przeglądarce musi działać w Web Workerze.
+Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego **wątek i magazyn wybiera aplikacja przy otwarciu bazy, a nie silnik**. Magazyn podaje się parametrem `store` w `FlatDB.open` (dziś `IndexedDbStore` i `MemoryStore`, w Node.js także `FsStore`); bez niego przeglądarka używa `IndexedDbStore`. Inaczej jest w SQLite, którego magazyn czyta strony z dysku synchronicznie z wnętrza silnika, przez co SQLite z trwałością w przeglądarce musi działać w Web Workerze.
 
 | | Wątek główny – tryb domyślny (zaimplementowany) | Web Worker – opcja (planowana: [todo_future 1.1, 1.5](docs/todo_future.md)) |
 |---|---|---|

@@ -47,6 +47,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) | Rdzeń literatury według cytowań w pracy dyplomowej | proces | przyjęta |
 | [0032](0032-metodyka-testow-poprawnosci.md) | Metodyka testów poprawności oddzielna od metodyki benchmarków | proces | przyjęta |
 | [0033](0033-checkpoint-plikowy-fsync-katalogu.md) | Checkpoint na plikach: synchronizacja katalogu przed obcięciem WAL | architektura | przyjęta |
+| [0034](0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md) | Magazyn domyślny: IndexedDB w przeglądarce, jawny wybór poza nią | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

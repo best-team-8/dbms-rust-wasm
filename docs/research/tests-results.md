@@ -25,6 +25,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [1.3](#13-utrwalanie-zapisów-w-magazynie-plikowym-nodejs) `FsStore: flushed transactions survive a crash when only synced writes persist`, `FsStore: fsync can be turned off for WAL appends only` | Czy po `await flush()` i awarii magazyn plikowy Node.js zachowuje wszystkie utrwalone transakcje? | zaliczony |
 | [1.4](#14-wszystkie-stany-po-awarii-dopuszczone-przez-model) `every_permitted_crash_state_recovers_to_a_committed_state`, `FsStore: every permitted crash state recovers to a committed state` | Czy baza wraca do stanu zatwierdzonego w każdym stanie dysku, jaki model systemu plików dopuszcza po awarii, i przyjmuje potem nowe zapisy? | zaliczony (bez `fsync` w Node.js przez losowanie) |
 | [1.5](#15-tryb-trwałości-indexeddb) `FlatDB.open passes the durability option to every IndexedDB write`, `durability is validated…`, sprawdzenie w przeglądarce | Czy tryb trwałości wybrany w `FlatDB.open` dostaje każda transakcja zapisu IndexedDB? | zaliczony |
+| [1.6](#16-magazyn-domyślny) `without a store FlatDB.open uses IndexedDB in the browser…`, `without a store FlatDB.open refuses to start outside the browser`, sprawdzenie w przeglądarce | Czy baza otwarta bez wskazania magazynu przetrwa odświeżenie strony, a poza przeglądarką nie zostaje po cichu w pamięci? | zaliczony |
 | [3.1](#31-ten-sam-zapis-każdego-nan) `equal_data_encodes_to_identical_bytes_whatever_the_nan_bits`, `nan_computed_in_sql_is_stored_canonically` | Czy te same dane dają te same bajty snapshotu, WAL i paczek zmian niezależnie od wzorca bitów NaN? | zaliczony |
 
 ## 1. Trwałość i odtwarzanie po awarii
@@ -114,6 +115,19 @@ Magazyn plikowy przechowuje bazę w dwóch plikach: `snapshot.fsql` (pełny obra
 | Wynik | Zaliczony. W Node.js 3 warianty trybu. W przeglądarce z `?durability=strict` 5 transakcji zapisu (2 × `wal`, 2 × `meta`, 1 × `snapshot` + `wal`) miało żądany i rzeczywisty tryb `strict`; bez parametru 4 transakcje miały tryb `default`. 23.10.2026, Chromium 152, commit „bridge: expose IndexedDB durability in FlatDB.open”. |
 | Wpływ na projekt | Opcja `durability` w `FlatDB.open` ustawia tryb magazynu `IndexedDbStore`, a przy innym magazynie lub nieznanej wartości kończy się błędem `TypeError`; tryb zwraca `stats().durability`. Domyślnie tryb wybiera przeglądarka. Demo pokazuje tryb w panelu magazynu i przyjmuje go z parametru adresu. |
 | Ograniczenia | Nie sprawdzono, że tryb `strict` chroni dane przy utracie zasilania ani jaki tryb oznacza `default` w Firefoksie i Safari. Sprawdzenie dotyczy jednej przeglądarki (Chromium 152). |
+
+### 1.6 Magazyn domyślny
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy baza otwarta przez `FlatDB.open()` bez wskazania magazynu przetrwa w przeglądarce odświeżenie strony, a poza przeglądarką nie zostaje po cichu tylko w pamięci? |
+| Uzasadnienie | Bez opcji `store` most JavaScript tworzył magazyn w pamięci, więc dane znikały po odświeżeniu strony, choć projekt zakłada IndexedDB jako magazyn przeglądarki, a dane lokalne mają być trwałe [L1]. Aplikacja, która nie poda magazynu, nie dostawała żadnego sygnału. |
+| Model awarii i założenia | Odświeżenie strony to zamknięcie bazy i otwarcie nowej instancji o tej samej nazwie. W Node.js „przeglądarkę” udaje atrapa IndexedDB w pamięci ustawiona jako `globalThis.indexedDB`; bez niej test działa jak zwykły proces Node.js. |
+| Procedura | Plik `test/browser.test.js`. Test `without a store FlatDB.open uses IndexedDB in the browser, so data survives a reload` otwiera bazę z opcjami `name` i `durability`, sprawdza rodzaj i nazwę magazynu oraz tryb trwałości, zapisuje wiersz, zamyka bazę i otwiera ją ponownie; wyrocznia: wiersz jest w nowej instancji, a baza bez nazwy dostaje nazwę `default`. Test `without a store FlatDB.open refuses to start outside the browser` sprawdza, że bez IndexedDB `FlatDB.open()` kończy się błędem, którego treść wskazuje `FsStore` i `MemoryStore`. Polecenie: `node --test test/browser.test.js`. Sprawdzenie w przeglądarce: (1) `npm run build && npm start`, otworzyć `http://localhost:8080/`; (2) w konsoli zaimportować `/bridge/index.js`, otworzyć `FlatDB.open()`, utworzyć tabelę z jednym wierszem i zamknąć bazę; (3) w edytorze demo utworzyć drugą tabelę z wierszem; (4) odświeżyć stronę; (5) odczytać oba wiersze i usunąć bazę testową (`store.destroy()`). |
+| Kontrola negatywna | Na kodzie sprzed zmiany pierwszy test zawiódł: `TypeError: durability applies to IndexedDbStore, not to the memory store` (magazynem domyślnym był `MemoryStore`), drugi: `Missing expected rejection` (w Node.js nie było błędu). |
+| Wynik | Zaliczony. W przeglądarce `FlatDB.open()` utworzył magazyn `indexeddb` o nazwie `default` (baza IndexedDB `flatsql:default`), a oba wiersze były dostępne po odświeżeniu. 23.10.2026, Chromium 152, commit „bridge: default to IndexedDB in the browser, require a store elsewhere”. |
+| Wpływ na projekt | `FlatDB.open` bez `store` tworzy w przeglądarce `IndexedDbStore(name)`, a poza nią zgłasza błąd. Demo korzysta z magazynu domyślnego, a testy Node.js podają `MemoryStore` jawnie. |
+| Ograniczenia | Sprawdzono tylko Chromium; usunięcie danych przez przeglądarkę (brak miejsca, okres bez interakcji) to osobne zagadnienie trwałego magazynu (test 1.7). |
 
 ## 2. Synchronizacja replik
 

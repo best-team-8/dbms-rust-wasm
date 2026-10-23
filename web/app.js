@@ -1,7 +1,7 @@
 // Flat-SQL demo application: SQL console on a local WebAssembly database
 // persisted in IndexedDB and replicated through the sync server.
 
-import { FlatDB, IndexedDbStore, initEngine, MemoryStore, SyncClient, version } from './bridge/index.js';
+import { FlatDB, initEngine, MemoryStore, SyncClient, version } from './bridge/index.js';
 
 const $ = (id) => document.getElementById(id);
 const app = { db: null, sync: null, store: null, persistent: true };
@@ -325,7 +325,6 @@ async function main() {
   log(`Moduł WebAssembly załadowany w ${fmtDuration(loadMs)}`);
 
   app.persistent = await acquireTabLock();
-  app.store = app.persistent ? new IndexedDbStore('demo') : new MemoryStore();
   if (!app.persistent) {
     const banner = $('banner');
     banner.textContent = 'Baza jest już otwarta w innej karcie – ta karta działa tylko w pamięci (bez zapisu do IndexedDB).';
@@ -333,9 +332,11 @@ async function main() {
   }
   setChip('chip-store', `Magazyn: ${app.persistent ? 'IndexedDB' : 'pamięć'}`, app.persistent ? 'ok' : 'warn');
 
-  // ?durability=strict|relaxed|default selects the IndexedDB durability mode.
+  // Without a store FlatDB keeps the database in IndexedDB;
+  // ?durability=strict|relaxed|default selects the durability mode.
   const durability = new URLSearchParams(location.search).get('durability') ?? undefined;
-  app.db = await FlatDB.open({ store: app.store, durability: app.persistent ? durability : undefined });
+  app.db = await FlatDB.open(app.persistent ? { name: 'demo', durability } : { store: new MemoryStore() });
+  app.store = app.db.store;
   const r = app.db.recovery;
   $('st-recovery').textContent =
     `${fmtDuration(r.ms)} · snapshot ${fmtBytes(r.snapshotBytes)} + ${r.framesReplayed} ramek WAL` + (r.tornBytes ? ` · odrzucono ${r.tornBytes} B` : '');

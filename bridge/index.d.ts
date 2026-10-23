@@ -97,7 +97,14 @@ export class IndexedDbStore implements Store {
 }
 
 export interface FlatDBOptions {
+  /**
+   * Where the database lives. Default in the browser: `new IndexedDbStore(name)`.
+   * Outside the browser there is no default: pass `MemoryStore` or `FsStore`
+   * (bridge/node.js), otherwise `open` rejects.
+   */
   store?: Store;
+  /** Name of the default IndexedDB store (default 'default'); not allowed with `store`. */
+  name?: string;
   /** Replica id used in sync stamps (generated and remembered by default). */
   nodeId?: number;
   /** WAL size that triggers a checkpoint (default 1 MiB). */

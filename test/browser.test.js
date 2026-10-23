@@ -29,6 +29,33 @@ test('FlatDB.open passes the durability option to every IndexedDB write', async 
   }
 });
 
+test('without a store FlatDB.open uses IndexedDB in the browser, so data survives a reload', async () => {
+  const idb = installFakeIndexedDB();
+  try {
+    const db = await FlatDB.open({ name: 'notes', durability: 'strict' });
+    assert.equal(db.store.kind, 'indexeddb');
+    assert.equal(db.store.name, 'notes');
+    assert.equal(db.stats().durability, 'strict');
+    db.exec("CREATE TABLE notes (id INT PRIMARY KEY, body TEXT); INSERT INTO notes VALUES (1, 'kept');");
+    await db.close();
+    // A page reload: a new FlatDB with the same name finds the data.
+    const again = await FlatDB.open({ name: 'notes' });
+    assert.deepEqual(again.query('SELECT body FROM notes'), [{ body: 'kept' }]);
+    await again.close();
+    const unnamed = await FlatDB.open();
+    assert.equal(unnamed.store.name, 'default');
+    await unnamed.close();
+  } finally {
+    idb.uninstall();
+  }
+});
+
+test('without a store FlatDB.open refuses to start outside the browser', async () => {
+  assert.equal(globalThis.indexedDB, undefined);
+  await assert.rejects(FlatDB.open(), (e) => /MemoryStore/.test(e.message) && /FsStore/.test(e.message));
+  await assert.rejects(FlatDB.open({ name: 'x' }), /MemoryStore/);
+});
+
 test('durability is validated and needs a store that supports it', async () => {
   const idb = installFakeIndexedDB();
   try {
