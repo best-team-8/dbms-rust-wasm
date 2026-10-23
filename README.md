@@ -60,7 +60,7 @@ The primary objective is to implement the **Edge Computing** paradigm by shiftin
 | Demo (`web/`) | konsola SQL w przeglądarce, panel synchronizacji i trybu offline, Service Worker, benchmark w przeglądarce |
 | CLI (`crates/flatsql-cli`) | interaktywna powłoka `flatsql`, bazy plikowe, natywny benchmark |
 | Badania (`bench/`, `docs/research/`) | porównanie Flat-SQL (WASM i natywnie), SQLite (sql.js) i czystego JS; Local-First vs Cloud-First; trwałość zapisów w przeglądarce |
-| Testy | 82 testy w Rust (w tym odtwarzanie po ucięciu WAL w każdym bajcie i losowe sesje offline wielu replik) + 14 testów end-to-end w Node (scenariusze offline z prawdziwym serwerem) |
+| Testy | 94 testy w Rust (w tym odtwarzanie po ucięciu WAL w każdym bajcie, wszystkie stany po awarii dopuszczone przez model systemu plików, losowe sesje offline wielu replik z przesuniętymi zegarami i podziałami sieci) + 27 testów end-to-end w Node (scenariusze offline z prawdziwym serwerem, zegar urządzenia, konflikty schematu, magazyny przeglądarki); opisy i wyniki: [docs/research/tests-results.md](docs/research/tests-results.md) |
 
 ## Szybki start
 
