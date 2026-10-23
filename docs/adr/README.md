@@ -46,6 +46,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0030](0030-zlaczenia-postgresql-i-edycja-na-zywo-poza-zakresem.md) | Złączenia, integracja z PostgreSQL i wspólna edycja na żywo poza zakresem | proces | przyjęta |
 | [0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) | Rdzeń literatury według cytowań w pracy dyplomowej | proces | przyjęta |
 | [0032](0032-metodyka-testow-poprawnosci.md) | Metodyka testów poprawności oddzielna od metodyki benchmarków | proces | przyjęta |
+| [0033](0033-checkpoint-plikowy-fsync-katalogu.md) | Checkpoint na plikach: synchronizacja katalogu przed obcięciem WAL | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

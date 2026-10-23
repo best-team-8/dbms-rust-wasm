@@ -80,9 +80,12 @@ flowchart LR
 |---|---|---|---|
 | `IndexedDbStore` | przeglądarka | `add()` do magazynu `wal` (klucze rosnące) | `put` snapshotu i `clear()` WAL w **jednej** transakcji IndexedDB |
 | `MemoryStore` | przeglądarka / testy | tablica fragmentów | podmiana |
-| `FsStore` (JS) / `FileStorage` (Rust) | Node.js / natywnie | dopisanie do `wal.fsql` (opcjonalnie `fsync`) | zapis `snapshot.fsql.tmp` → `rename` → obcięcie WAL |
+| `FileStorage` (Rust) | natywnie (CLI) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `--no-fsync`) | `snapshot.fsql.tmp` i `fsync` → `rename` → `fsync` katalogu → obcięcie WAL i `fsync`; zawsze synchronizowany |
+| `FsStore` (JS) | Node.js (serwer) | dopisanie do `wal.fsql`, bez `fsync` | `snapshot.fsql.tmp` → `rename` → obcięcie WAL, bez `fsync` |
 
 Format plików jest wspólny dla Rust i Node.js – katalog danych serwera można otworzyć w CLI.
+
+**Kolejność kroków checkpointu na plikach.** Zmiana nazwy pliku jest operacją na katalogu i trafia na dysk dopiero po `fsync` katalogu, a system plików może utrwalić obcięcie WAL wcześniej niż zmianę nazwy. Po awarii zostałby wtedy stary snapshot z pustym WAL. Dlatego WAL jest obcinany dopiero po `fsync` katalogu; katalog jest synchronizowany także po utworzeniu pliku WAL. Ramki, które po awarii zostały w WAL, a są już w snapshocie, pomija odtwarzanie (LSN). W Windows katalog da się zsynchronizować tylko przez uchwyt otwarty z prawem zapisu i flagą `FILE_FLAG_BACKUP_SEMANTICS` ([eksperyment](research/tests-results.md#12-eksperyment-synchronizacja-katalogu-w-windows), [ADR-0033](adr/0033-checkpoint-plikowy-fsync-katalogu.md)). Operacje na plikach `FileStorage` wykonuje przez interfejs `Vfs`, za który testy podstawiają symulowany system plików i sprawdzają stany po awarii.
 
 ### 4.3 Group commit w przeglądarce
 
