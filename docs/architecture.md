@@ -107,7 +107,11 @@ Co znaczy „trwałe”, zależy od trybu trwałości transakcji IndexedDB, któ
 
 Tryb `strict` jest wolniejszy (koszt do zmierzenia: [todo 4.9](todo.md)). Opcja `durability` przy magazynie bez trybów (np. `MemoryStore`, `FsStore` – tam odpowiednikiem jest `fsync`) kończy się błędem. Bieżący tryb zwraca `stats().durability`, a demo pokazuje go w panelu magazynu i przyjmuje parametr adresu `?durability=strict` ([test](research/tests-results.md#15-tryb-trwałości-indexeddb)).
 
-### 4.4 Wiele kart
+### 4.4 Usuwanie danych przez przeglądarkę
+
+Magazyn strony jest domyślnie „najlepszej staranności” (ang. *best-effort*): przeglądarka może go usunąć przy braku miejsca, a Safari usuwa IndexedDB po 7 dniach używania przeglądarki bez interakcji z witryną [Q2]–[Q4]. Razem z bazą zniknąłby niewysłany outbox. Dlatego `FlatDB.open` z magazynem IndexedDB prosi przeglądarkę o magazyn trwały (`navigator.storage.persist()`). Wynik jest w `db.persisted` (`true` – dane nie zostaną usunięte, `false` – mogą, `null` – brak API) i w `stats().persisted`, a obietnica `db.persistence` rozstrzyga się po odpowiedzi. `open` nie czeka na odpowiedź, bo Firefox pyta użytkownika; aplikacja może wyłączyć prośbę przy otwarciu (`persist: false`) i wywołać `db.requestPersistence()` później, np. po kliknięciu. Chrome odpowiada bez pytania, według zaangażowania użytkownika w witrynę; dla nowej witryny zwykle odmawia ([test](research/tests-results.md#17-prośba-o-trwały-magazyn)). Demo pokazuje stan w panelu magazynu i przycisk ponownej prośby.
+
+### 4.5 Wiele kart
 
 Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, rozjechałyby się. Demo używa **Web Locks API**: pierwsza karta trzyma blokadę i zapisuje do IndexedDB, kolejne przechodzą w tryb tylko-pamięć z ostrzeżeniem. Docelowo: jedna instancja silnika we wspólnym `SharedWorker` lub wybór lidera przez `BroadcastChannel`.
 

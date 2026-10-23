@@ -56,6 +56,61 @@ test('without a store FlatDB.open refuses to start outside the browser', async (
   await assert.rejects(FlatDB.open({ name: 'x' }), /MemoryStore/);
 });
 
+/** navigator.storage stand-in: persisted() reports `granted`, persist() answers `answer`. */
+function fakeStorageManager({ granted = false, answer = true } = {}) {
+  const storage = {
+    asked: 0,
+    async persisted() {
+      return granted;
+    },
+    async persist() {
+      storage.asked++;
+      granted = answer;
+      return answer;
+    },
+  };
+  Object.defineProperty(globalThis.navigator, 'storage', { value: storage, configurable: true });
+  storage.uninstall = () => delete globalThis.navigator.storage;
+  return storage;
+}
+
+test('FlatDB.open asks the browser to keep IndexedDB data (navigator.storage.persist)', async () => {
+  const idb = installFakeIndexedDB();
+  try {
+    for (const [setup, options, asked, persisted] of [
+      [{ granted: false, answer: true }, {}, 1, true],
+      [{ granted: false, answer: false }, {}, 1, false],
+      [{ granted: true }, {}, 0, true],
+      [{ granted: false }, { persist: false }, 0, false],
+    ]) {
+      const storage = fakeStorageManager(setup);
+      try {
+        const db = await FlatDB.open({ name: 'persist', ...options });
+        assert.equal(await db.persistence, persisted, JSON.stringify({ setup, options }));
+        assert.equal(storage.asked, asked, JSON.stringify({ setup, options }));
+        assert.equal(db.stats().persisted, persisted);
+        await db.close();
+      } finally {
+        storage.uninstall();
+      }
+    }
+  } finally {
+    idb.uninstall();
+  }
+});
+
+test('persistence is not requested for stores outside browser storage', async () => {
+  const storage = fakeStorageManager();
+  try {
+    const db = await FlatDB.open({ store: new MemoryStore() });
+    assert.equal(await db.persistence, null);
+    assert.equal(storage.asked, 0);
+    await db.close();
+  } finally {
+    storage.uninstall();
+  }
+});
+
 test('durability is validated and needs a store that supports it', async () => {
   const idb = installFakeIndexedDB();
   try {

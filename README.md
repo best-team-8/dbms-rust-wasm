@@ -130,6 +130,7 @@ npm run bench:full
 import { FlatDB, SyncClient } from './bridge/index.js';
 
 const db = await FlatDB.open({ name: 'my-app' }); // w przeglądarce domyślnie IndexedDB
+// open prosi też o trwały magazyn (navigator.storage.persist); wynik: await db.persistence
 
 db.exec(`CREATE TABLE IF NOT EXISTS inventory (
   id INT PRIMARY KEY, player TEXT NOT NULL, item TEXT, qty INT)`);

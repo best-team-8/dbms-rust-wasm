@@ -61,9 +61,13 @@ export class FlatDB extends EventTarget {
    * @param {'default'|'strict'|'relaxed'} [options.durability] durability of
    *   IndexedDB writes: 'strict' completes a flush only after the data reached
    *   the disk; 'default' leaves it to the browser (relaxed in Chrome 121+)
+   * @param {boolean} [options.persist] ask the browser not to evict the
+   *   IndexedDB data (navigator.storage.persist, default true); Firefox asks
+   *   the user, so an application may pass false and call
+   *   requestPersistence() later
    */
   static async open(options = {}) {
-    const { name, nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability } = options;
+    const { name, nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability, persist = true } = options;
     if (name !== undefined && options.store) throw new TypeError('name applies to the default IndexedDB store only');
     const store = options.store ?? defaultStore(name ?? 'default');
     if (durability !== undefined) {
@@ -84,6 +88,9 @@ export class FlatDB extends EventTarget {
     fdb.recovery = { ...db.recoveryReport(), ms: recoveryMs };
     // A torn tail must not stay in front of frames appended later.
     if (fdb.recovery.tornBytes > 0) await fdb.checkpoint();
+    // Browser storage is "best effort" and may be evicted together with the
+    // unsent outbox. Not awaited: Firefox waits for the user's answer.
+    fdb.persistence = store.kind === 'indexeddb' ? fdb.#persistence(persist) : Promise.resolve(null);
     return fdb;
   }
 
@@ -93,6 +100,9 @@ export class FlatDB extends EventTarget {
     this.#store = store;
     this.checkpointBytes = checkpointBytes;
     this.autoFlush = flush === 'auto';
+    /** true: the browser will not evict the data; false: it may; null: unknown or not applicable. */
+    this.persisted = null;
+    this.persistence = Promise.resolve(null);
   }
 
   get store() {
@@ -167,12 +177,35 @@ export class FlatDB extends EventTarget {
       ...this.#db.stats(),
       store: this.#store.kind,
       durability: this.#store.durability ?? null,
+      persisted: this.persisted,
       walBytes: this.#store.walSize,
       snapshotBytes: this.#store.snapshotSize,
     };
   }
 
   // ---- durability -----------------------------------------------------
+
+  /**
+   * Asks the browser to keep the site's storage (navigator.storage.persist).
+   * Resolves to true when granted, false when refused, null without the API.
+   */
+  requestPersistence() {
+    this.persistence = this.#persistence(true);
+    return this.persistence;
+  }
+
+  async #persistence(ask) {
+    const storage = globalThis.navigator?.storage;
+    if (!storage?.persisted) return null;
+    try {
+      this.persisted = await storage.persisted();
+      if (!this.persisted && ask && storage.persist) this.persisted = await storage.persist();
+    } catch {
+      this.persisted = false;
+    }
+    this.dispatchEvent(new CustomEvent('persistence', { detail: { persisted: this.persisted } }));
+    return this.persisted;
+  }
 
   #afterWrite() {
     if (this.#db.walPending() === 0) return;

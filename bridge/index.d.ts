@@ -113,6 +113,12 @@ export interface FlatDBOptions {
   flush?: 'auto' | 'manual';
   /** Durability of IndexedDB writes (only for IndexedDbStore; default: 'default'). */
   durability?: Durability;
+  /**
+   * Ask the browser not to evict IndexedDB data (`navigator.storage.persist()`,
+   * default true). Firefox asks the user; pass false to ask later with
+   * `requestPersistence()`.
+   */
+  persist?: boolean;
 }
 
 export interface DbStats {
@@ -129,6 +135,8 @@ export interface DbStats {
   store: string;
   /** Durability of IndexedDB writes, null for other stores. */
   durability: Durability | null;
+  /** Whether the browser keeps the data (see FlatDB.persisted). */
+  persisted: boolean | null;
   walBytes: number;
   snapshotBytes: number;
 }
@@ -140,7 +148,7 @@ export interface DbStats {
  *
  * Events: `change` (local write committed), `remote-change` (sync applied
  * changes, detail: ApplyReport), `checkpoint` (detail: { bytes }),
- * `error` (detail: Error from the store).
+ * `error` (detail: Error from the store), `persistence` (detail: { persisted }).
  */
 export class FlatDB extends EventTarget {
   static open(options?: FlatDBOptions): Promise<FlatDB>;
@@ -149,6 +157,16 @@ export class FlatDB extends EventTarget {
   recovery: RecoveryReport;
   checkpointBytes: number;
   autoFlush: boolean;
+  /**
+   * true: the browser will not evict the IndexedDB data; false: it may evict
+   * it (with the unsent outbox) under storage pressure or, in Safari, after
+   * 7 days without interaction; null: unknown or not browser storage.
+   */
+  persisted: boolean | null;
+  /** Settles with the answer to the request made by `open` (null when none was made). */
+  persistence: Promise<boolean | null>;
+  /** Asks the browser to keep the data (`navigator.storage.persist()`). */
+  requestPersistence(): Promise<boolean | null>;
 
   exec(sql: string): QueryResult;
   execAll(sql: string): QueryResult[];

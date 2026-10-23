@@ -215,8 +215,16 @@ const DURABILITY_LABEL = {
   strict: 'strict – po zapisie na dysk',
 };
 
+function persistenceLabel(persisted) {
+  if (persisted === true) return 'tak – przeglądarka nie usunie danych';
+  if (persisted === false) return 'nie – przeglądarka może usunąć dane, także niewysłane zmiany';
+  return app.persistent ? 'nieznany (brak navigator.storage)' : 'nie dotyczy (tylko pamięć)';
+}
+
 function renderStorage() {
   const s = app.db.stats();
+  $('st-persisted').textContent = persistenceLabel(s.persisted);
+  $('btn-persist').classList.toggle('hidden', s.persisted !== false);
   $('st-durability').textContent = s.durability ? DURABILITY_LABEL[s.durability] : 'brak (tylko pamięć)';
   $('st-node').textContent = s.nodeId.toString(16).padStart(8, '0');
   $('st-rows').textContent = `${s.rows.toLocaleString('pl-PL')} / ${s.tables}`;
@@ -301,6 +309,11 @@ function wireUi() {
     log(`Checkpoint (snapshot + obcięcie WAL): ${fmtDuration(performance.now() - t0)}`, 'ok');
     renderStorage();
   });
+  $('btn-persist').addEventListener('click', async () => {
+    const granted = await app.db.requestPersistence();
+    log(granted ? 'Przeglądarka zgodziła się na trwały magazyn' : 'Przeglądarka odmówiła trwałego magazynu', granted ? 'ok' : 'warn');
+    renderStorage();
+  });
   $('btn-reset').addEventListener('click', async () => {
     if (!confirm('Usunąć lokalną bazę z tej przeglądarki? Dane zsynchronizowane z serwerem zostaną pobrane ponownie.')) return;
     app.sync.stop();
@@ -342,6 +355,10 @@ async function main() {
     `${fmtDuration(r.ms)} · snapshot ${fmtBytes(r.snapshotBytes)} + ${r.framesReplayed} ramek WAL` + (r.tornBytes ? ` · odrzucono ${r.tornBytes} B` : '');
   log(`Baza odtworzona z ${app.persistent ? 'IndexedDB' : 'pamięci'} w ${fmtDuration(r.ms)} (${r.framesReplayed} ramek WAL)`);
   app.db.addEventListener('checkpoint', (e) => log(`Automatyczny checkpoint: snapshot ${fmtBytes(e.detail.bytes)}`));
+  app.db.persistence.then((persisted) => {
+    if (persisted !== null) log(`Trwały magazyn: ${persistenceLabel(persisted)}`, persisted ? 'ok' : 'warn');
+    renderStorage();
+  });
   app.db.addEventListener('error', (e) => log(`Zapis do magazynu nie powiódł się: ${e.detail.message}`, 'error'));
 
   app.sync = new SyncClient(app.db, { url: location.origin, intervalMs: 4000 });
