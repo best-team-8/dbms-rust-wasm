@@ -1,7 +1,9 @@
 //! Local-First synchronisation: outbox, acknowledgements, last-writer-wins and
 //! convergence of replicas that worked offline.
 
-use flatsql_core::sync::decode_batch;
+use std::cell::Cell;
+
+use flatsql_core::sync::{decode_batch, Mutation};
 use flatsql_core::{Database, QueryResult, Value};
 
 /// Pure logical clock: makes stamps deterministic in tests.
@@ -201,6 +203,118 @@ fn rejected_changes_are_reported() {
     let report = other.apply_changes(&batch).unwrap();
     assert_eq!((report.applied, report.ignored, report.rejected), (0, 1, 1));
     assert!(report.errors[0].contains("columns"));
+}
+
+thread_local! {
+    /// Wall clocks of simulated devices (milliseconds), one per thread.
+    static WALL: [Cell<u64>; 3] = Default::default();
+}
+
+fn wall0() -> u64 {
+    WALL.with(|w| w[0].get())
+}
+
+fn wall1() -> u64 {
+    WALL.with(|w| w[1].get())
+}
+
+fn wall2() -> u64 {
+    WALL.with(|w| w[2].get())
+}
+
+fn set_wall(i: usize, ms: u64) {
+    WALL.with(|w| w[i].set(ms));
+}
+
+const T: u64 = 1_700_000_000_000;
+const HOUR: u64 = 3_600_000;
+
+fn device(node: u32, clock: fn() -> u64) -> Database {
+    let mut db = Database::new(node);
+    db.set_clock(clock);
+    db
+}
+
+#[test]
+fn stamps_beyond_the_drift_bound_are_rejected_and_do_not_move_the_clock() {
+    set_wall(0, T + HOUR); // clock set an hour ahead
+    set_wall(1, T);
+    set_wall(2, T + 30_000); // ahead, but within the bound
+    let (mut future, mut b, mut near) = (device(1, wall0), device(2, wall1), device(3, wall2));
+    b.execute("CREATE TABLE t (id INT PRIMARY KEY, v TEXT)").unwrap();
+    let (schema, _) = b.export_outbox(usize::MAX).unwrap();
+    future.apply_changes(&schema).unwrap();
+    near.apply_changes(&schema).unwrap();
+
+    future.execute("INSERT INTO t VALUES (1, 'from the future')").unwrap();
+    let (batch, _) = future.export_outbox(usize::MAX).unwrap();
+    let clock = b.stats().clock;
+    let report = b.apply_changes(&batch).unwrap();
+    assert_eq!((report.applied, report.rejected), (0, 1), "{:?}", report.errors);
+    assert!(report.errors[0].contains("clock"), "{:?}", report.errors);
+    assert_eq!(b.stats().clock, clock, "a rejected stamp does not move the clock");
+    assert!(dump(&mut b, "SELECT * FROM t").rows.is_empty());
+
+    near.execute("INSERT INTO t VALUES (2, 'slightly ahead')").unwrap();
+    let (batch, _) = near.export_outbox(usize::MAX).unwrap();
+    let report = b.apply_changes(&batch).unwrap();
+    assert_eq!((report.applied, report.rejected), (1, 0));
+    assert!(b.stats().clock >= (T + 30_000) << 16, "a stamp within the bound is absorbed");
+}
+
+/// Stamp of row `id` of table `t` in a replica's full state.
+fn row_stamp(db: &Database, id: i64) -> Option<flatsql_core::Stamp> {
+    decode_batch(&db.export_state().unwrap()).unwrap().into_iter().find_map(|c| match &c.mutation {
+        Mutation::Put { table, values } if table == "t" && values[0] == Value::Int(id) => Some(c.stamp),
+        _ => None,
+    })
+}
+
+#[test]
+fn changes_made_with_a_clock_ahead_get_new_stamps_once_it_is_fixed() {
+    set_wall(0, T);
+    set_wall(1, T);
+    let mut server = device(100, wall1);
+    let mut a = device(1, wall0);
+    a.execute("CREATE TABLE t (id INT PRIMARY KEY, v TEXT)").unwrap();
+    a.execute("INSERT INTO t VALUES (9, 'sent with a correct clock')").unwrap();
+    let (batch, last) = a.export_outbox(usize::MAX).unwrap();
+    assert_eq!(server.apply_changes(&batch).unwrap().rejected, 0);
+    a.ack_outbox(last);
+    let sent = row_stamp(&server, 9);
+
+    // The device clock jumps an hour ahead; the work goes on offline.
+    set_wall(0, T + HOUR);
+    a.execute("CREATE TABLE u (id INT PRIMARY KEY)").unwrap();
+    a.execute("INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c')").unwrap();
+    a.execute("UPDATE t SET v = 'b2' WHERE id = 2").unwrap();
+    a.execute("DELETE FROM t WHERE id = 3").unwrap();
+    a.execute("INSERT INTO u VALUES (1)").unwrap();
+    let (batch, _) = a.export_outbox(usize::MAX).unwrap();
+    let report = server.apply_changes(&batch).unwrap();
+    assert_eq!((report.applied, report.rejected, report.clock_drift), (0, 5, 5));
+    // Not acknowledged: the changes stay in the outbox.
+
+    // The clock is fixed; the unsent changes get new stamps.
+    set_wall(0, T + 5_000);
+    assert!(a.clock_ahead());
+    let restamped = a.rebase_clock().unwrap();
+    // The host checkpoints after a rebase.
+    let mut a = Database::restore(Some(&a.snapshot().unwrap()), &[], 1).unwrap();
+    a.set_clock(wall0);
+    let (batch, last) = a.export_outbox(usize::MAX).unwrap();
+    let report = server.apply_changes(&batch).unwrap();
+    assert_eq!((report.applied, report.rejected), (5, 0), "{:?}", report.errors);
+    a.ack_outbox(last);
+    assert_eq!(restamped, 5);
+    assert!(!a.clock_ahead());
+    assert!(a.stats().clock >> 16 <= T + 5_000, "the clock went back to the wall clock");
+
+    for sql in ["SELECT * FROM t ORDER BY id", "SELECT * FROM u ORDER BY id"] {
+        assert_eq!(dump(&mut a, sql), dump(&mut server, sql));
+    }
+    assert_eq!(server.stats().tombstones, 1);
+    assert_eq!(row_stamp(&server, 9), sent, "a stamp that left the device is kept");
 }
 
 /// xorshift64* – deterministic randomness without dependencies.

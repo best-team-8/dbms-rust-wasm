@@ -48,6 +48,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0032](0032-metodyka-testow-poprawnosci.md) | Metodyka testów poprawności oddzielna od metodyki benchmarków | proces | przyjęta |
 | [0033](0033-checkpoint-plikowy-fsync-katalogu.md) | Checkpoint na plikach: synchronizacja katalogu przed obcięciem WAL | architektura | przyjęta |
 | [0034](0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md) | Magazyn domyślny: IndexedDB w przeglądarce, jawny wybór poza nią | architektura | przyjęta |
+| [0035](0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md) | Granica dryfu zegara: odrzucenie, wstrzymanie synchronizacji i nowe znaczniki | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

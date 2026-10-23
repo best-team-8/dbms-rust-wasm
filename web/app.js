@@ -188,6 +188,7 @@ const STATUS_LABEL = {
   syncing: 'synchronizacja…',
   offline: 'offline – zmiany czekają',
   error: 'błąd serwera',
+  clock: 'zegar urządzenia odbiega od serwera – synchronizacja wstrzymana',
 };
 
 function renderSync() {
@@ -200,6 +201,9 @@ function renderSync() {
   $('sync-pending').textContent = pending;
   $('sync-last').textContent = fmtTime(sync.lastSync);
   $('sync-cursor').textContent = sync.epoch ? `${sync.cursor} @ ${sync.epoch}` : '–';
+  const skew = sync.clockSkewMs;
+  $('sync-skew').textContent =
+    skew === null ? '–' : `${skew >= 0 ? '+' : '−'}${(Math.abs(skew) / 1000).toFixed(1)} s (limit ${sync.maxDriftMs / 1000} s)`;
   const state = status === 'idle' ? (pending ? 'warn' : 'ok') : status === 'syncing' ? 'busy' : 'bad';
   setChip('chip-sync', `Sync: ${pending ? `${pending} oczekuje` : label}`, state);
 }
@@ -367,8 +371,14 @@ async function main() {
     renderNetwork();
     if (e.detail.status === 'offline') log('Serwer niedostępny – praca offline, zmiany czekają w outboksie', 'warn');
   });
+  app.sync.addEventListener('clock', (e) => {
+    const { skewMs, rejected } = e.detail;
+    const why = rejected ? `serwer odrzucił ${rejected} zmian ze znacznikiem z przyszłości` : 'odchylenie zegara';
+    log(`Zegar urządzenia: ${(skewMs / 1000).toFixed(0)} s względem serwera (${why}) – synchronizacja wstrzymana, zmiany czekają`, 'error');
+  });
   app.sync.addEventListener('synced', (e) => {
-    const { pushed, pulled, ms } = e.detail;
+    const { pushed, pulled, ms, restamped } = e.detail;
+    if (restamped) log(`Zegar poprawiony: ${restamped} niewysłanych zmian dostało nowe znaczniki`, 'ok');
     if (pushed || pulled) log(`Synchronizacja: wysłano ${pushed}, odebrano ${pulled} zmian (${fmtDuration(ms)})`, 'ok');
     renderSync();
   });

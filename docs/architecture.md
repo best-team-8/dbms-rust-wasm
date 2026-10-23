@@ -120,6 +120,7 @@ Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, 
 ### 5.1 Model danych synchronizacji
 
 - Każda zmiana ma **znacznik** `Stamp { time, node }`: `time` z hybrydowego zegara logicznego (HLC – milisekundy fizyczne << 16 | licznik logiczny), `node` – losowy identyfikator repliki. Zegar nigdy się nie cofa i „wchłania” znaczniki otrzymane od innych replik.
+- **Granica dryfu** (`MAX_DRIFT_MS` = 60 s): znacznik dalszy niż 60 s przed zegarem ściennym odbiorcy nie jest wchłaniany, a zmiana jest odrzucana (`ApplyReport.clock_drift`). Bez tego urządzenie z zegarem w przyszłości wygrywałoby każdy konflikt i przesuwało zegary wszystkich replik [C2]. Własna historia (snapshot, WAL) jest wchłaniana bez granicy. Zmiany zrobione, gdy zegar urządzenia się spieszył, po jego poprawieniu dostają nowe znaczniki (`rebase_clock`, zob. §5.3); zegar cofa się wtedy tylko o znaczniki, które nie opuściły urządzenia ([ADR-0035](adr/0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md)).
 - **Last-writer-wins per wiersz**: zmiana zdalna jest stosowana tylko, gdy jej znacznik jest większy od znacznika wiersza lub jego **tombstone'u** (usunięte wiersze pamiętają znacznik usunięcia, żeby spóźniony `UPDATE` nie wskrzesił wiersza).
 - Porządek znaczników jest całkowity i identyczny na wszystkich replikach, więc stan zbiega się niezależnie od kolejności dostarczania zmian (test losowy: 25 ziaren × 300 operacji na 3 replikach z przerywaną łącznością).
 
@@ -134,12 +135,17 @@ Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, 
 
 | Żądanie | Treść | Odpowiedź |
 |---|---|---|
-| `POST /sync/push?client=ID` | paczka binarna zmian z outboksu | JSON `{applied, ignored, rejected, errors, seq}` |
+| `POST /sync/push?client=ID` | paczka binarna zmian z outboksu | JSON `{applied, ignored, rejected, clockDrift, errors, seq, serverTime}` |
 | `GET /sync/pull?since=N&epoch=E&client=ID` | – | paczka binarna; nagłówki `X-Sync-Cursor`, `X-Sync-Epoch` |
+| `GET /sync/time` | – | JSON `{serverTime}` – sprawdzenie zegara |
+
+Każda odpowiedź `/sync/*` ma nagłówek `X-Server-Time` (zegar serwera w ms).
 
 Serwer utrzymuje własną replikę (ten sam silnik WASM) oraz log przyjętych paczek z numerami `seq`. Pull zwraca konkatenację paczek po kursorze (bez własnych zmian klienta). Gdy kursor jest nieznany – nowy klient, restart serwera (nowa `epoch`), log skompaktowany – serwer odsyła pełny stan (`exportState`), który dzięki LWW jest bezpieczny do ponownego zastosowania.
 
-Kolejność kroków w kliencie (`SyncClient`) zapewnia idempotencję: (1) push i `ack` dopiero po odpowiedzi 200, (2) pull i zastosowanie zmian, (3) `flush` WAL, (4) zapis kursora. Przerwanie w dowolnym miejscu kończy się powtórzeniem rundy, a powtórnie dostarczone zmiany są ignorowane (równe znaczniki). Przy braku sieci klient ponawia próby z wykładniczym odstępem (do 30 s) i natychmiast po zdarzeniu `online`.
+Kolejność kroków w kliencie (`SyncClient`) zapewnia idempotencję: (1) push i `ack` dopiero po odpowiedzi 200, (2) pull i zastosowanie zmian, (3) `flush` WAL, (4) zapis kursora.
+
+**Zegar urządzenia.** Zegar serwera jest wzorcem. Klient mierzy odchylenie swojego zegara z nagłówka `X-Server-Time` (przed pierwszą wysyłką – przez `/sync/time`). Gdy przekracza 60 s albo serwer odrzucił wysłane zmiany za dryf (`clockDrift > 0`), klient wstrzymuje synchronizację: nie potwierdza paczki, więc zmiany zostają w outboksie, nie pobiera zmian, przechodzi w stan `clock` i zgłasza zdarzenie `clock`; kolejne rundy sprawdzają tylko zegar. Po poprawieniu zegara `FlatDB.rebaseClock()` nadaje nowe znaczniki niewysłanym zmianom „z przyszłości”, wykonuje checkpoint (nowe znaczniki nie trafiają do WAL) i synchronizacja rusza dalej. Zmiany pobrane z serwera, które są dalej niż 60 s przed zegarem klienta (dwa urządzenia mogą różnić się prawie o 2 × 60 s), nie przesuwają kursora i są pobierane ponownie. Demo pokazuje odchylenie w panelu synchronizacji. Przerwanie w dowolnym miejscu kończy się powtórzeniem rundy, a powtórnie dostarczone zmiany są ignorowane (równe znaczniki). Przy braku sieci klient ponawia próby z wykładniczym odstępem (do 30 s) i natychmiast po zdarzeniu `online`.
 
 ### 5.4 Tryb edge / cloud
 

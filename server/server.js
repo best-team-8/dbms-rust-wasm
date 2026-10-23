@@ -70,14 +70,14 @@ async function readBody(req) {
 function send(res, status, body, headers = {}) {
   res.writeHead(status, {
     'access-control-allow-origin': '*',
-    'access-control-expose-headers': 'x-sync-cursor, x-sync-epoch, x-server-ms',
+    'access-control-expose-headers': 'x-sync-cursor, x-sync-epoch, x-server-ms, x-server-time',
     ...headers,
   });
   res.end(body);
 }
 
-function json(res, status, value) {
-  send(res, status, JSON.stringify(value), { 'content-type': MIME['.json'] });
+function json(res, status, value, headers = {}) {
+  send(res, status, JSON.stringify(value), { 'content-type': MIME['.json'], ...headers });
 }
 
 export async function createServer(options = {}) {
@@ -145,6 +145,12 @@ export async function createServer(options = {}) {
       }
     }
 
+    // The server clock is the reference: a client whose clock differs by
+    // more than maxDriftMs() pauses synchronisation (see bridge/sync.js).
+    if (url.pathname === '/sync/time' && req.method === 'GET') {
+      return json(res, 200, { serverTime: Date.now() }, { 'x-server-time': String(Date.now()) });
+    }
+
     if (url.pathname === '/sync/push' && req.method === 'POST') {
       const client = url.searchParams.get('client') ?? 'unknown';
       const body = await readBody(req);
@@ -163,13 +169,20 @@ export async function createServer(options = {}) {
       }
       await db.flush();
       log_(`push  client=${client} applied=${report.applied} ignored=${report.ignored} rejected=${report.rejected}`);
-      return json(res, 200, {
-        applied: report.applied,
-        ignored: report.ignored,
-        rejected: report.rejected,
-        errors: report.errors,
-        seq,
-      });
+      return json(
+        res,
+        200,
+        {
+          applied: report.applied,
+          ignored: report.ignored,
+          rejected: report.rejected,
+          clockDrift: report.clockDrift,
+          errors: report.errors,
+          seq,
+          serverTime: Date.now(),
+        },
+        { 'x-server-time': String(Date.now()) },
+      );
     }
 
     if (url.pathname === '/sync/pull' && req.method === 'GET') {
@@ -189,6 +202,7 @@ export async function createServer(options = {}) {
         'content-type': 'application/octet-stream',
         'x-sync-cursor': String(seq),
         'x-sync-epoch': epoch,
+        'x-server-time': String(Date.now()),
       });
     }
 

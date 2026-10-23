@@ -275,6 +275,26 @@ export class FlatDB extends EventTarget {
     this.#afterWrite();
   }
 
+  /** True when local changes were stamped by a clock running ahead (see rebaseClock). */
+  clockAhead() {
+    return this.#db.clockAhead();
+  }
+
+  /**
+   * Gives new stamps to unsent changes made while the device clock ran ahead
+   * (once it is right again) and makes them durable with a checkpoint.
+   * Resolves to the number of re-stamped changes.
+   */
+  rebaseClock() {
+    return this.#enqueue(async () => {
+      if (!this.#db.clockAhead()) return 0;
+      const restamped = this.#db.rebaseClock();
+      await this.#appendPending();
+      await this.#writeSnapshot();
+      return restamped;
+    });
+  }
+
   applyChanges(batch) {
     const report = this.#db.applyChanges(batch);
     if (report.applied > 0) this.dispatchEvent(new CustomEvent('remote-change', { detail: report }));

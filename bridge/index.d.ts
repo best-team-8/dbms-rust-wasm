@@ -3,7 +3,7 @@
 
 import type { Database, PreparedStatement, OutboxBatch } from '../pkg/flatsql.js';
 
-export { Database, PreparedStatement, OutboxBatch, describeChanges, version } from '../pkg/flatsql.js';
+export { Database, PreparedStatement, OutboxBatch, describeChanges, maxDriftMs, version } from '../pkg/flatsql.js';
 
 /** A SQL value as seen from JavaScript (INT and FLOAT are numbers). */
 export type SqlValue = null | boolean | number | string;
@@ -39,6 +39,8 @@ export interface ApplyReport {
   applied: number;
   ignored: number;
   rejected: number;
+  /** Rejected changes stamped more than maxDriftMs() ahead of the local clock (part of `rejected`). */
+  clockDrift: number;
   errors: string[];
   /** Batch with only the changes that took effect. */
   accepted: Uint8Array;
@@ -131,6 +133,8 @@ export interface DbStats {
   walPending: number;
   outbox: number;
   ackedSeq: number;
+  /** Hybrid logical clock, physical part (milliseconds since the epoch). */
+  clockMs: number;
   inTransaction: boolean;
   store: string;
   /** Durability of IndexedDB writes, null for other stores. */
@@ -188,6 +192,14 @@ export class FlatDB extends EventTarget {
   outboxLength(): number;
   exportOutbox(max?: number): OutboxBatch;
   ackOutbox(lastSeq: number): void;
+  /** True when local changes were stamped while the clock ran more than maxDriftMs() ahead. */
+  clockAhead(): boolean;
+  /**
+   * Gives new stamps to unsent changes made while the device clock ran ahead
+   * (once it is right again), moves the clock back and checkpoints.
+   * Resolves to the number of re-stamped changes.
+   */
+  rebaseClock(): Promise<number>;
   applyChanges(batch: Uint8Array): ApplyReport;
   exportState(): Uint8Array;
 }
@@ -206,18 +218,37 @@ export interface SyncResult {
   pulled: number;
   ignored: number;
   rejected: number;
+  /** Pulled changes stamped too far ahead of this clock; the cursor stays and they are pulled again. */
+  clockDrift: number;
+  /** Changes that got new stamps after the device clock was fixed. */
+  restamped: number;
   ms: number;
+}
+
+/** The device clock differs from the server clock by more than maxDriftMs(). */
+export class ClockError extends Error {
+  /** Device clock minus server clock, in milliseconds. */
+  readonly skewMs: number | null;
+  /** Pushed changes the server rejected as stamped too far ahead. */
+  readonly rejected: number;
 }
 
 /**
  * Background replication with the sync server. Events: `status`
- * (detail: { status, result?, error? }) and `synced` (detail: SyncResult).
+ * (detail: { status, result?, error? }), `synced` (detail: SyncResult) and
+ * `clock` (detail: { skewMs, rejected, maxDriftMs }) when synchronisation is
+ * paused because the device clock is wrong.
  */
 export class SyncClient extends EventTarget {
   constructor(db: FlatDB, options: SyncOptions);
   readonly clientId: string;
   readonly pending: number;
-  status: 'idle' | 'syncing' | 'offline' | 'error';
+  /** 'clock': paused because the device clock differs from the server's by more than maxDriftMs. */
+  status: 'idle' | 'syncing' | 'offline' | 'error' | 'clock';
+  /** Device clock minus server clock (ms) measured from the last response. */
+  clockSkewMs: number | null;
+  clockPaused: boolean;
+  readonly maxDriftMs: number;
   cursor: number;
   epoch: string | null;
   lastSync: Date | null;
@@ -228,7 +259,7 @@ export class SyncClient extends EventTarget {
 
   start(): Promise<void>;
   stop(): void;
-  syncNow(): Promise<SyncResult | { error: Error } | { skipped: string }>;
+  syncNow(): Promise<SyncResult | { error: Error | ClockError } | { skipped: string }>;
   setSimulatedOffline(offline: boolean): void;
   drain(options?: { timeoutMs?: number }): Promise<SyncResult>;
 }

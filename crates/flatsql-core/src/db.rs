@@ -8,7 +8,7 @@
 //! the database is produced by [`Database::snapshot`] (checkpoint).
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use crate::error::{Error, Result};
@@ -20,7 +20,7 @@ use crate::storage::snapshot;
 use crate::storage::wal::{self, LogOp, WalReader, OP_ACK, OP_CHANGE};
 use crate::sync::{
     decode_batch, encode_batch, encode_change, encode_delete, encode_put, system_now_ms, ApplyReport, Change, Hlc,
-    Mutation, Outbox, OutboxItem, Stamp,
+    Mutation, Outbox, OutboxItem, Stamp, MAX_DRIFT_MS,
 };
 use crate::table::{Index, RowEntry, Table, TableSchema};
 use crate::value::Value;
@@ -501,7 +501,7 @@ impl Database {
 
     fn replay_change(&mut self, seq: u64, change: Change) -> Result<()> {
         let stamp = change.stamp;
-        self.clock.observe(stamp.time);
+        self.clock.absorb(stamp.time);
         if seq > 0 {
             self.next_seq = self.next_seq.max(seq + 1);
         }
@@ -594,6 +594,89 @@ impl Database {
         wal::write_frame(&mut self.wal_out, self.lsn, 1, &w.buf);
     }
 
+    /// Whether the clock is more than [`MAX_DRIFT_MS`] ahead of the wall clock:
+    /// local changes were made while the wall clock ran ahead, and other
+    /// replicas would reject their stamps (see [`rebase_clock`](Self::rebase_clock)).
+    pub fn clock_ahead(&self) -> bool {
+        self.clock.last() > self.clock.bound()
+    }
+
+    /// Gives new stamps to local changes made while the wall clock ran ahead,
+    /// once it is right again. Only outbox entries whose stamp is beyond the
+    /// drift bound get one: other replicas rejected those stamps, so no copy
+    /// of them exists elsewhere. The clock goes back to the newest stamp that
+    /// is kept. Returns the number of re-stamped changes; the new stamps are
+    /// not logged, so the host makes them durable with a checkpoint.
+    pub fn rebase_clock(&mut self) -> Result<usize> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot rebase the clock inside an open transaction".into()));
+        }
+        if !self.clock_ahead() {
+            return Ok(0);
+        }
+        let bound = self.clock.bound();
+        let stamp_of = |tables: &BTreeMap<String, Table>, item: &OutboxItem| match item {
+            OutboxItem::Row { table, key } => tables
+                .get(&**table)
+                .and_then(|t| t.rows.get(key).map(|r| r.stamp).or_else(|| t.tombstones.get(key).copied())),
+            OutboxItem::Schema(c) => Some(c.stamp),
+        };
+        let targets: Vec<u64> = self
+            .outbox
+            .by_seq
+            .iter()
+            .filter(|(_, item)| stamp_of(&self.tables, item).is_some_and(|s| s.time > bound))
+            .map(|(&seq, _)| seq)
+            .collect();
+        // Stamps are unique per replica, so they identify what gets re-stamped.
+        let restamped: HashSet<Stamp> =
+            targets.iter().filter_map(|seq| stamp_of(&self.tables, &self.outbox.by_seq[seq])).collect();
+        // The newest stamp that stays: anything not re-stamped may exist on
+        // another replica, and the clock must not fall behind it.
+        let mut keep = self.clock.wall_ms() << 16;
+        for t in self.tables.values() {
+            let stamps = std::iter::once(t.created)
+                .chain(t.rows.values().map(|r| r.stamp))
+                .chain(t.tombstones.values().copied());
+            keep = stamps.filter(|s| !restamped.contains(s)).fold(keep, |k, s| k.max(s.time));
+        }
+        for item in self.outbox.by_seq.values() {
+            if let OutboxItem::Schema(c) = item {
+                if !restamped.contains(&c.stamp) {
+                    keep = keep.max(c.stamp.time);
+                }
+            }
+        }
+        self.clock.reset(keep);
+        for seq in targets {
+            let new = self.new_stamp();
+            let Database { tables, outbox, .. } = self;
+            match outbox.by_seq.get_mut(&seq) {
+                Some(OutboxItem::Row { table, key }) => {
+                    if let Some(t) = tables.get_mut(&**table) {
+                        if let Some(row) = t.rows.get_mut(key) {
+                            row.stamp = new;
+                        } else if let Some(ts) = t.tombstones.get_mut(key) {
+                            *ts = new;
+                        }
+                    }
+                }
+                Some(OutboxItem::Schema(change)) => {
+                    if let Mutation::CreateTable(schema) = &change.mutation {
+                        if let Some(t) = tables.get_mut(&*catalog_key(&schema.name)) {
+                            if t.created == change.stamp {
+                                t.created = new;
+                            }
+                        }
+                    }
+                    change.stamp = new;
+                }
+                None => {}
+            }
+        }
+        Ok(restamped.len())
+    }
+
     /// Applies changes received from other replicas using last-writer-wins.
     /// The whole batch is committed as one transaction.
     pub fn apply_changes(&mut self, batch: &[u8]) -> Result<ApplyReport> {
@@ -605,7 +688,22 @@ impl Database {
         let mut report = ApplyReport::default();
         let mut accepted = Vec::new();
         for change in changes {
-            self.clock.observe(change.stamp.time);
+            if !self.clock.observe(change.stamp.time) {
+                // Not applied and not absorbed: a replica with a clock far
+                // ahead must not win every conflict nor move other clocks.
+                report.rejected += 1;
+                report.clock_drift += 1;
+                if report.errors.len() < 5 {
+                    let ahead = change.stamp.physical_ms().saturating_sub(self.clock.wall_ms());
+                    report.errors.push(format!(
+                        "clock drift: stamp {} is {} s ahead of the local clock (limit {} s)",
+                        change.stamp,
+                        ahead / 1000,
+                        MAX_DRIFT_MS / 1000
+                    ));
+                }
+                continue;
+            }
             match self.apply_remote(&change) {
                 Ok(true) => {
                     report.applied += 1;

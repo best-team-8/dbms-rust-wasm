@@ -54,7 +54,7 @@ The primary objective is to implement the **Edge Computing** paradigm by shiftin
 |---|---|
 | Rdzeń silnika (`crates/flatsql-core`) | lekser i parser Flat-SQL, typy `INT/FLOAT/TEXT/BOOL`, logika trójwartościowa SQL, funkcje skalarne i agregujące, planer zapytań (PK lookup, indeks, zakresy, full scan, `EXPLAIN`), transakcje z undo logiem, prepared statements – bez zależności zewnętrznych |
 | Warstwa składowania | WAL (jedna ramka z CRC32 na transakcję), snapshoty (checkpoint), odtwarzanie po awarii odporne na urwane zapisy, backend plikowy i pamięciowy; w przeglądarce IndexedDB z group commitem |
-| Synchronizacja | zegar hybrydowy (HLC), LWW per wiersz z tombstone'ami, outbox odtwarzany z WAL, binarne paczki zmian, serwer z logiem i kompaktowaniem |
+| Synchronizacja | zegar hybrydowy (HLC) z granicą dryfu (urządzenie z błędnym zegarem wstrzymuje synchronizację, a po poprawie zegara jego zmiany dostają nowe znaczniki), LWW per wiersz z tombstone'ami, outbox odtwarzany z WAL, binarne paczki zmian, serwer z logiem i kompaktowaniem |
 | WASM-Bridge (`crates/flatsql-wasm`, `bridge/`) | wiązania `wasm-bindgen`, API JavaScript (`FlatDB`, `SyncClient`, magazyny IndexedDB/pamięć/pliki), typy TypeScript |
 | Serwer (`server/`) | ten sam silnik WASM w Node.js (tryb edge): hub synchronizacji, API zapytań „cloud” z symulowaną latencją, hosting dema |
 | Demo (`web/`) | konsola SQL w przeglądarce, panel synchronizacji i trybu offline, Service Worker, benchmark w przeglądarce |

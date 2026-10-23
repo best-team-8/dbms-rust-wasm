@@ -116,6 +116,17 @@ impl<S: Storage> Persistent<S> {
         self.storage.write_snapshot(&snapshot)
     }
 
+    /// [`Database::rebase_clock`] made durable with a checkpoint (the new
+    /// stamps are not logged in the WAL).
+    pub fn rebase_clock(&mut self) -> Result<usize> {
+        if !self.db.clock_ahead() {
+            return Ok(0);
+        }
+        let restamped = self.db.rebase_clock()?;
+        self.checkpoint()?;
+        Ok(restamped)
+    }
+
     pub fn recovery_report(&self) -> Option<&RecoveryReport> {
         self.db.recovery_report()
     }
