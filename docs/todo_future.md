@@ -43,7 +43,7 @@ Jeśli scenariusze edge z prezentacji mają zostać pokazane na obronie, 7.1 war
 
 ## 1. Platforma przeglądarki
 
-- [ ] **1.1 Wiele kart** (średni) – dziś demo trzyma blokadę Web Locks: pierwsza karta zapisuje do IndexedDB, kolejne pracują tylko w pamięci, więc ich zapisy giną po zamknięciu ([architecture.md §4.4](architecture.md)). Docelowo jedna instancja silnika obsługuje wszystkie karty – wzór z wdrożenia Notion, gdzie współbieżne zapisy z kilku kart uszkadzały dane [Q12]:
+- [ ] **1.1 Wiele kart** (średni) – dziś demo trzyma blokadę Web Locks: pierwsza karta zapisuje do IndexedDB, kolejne pracują tylko w pamięci, więc ich zapisy giną po zamknięciu ([architecture.md §4.5](architecture.md)). Docelowo jedna instancja silnika obsługuje wszystkie karty – wzór z wdrożenia Notion, gdzie współbieżne zapisy z kilku kart uszkadzały dane [Q12]:
   - [ ] `SharedWorker` jako pośrednik – od 2026 r. dostępny we wszystkich głównych przeglądarkach (Chrome na Androidzie od wersji 148); silnik w workerze działa jak w wątku głównym, bez COOP/COEP;
   - [ ] wariant zapasowy dla starszych przeglądarek: wybór aktywnej karty przez Web Locks, pozostałe kierują do niej zapytania, przejęcie roli po zamknięciu aktywnej karty;
   - [ ] powiadamianie kart o zmianach (`BroadcastChannel`) – potrzebne też dla 5.1;

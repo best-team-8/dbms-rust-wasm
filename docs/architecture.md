@@ -80,9 +80,16 @@ flowchart LR
 |---|---|---|---|
 | `IndexedDbStore` | przeglądarka | `add()` do magazynu `wal` (klucze rosnące) | `put` snapshotu i `clear()` WAL w **jednej** transakcji IndexedDB |
 | `MemoryStore` | przeglądarka / testy | tablica fragmentów | podmiana |
-| `FsStore` (JS) / `FileStorage` (Rust) | Node.js / natywnie | dopisanie do `wal.fsql` (opcjonalnie `fsync`) | zapis `snapshot.fsql.tmp` → `rename` → obcięcie WAL |
+| `FileStorage` (Rust) | natywnie (CLI) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `--no-fsync`) | `snapshot.fsql.tmp` i `fsync` → `rename` → `fsync` katalogu → obcięcie WAL i `fsync`; zawsze synchronizowany |
+| `FsStore` (JS) | Node.js (serwer) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `new FsStore(dir, { fsync: false })`) | jak `FileStorage`; `meta.json` (identyfikator węzła, kursor synchronizacji) przez plik tymczasowy, `fsync` i `rename` |
 
 Format plików jest wspólny dla Rust i Node.js – katalog danych serwera można otworzyć w CLI.
+
+Magazyn wybiera aplikacja opcją `store` w `FlatDB.open`. Bez niej w przeglądarce baza trafia do `IndexedDbStore(name)` (opcja `name`, domyślnie `'default'`), więc dane przetrwają odświeżenie strony. Poza przeglądarką magazynu domyślnego nie ma: `FlatDB.open()` bez `store` kończy się błędem, żeby dane nie zostały po cichu tylko w pamięci ([ADR-0034](adr/0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md)).
+
+**Kolejność kroków checkpointu na plikach.** Zmiana nazwy pliku jest operacją na katalogu i trafia na dysk dopiero po `fsync` katalogu, a system plików może utrwalić obcięcie WAL wcześniej niż zmianę nazwy. Po awarii zostałby wtedy stary snapshot z pustym WAL. Dlatego WAL jest obcinany dopiero po `fsync` katalogu; katalog jest synchronizowany także po utworzeniu pliku WAL. Ramki, które po awarii zostały w WAL, a są już w snapshocie, pomija odtwarzanie (LSN). W Windows katalog da się zsynchronizować tylko przez uchwyt otwarty z prawem zapisu i flagą `FILE_FLAG_BACKUP_SEMANTICS` (w Node.js: `open(dir, 'r+')`, bo libuv zawsze dodaje tę flagę; w Linuksie otwarcie katalogu do zapisu kończy się błędem `EISDIR`, więc tam `'r'`) ([eksperyment](research/tests-results.md#12-eksperyment-synchronizacja-katalogu-w-windows), [ADR-0033](adr/0033-checkpoint-plikowy-fsync-katalogu.md)). Operacje na plikach `FileStorage` wykonuje przez interfejs `Vfs`, za który testy podstawiają symulowany system plików; dla `FsStore` testy symulują w pamięci wywołania `node:fs/promises`. Na tej podstawie testy przeglądają wszystkie stany dysku, jakie po awarii w dowolnym miejscu dopuszcza model systemu plików, także z urwanymi zapisami ([tests-results.md §1.4](research/tests-results.md#14-wszystkie-stany-po-awarii-dopuszczone-przez-model)).
+
+Wyłączenie `fsync` (`--no-fsync`, `fsync: false`) dotyczy tylko zatwierdzeń: po awarii mogą zniknąć ostatnie transakcje, ale checkpoint jest synchronizowany zawsze, więc starsze dane są bezpieczne. W `FsStore` bez `fsync` nie jest też synchronizowany `meta.json`; urwany plik jest przy otwarciu traktowany jak pusty. Utracony kursor oznacza pełne pobranie stanu z serwera, a utracony identyfikator węzła (przed pierwszym checkpointem, później jest też w snapshocie) – nowy identyfikator dla dalszych zmian.
 
 ### 4.3 Group commit w przeglądarce
 
@@ -90,7 +97,21 @@ Format plików jest wspólny dla Rust i Node.js – katalog danych serwera możn
 
 Semantyka trwałości jest więc analogiczna do `synchronous=NORMAL` w SQLite: po `await flush()` dane są trwałe; zatwierdzenia z ostatnich milisekund mogą przepaść przy nagłym zamknięciu karty, ale baza zawsze wraca do spójnego stanu.
 
-### 4.4 Wiele kart
+Co znaczy „trwałe”, zależy od trybu trwałości transakcji IndexedDB, który podaje się w `FlatDB.open({ durability })` (albo w konstruktorze `IndexedDbStore`) i który dotyczy każdego zapisu magazynu: dopisania WAL, checkpointu i metadanych.
+
+| Tryb | `flush()` kończy się, gdy dane | Przetrwa |
+|---|---|---|
+| `relaxed` | zostały przekazane systemowi operacyjnemu | zamknięcie karty, awarię przeglądarki |
+| `strict` | zostały zapisane na dysk | także awarię systemu i utratę zasilania |
+| `default` (domyślny) | według przeglądarki – w Chrome 121+ jak `relaxed` [Q1] | jak wybrany tryb |
+
+Tryb `strict` jest wolniejszy (koszt do zmierzenia: [todo 4.9](todo.md)). Opcja `durability` przy magazynie bez trybów (np. `MemoryStore`, `FsStore` – tam odpowiednikiem jest `fsync`) kończy się błędem. Bieżący tryb zwraca `stats().durability`, a demo pokazuje go w panelu magazynu i przyjmuje parametr adresu `?durability=strict` ([test](research/tests-results.md#15-tryb-trwałości-indexeddb)).
+
+### 4.4 Usuwanie danych przez przeglądarkę
+
+Magazyn strony jest domyślnie „najlepszej staranności” (ang. *best-effort*): przeglądarka może go usunąć przy braku miejsca, a Safari usuwa IndexedDB po 7 dniach używania przeglądarki bez interakcji z witryną [Q2]–[Q4]. Razem z bazą zniknąłby niewysłany outbox. Dlatego `FlatDB.open` z magazynem IndexedDB prosi przeglądarkę o magazyn trwały (`navigator.storage.persist()`). Wynik jest w `db.persisted` (`true` – dane nie zostaną usunięte, `false` – mogą, `null` – brak API) i w `stats().persisted`, a obietnica `db.persistence` rozstrzyga się po odpowiedzi. `open` nie czeka na odpowiedź, bo Firefox pyta użytkownika; aplikacja może wyłączyć prośbę przy otwarciu (`persist: false`) i wywołać `db.requestPersistence()` później, np. po kliknięciu. Chrome odpowiada bez pytania, według zaangażowania użytkownika w witrynę; dla nowej witryny zwykle odmawia ([test](research/tests-results.md#17-prośba-o-trwały-magazyn)). Demo pokazuje stan w panelu magazynu i przycisk ponownej prośby.
+
+### 4.5 Wiele kart
 
 Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, rozjechałyby się. Demo używa **Web Locks API**: pierwsza karta trzyma blokadę i zapisuje do IndexedDB, kolejne przechodzą w tryb tylko-pamięć z ostrzeżeniem. Docelowo: jedna instancja silnika we wspólnym `SharedWorker` lub wybór lidera przez `BroadcastChannel`.
 
@@ -99,8 +120,10 @@ Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, 
 ### 5.1 Model danych synchronizacji
 
 - Każda zmiana ma **znacznik** `Stamp { time, node }`: `time` z hybrydowego zegara logicznego (HLC – milisekundy fizyczne << 16 | licznik logiczny), `node` – losowy identyfikator repliki. Zegar nigdy się nie cofa i „wchłania” znaczniki otrzymane od innych replik.
+- **Granica dryfu** (`MAX_DRIFT_MS` = 60 s): znacznik dalszy niż 60 s przed zegarem ściennym odbiorcy nie jest wchłaniany, a zmiana jest odrzucana (`ApplyReport.clock_drift`). Bez tego urządzenie z zegarem w przyszłości wygrywałoby każdy konflikt i przesuwało zegary wszystkich replik [C2]. Własna historia (snapshot, WAL) jest wchłaniana bez granicy. Zmiany zrobione, gdy zegar urządzenia się spieszył, po jego poprawieniu dostają nowe znaczniki (`rebase_clock`, zob. §5.3); zegar cofa się wtedy tylko o znaczniki, które nie opuściły urządzenia ([ADR-0035](adr/0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md)).
 - **Last-writer-wins per wiersz**: zmiana zdalna jest stosowana tylko, gdy jej znacznik jest większy od znacznika wiersza lub jego **tombstone'u** (usunięte wiersze pamiętają znacznik usunięcia, żeby spóźniony `UPDATE` nie wskrzesił wiersza).
-- Porządek znaczników jest całkowity i identyczny na wszystkich replikach, więc stan zbiega się niezależnie od kolejności dostarczania zmian (test losowy: 25 ziaren × 300 operacji na 3 replikach z przerywaną łącznością).
+- **Konflikt schematu**: `CREATE TABLE` innej repliki dla tabeli, która lokalnie ma inną definicję, nie jest stosowany, a jej wiersze (także pasujące przypadkiem) są odrzucane. Raport zastosowania (`ApplyReport.conflicts`, odpowiedź `/sync/push`, zdarzenie `conflict` w `SyncClient`) podaje jedną pozycję na tabelę: obie definicje, liczbę odrzuconych zmian wierszy i rodzaj – „dokładanie” (jedna definicja dodaje na końcu tylko kolumny dopuszczające `NULL`; po wprowadzeniu wersji struktury przestanie być konfliktem) albo niezgodność ([ADR-0036](adr/0036-jawne-konflikty-schematu-przed-wersjami-struktury.md)).
+- Porządek znaczników jest całkowity i identyczny na wszystkich replikach, więc stan zbiega się niezależnie od kolejności dostarczania zmian (test losowy: 25 ziaren × 300 operacji na 3 replikach z przerywaną łącznością; drugi test: 4 urządzenia z przesuniętymi zegarami, podziałami sieci, utraconymi potwierdzeniami i kursorami oraz restartami, [tests-results.md §2.3](research/tests-results.md#23-zbieżność-w-trudnych-warunkach)).
 
 ### 5.2 Outbox
 
@@ -113,12 +136,17 @@ Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, 
 
 | Żądanie | Treść | Odpowiedź |
 |---|---|---|
-| `POST /sync/push?client=ID` | paczka binarna zmian z outboksu | JSON `{applied, ignored, rejected, errors, seq}` |
+| `POST /sync/push?client=ID` | paczka binarna zmian z outboksu | JSON `{applied, ignored, rejected, clockDrift, errors, seq, serverTime}` |
 | `GET /sync/pull?since=N&epoch=E&client=ID` | – | paczka binarna; nagłówki `X-Sync-Cursor`, `X-Sync-Epoch` |
+| `GET /sync/time` | – | JSON `{serverTime}` – sprawdzenie zegara |
+
+Każda odpowiedź `/sync/*` ma nagłówek `X-Server-Time` (zegar serwera w ms).
 
 Serwer utrzymuje własną replikę (ten sam silnik WASM) oraz log przyjętych paczek z numerami `seq`. Pull zwraca konkatenację paczek po kursorze (bez własnych zmian klienta). Gdy kursor jest nieznany – nowy klient, restart serwera (nowa `epoch`), log skompaktowany – serwer odsyła pełny stan (`exportState`), który dzięki LWW jest bezpieczny do ponownego zastosowania.
 
-Kolejność kroków w kliencie (`SyncClient`) zapewnia idempotencję: (1) push i `ack` dopiero po odpowiedzi 200, (2) pull i zastosowanie zmian, (3) `flush` WAL, (4) zapis kursora. Przerwanie w dowolnym miejscu kończy się powtórzeniem rundy, a powtórnie dostarczone zmiany są ignorowane (równe znaczniki). Przy braku sieci klient ponawia próby z wykładniczym odstępem (do 30 s) i natychmiast po zdarzeniu `online`.
+Kolejność kroków w kliencie (`SyncClient`) zapewnia idempotencję: (1) push i `ack` dopiero po odpowiedzi 200, (2) pull i zastosowanie zmian, (3) `flush` WAL, (4) zapis kursora.
+
+**Zegar urządzenia.** Zegar serwera jest wzorcem. Klient mierzy odchylenie swojego zegara z nagłówka `X-Server-Time` (przed pierwszą wysyłką – przez `/sync/time`). Gdy przekracza 60 s albo serwer odrzucił wysłane zmiany za dryf (`clockDrift > 0`), klient wstrzymuje synchronizację: nie potwierdza paczki, więc zmiany zostają w outboksie, nie pobiera zmian, przechodzi w stan `clock` i zgłasza zdarzenie `clock`; kolejne rundy sprawdzają tylko zegar. Po poprawieniu zegara `FlatDB.rebaseClock()` nadaje nowe znaczniki niewysłanym zmianom „z przyszłości”, wykonuje checkpoint (nowe znaczniki nie trafiają do WAL) i synchronizacja rusza dalej. Zmiany pobrane z serwera, które są dalej niż 60 s przed zegarem klienta (dwa urządzenia mogą różnić się prawie o 2 × 60 s), nie przesuwają kursora i są pobierane ponownie. Demo pokazuje odchylenie w panelu synchronizacji. Przerwanie w dowolnym miejscu kończy się powtórzeniem rundy, a powtórnie dostarczone zmiany są ignorowane (równe znaczniki). Przy braku sieci klient ponawia próby z wykładniczym odstępem (do 30 s) i natychmiast po zdarzeniu `online`.
 
 ### 5.4 Tryb edge / cloud
 
@@ -126,7 +154,7 @@ Serwer (`server/server.js`) to Node.js z tym samym modułem `.wasm` – odpowiad
 
 ## 6. Formaty binarne
 
-Wspólny kodek: liczby całkowite jako LEB128 (ze znakiem w kodowaniu zig-zag), tekst jako długość + UTF-8, wartości poprzedzone jednobajtowym znacznikiem typu (`0` NULL, `1` FALSE, `2` TRUE, `3` INT, `4` FLOAT (f64 LE), `5` TEXT).
+Wspólny kodek: liczby całkowite jako LEB128 (ze znakiem w kodowaniu zig-zag), tekst jako długość + UTF-8, wartości poprzedzone jednobajtowym znacznikiem typu (`0` NULL, `1` FALSE, `2` TRUE, `3` INT, `4` FLOAT (f64 LE), `5` TEXT). Każdy NaN jest zapisywany jako ten sam wzorzec bitów `0x7FF8000000000000`: arytmetyka różnych procesorów (i WebAssembly, które tego nie ustala) daje NaN o różnych bitach, a dla silnika to ta sama wartość, więc te same dane dają zawsze te same bajty snapshotu, WAL i paczek. Odczyt przyjmuje dowolny NaN, więc pliki zapisane wcześniej pozostają czytelne. Zero ujemne (`-0.0`) zachowuje znak: arytmetyka IEEE 754 daje je deterministycznie, a aplikacja może je odróżnić (`1 / -0.0`).
 
 **Ramka WAL**
 

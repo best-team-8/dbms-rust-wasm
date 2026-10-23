@@ -42,9 +42,15 @@ impl fmt::Display for Stamp {
     }
 }
 
+/// How far ahead of the local wall clock a stamp from another replica may be.
+/// A replica whose clock runs further ahead would otherwise win every conflict
+/// and drag every other clock along (Kulkarni et al. reject such messages).
+pub const MAX_DRIFT_MS: u64 = 60_000;
+
 /// Hybrid logical clock (Kulkarni et al.): physical milliseconds in the high
 /// bits, a logical counter in the low 16 bits. It never goes backwards, even if
-/// the wall clock does, and it absorbs timestamps observed from other replicas.
+/// the wall clock does, and it absorbs timestamps observed from other replicas
+/// unless they are more than [`MAX_DRIFT_MS`] ahead of the wall clock.
 #[derive(Debug, Clone)]
 pub struct Hlc {
     last: u64,
@@ -62,8 +68,35 @@ impl Hlc {
         self.last
     }
 
-    pub fn observe(&mut self, time: u64) {
+    /// Current wall clock in milliseconds.
+    pub fn wall_ms(&self) -> u64 {
+        (self.now_ms)()
+    }
+
+    /// Largest stamp time accepted from another replica right now.
+    pub fn bound(&self) -> u64 {
+        self.wall_ms().saturating_add(MAX_DRIFT_MS).saturating_mul(1 << 16) | 0xffff
+    }
+
+    /// Absorbs a stamp received from another replica. Returns `false` (and
+    /// leaves the clock alone) when the stamp is beyond the drift bound.
+    pub fn observe(&mut self, time: u64) -> bool {
+        if time > self.bound() {
+            return false;
+        }
         self.last = self.last.max(time);
+        true
+    }
+
+    /// Absorbs a stamp from this replica's own history (snapshot, WAL), which
+    /// was accepted when it was written.
+    pub fn absorb(&mut self, time: u64) {
+        self.last = self.last.max(time);
+    }
+
+    /// Moves the clock to `time`, also backwards (see `Database::rebase_clock`).
+    pub(crate) fn reset(&mut self, time: u64) {
+        self.last = time;
     }
 
     pub fn last(&self) -> u64 {
@@ -273,12 +306,38 @@ pub struct ApplyReport {
     pub applied: usize,
     /// Changes older than (or equal to) the local state – no-ops.
     pub ignored: usize,
-    /// Changes that could not be applied (unknown table, schema mismatch...).
+    /// Changes that could not be applied (unknown table, schema mismatch,
+    /// stamp beyond the drift bound...).
     pub rejected: usize,
+    /// Rejected changes whose stamp was more than [`MAX_DRIFT_MS`] ahead of
+    /// the local wall clock (included in `rejected`).
+    pub clock_drift: usize,
     /// Batch with only the applied changes (a relay server forwards this).
     pub accepted: Vec<u8>,
     /// First few rejection reasons.
     pub errors: Vec<String>,
+    /// Tables defined differently here and on the sending replica; their
+    /// rows were rejected (included in `rejected`).
+    pub conflicts: Vec<SchemaConflict>,
+}
+
+/// A table that another replica defines differently. Until table versions
+/// exist, rows of such a table are not applied; the conflict is reported
+/// once per table instead of one error per row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SchemaConflict {
+    pub table: String,
+    /// The local definition (`name (column TYPE, ...)`).
+    pub local: String,
+    /// The other replica's definition, `None` when only rows arrived.
+    pub remote: Option<String>,
+    /// `Some(true)`: one definition only adds nullable columns at the end of
+    /// the other, the change allowed between application versions;
+    /// `Some(false)`: incompatible (type, primary key, order or names);
+    /// `None`: the other definition is unknown.
+    pub additive: Option<bool>,
+    /// Rejected rows and deletes of the table.
+    pub rows: usize,
 }
 
 /// Entry of the outbox: either a dirty row (its current state is read when
@@ -340,9 +399,21 @@ mod tests {
         let a = c.tick();
         let b = c.tick();
         assert!(b > a);
-        c.observe(b + 100);
+        assert!(c.observe(b + 100));
         assert!(c.tick() > b + 100);
         assert_eq!(a >> 16, 1000);
+    }
+
+    #[test]
+    fn hlc_ignores_stamps_beyond_the_drift_bound() {
+        fn frozen() -> u64 {
+            1000
+        }
+        let mut c = Hlc::new(frozen);
+        let ahead = (1000 + MAX_DRIFT_MS + 1) << 16;
+        assert!(!c.observe(ahead));
+        assert!(c.last() < ahead);
+        assert!(c.observe((1000 + MAX_DRIFT_MS) << 16));
     }
 
     #[test]

@@ -22,6 +22,13 @@ pub fn version() -> String {
     core::VERSION.to_string()
 }
 
+/// How far ahead of the local clock a stamp from another replica may be
+/// before it is rejected, in milliseconds.
+#[wasm_bindgen(js_name = maxDriftMs)]
+pub fn max_drift_ms() -> f64 {
+    core::sync::MAX_DRIFT_MS as f64
+}
+
 fn now_ms() -> u64 {
     js_sys::Date::now() as u64
 }
@@ -264,6 +271,7 @@ impl Database {
         set(&obj, "walPending", &JsValue::from_f64(s.wal_pending as f64));
         set(&obj, "outbox", &JsValue::from_f64(s.outbox as f64));
         set(&obj, "ackedSeq", &JsValue::from_f64(s.acked_seq as f64));
+        set(&obj, "clockMs", &JsValue::from_f64((s.clock >> 16) as f64));
         set(&obj, "inTransaction", &JsValue::from_bool(s.in_transaction));
         obj.into()
     }
@@ -301,6 +309,21 @@ impl Database {
         Ok(OutboxBatch { bytes, last_seq, count })
     }
 
+    /// Whether local changes were stamped while the clock ran more than
+    /// `maxDriftMs()` ahead of the current one (see `rebaseClock`).
+    #[wasm_bindgen(js_name = clockAhead)]
+    pub fn clock_ahead(&self) -> bool {
+        self.inner.clock_ahead()
+    }
+
+    /// Gives new stamps to unsent changes made while the clock ran ahead and
+    /// moves the clock back. Returns how many changes got new stamps; the
+    /// caller makes the result durable with a snapshot (checkpoint).
+    #[wasm_bindgen(js_name = rebaseClock)]
+    pub fn rebase_clock(&mut self) -> Result<usize, JsValue> {
+        self.inner.rebase_clock().map_err(js_error)
+    }
+
     /// Confirms delivery of outbox entries up to `upto` (an `OutboxBatch.lastSeq`).
     #[wasm_bindgen(js_name = ackOutbox)]
     pub fn ack_outbox(&mut self, upto: f64) {
@@ -308,8 +331,11 @@ impl Database {
     }
 
     /// Applies a batch of remote changes (last-writer-wins). Returns
-    /// `{ applied, ignored, rejected, errors, accepted }` where `accepted` is a
-    /// batch with only the changes that took effect.
+    /// `{ applied, ignored, rejected, clockDrift, conflicts, errors, accepted }`
+    /// where `clockDrift` counts the rejected changes stamped too far ahead,
+    /// `conflicts` lists tables defined differently on the sender
+    /// (`{ table, local, remote, additive, rows }`) and `accepted` is a batch
+    /// with only the changes that took effect.
     #[wasm_bindgen(js_name = applyChanges)]
     pub fn apply_changes(&mut self, batch: &[u8]) -> Result<JsValue, JsValue> {
         let r = self.inner.apply_changes(batch).map_err(js_error)?;
@@ -317,8 +343,23 @@ impl Database {
         set(&obj, "applied", &JsValue::from_f64(r.applied as f64));
         set(&obj, "ignored", &JsValue::from_f64(r.ignored as f64));
         set(&obj, "rejected", &JsValue::from_f64(r.rejected as f64));
+        set(&obj, "clockDrift", &JsValue::from_f64(r.clock_drift as f64));
         let errors: Array = r.errors.iter().map(|e| JsValue::from_str(e)).collect();
         set(&obj, "errors", &errors);
+        let conflicts: Array = r
+            .conflicts
+            .iter()
+            .map(|c| {
+                let o = Object::new();
+                set(&o, "table", &JsValue::from_str(&c.table));
+                set(&o, "local", &JsValue::from_str(&c.local));
+                set(&o, "remote", &c.remote.as_deref().map_or(JsValue::NULL, JsValue::from_str));
+                set(&o, "additive", &c.additive.map_or(JsValue::NULL, JsValue::from_bool));
+                set(&o, "rows", &JsValue::from_f64(c.rows as f64));
+                JsValue::from(o)
+            })
+            .collect();
+        set(&obj, "conflicts", &conflicts);
         set(&obj, "accepted", &Uint8Array::from(&r.accepted[..]));
         Ok(obj.into())
     }

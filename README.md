@@ -54,13 +54,13 @@ The primary objective is to implement the **Edge Computing** paradigm by shiftin
 |---|---|
 | Rdzeń silnika (`crates/flatsql-core`) | lekser i parser Flat-SQL, typy `INT/FLOAT/TEXT/BOOL`, logika trójwartościowa SQL, funkcje skalarne i agregujące, planer zapytań (PK lookup, indeks, zakresy, full scan, `EXPLAIN`), transakcje z undo logiem, prepared statements – bez zależności zewnętrznych |
 | Warstwa składowania | WAL (jedna ramka z CRC32 na transakcję), snapshoty (checkpoint), odtwarzanie po awarii odporne na urwane zapisy, backend plikowy i pamięciowy; w przeglądarce IndexedDB z group commitem |
-| Synchronizacja | zegar hybrydowy (HLC), LWW per wiersz z tombstone'ami, outbox odtwarzany z WAL, binarne paczki zmian, serwer z logiem i kompaktowaniem |
+| Synchronizacja | zegar hybrydowy (HLC) z granicą dryfu (urządzenie z błędnym zegarem wstrzymuje synchronizację, a po poprawie zegara jego zmiany dostają nowe znaczniki), LWW per wiersz z tombstone'ami, outbox odtwarzany z WAL, binarne paczki zmian, serwer z logiem i kompaktowaniem |
 | WASM-Bridge (`crates/flatsql-wasm`, `bridge/`) | wiązania `wasm-bindgen`, API JavaScript (`FlatDB`, `SyncClient`, magazyny IndexedDB/pamięć/pliki), typy TypeScript |
 | Serwer (`server/`) | ten sam silnik WASM w Node.js (tryb edge): hub synchronizacji, API zapytań „cloud” z symulowaną latencją, hosting dema |
 | Demo (`web/`) | konsola SQL w przeglądarce, panel synchronizacji i trybu offline, Service Worker, benchmark w przeglądarce |
 | CLI (`crates/flatsql-cli`) | interaktywna powłoka `flatsql`, bazy plikowe, natywny benchmark |
 | Badania (`bench/`, `docs/research/`) | porównanie Flat-SQL (WASM i natywnie), SQLite (sql.js) i czystego JS; Local-First vs Cloud-First; trwałość zapisów w przeglądarce |
-| Testy | 82 testy w Rust (w tym odtwarzanie po ucięciu WAL w każdym bajcie i losowe sesje offline wielu replik) + 14 testów end-to-end w Node (scenariusze offline z prawdziwym serwerem) |
+| Testy | 94 testy w Rust (w tym odtwarzanie po ucięciu WAL w każdym bajcie, wszystkie stany po awarii dopuszczone przez model systemu plików, losowe sesje offline wielu replik z przesuniętymi zegarami i podziałami sieci) + 27 testów end-to-end w Node (scenariusze offline z prawdziwym serwerem, zegar urządzenia, konflikty schematu, magazyny przeglądarki); opisy i wyniki: [docs/research/tests-results.md](docs/research/tests-results.md) |
 
 ## Szybki start
 
@@ -127,9 +127,10 @@ npm run bench:full
 ### JavaScript (WASM-Bridge)
 
 ```js
-import { FlatDB, IndexedDbStore, SyncClient } from './bridge/index.js';
+import { FlatDB, SyncClient } from './bridge/index.js';
 
-const db = await FlatDB.open({ store: new IndexedDbStore('my-app') });
+const db = await FlatDB.open({ name: 'my-app' }); // w przeglądarce domyślnie IndexedDB
+// open prosi też o trwały magazyn (navigator.storage.persist); wynik: await db.persistence
 
 db.exec(`CREATE TABLE IF NOT EXISTS inventory (
   id INT PRIMARY KEY, player TEXT NOT NULL, item TEXT, qty INT)`);
@@ -139,12 +140,14 @@ const rows = db.query('SELECT item, qty FROM inventory WHERE player = ?', ['ayla
 // [{ item: 'sword', qty: 1 }] – synchronicznie, bez sieci
 
 await db.flush();                       // zmiany są trwałe w IndexedDB
+// FlatDB.open({ …, durability: 'strict' }) – flush() czeka na zapis na dysk
+// (domyślnie decyduje przeglądarka; Chrome 121+: po przekazaniu systemowi)
 
 const sync = new SyncClient(db, { url: 'https://example.org' });
 await sync.start();                     // wysyła outbox / pobiera zmiany w tle
 ```
 
-W Node.js zamiast `bridge/index.js` importuje się `bridge/node.js` (ładuje plik `.wasm` z dysku i udostępnia `FsStore`). Pełne API: [bridge/index.d.ts](bridge/index.d.ts).
+W Node.js zamiast `bridge/index.js` importuje się `bridge/node.js` (ładuje plik `.wasm` z dysku i udostępnia `FsStore`); magazyn trzeba tam podać jawnie: `FlatDB.open({ store: new FsStore('dane') })` albo `new MemoryStore()` dla danych tylko w pamięci. Pełne API: [bridge/index.d.ts](bridge/index.d.ts).
 
 ### CLI
 
@@ -263,7 +266,7 @@ sequenceDiagram
 
 ## Tryby działania w przeglądarce
 
-Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego **wątek i magazyn wybiera aplikacja przy otwarciu bazy, a nie silnik**. Magazyn podaje się parametrem `store` w `FlatDB.open` (dziś `IndexedDbStore` i `MemoryStore`, w Node.js także `FsStore`). Inaczej jest w SQLite, którego magazyn czyta strony z dysku synchronicznie z wnętrza silnika, przez co SQLite z trwałością w przeglądarce musi działać w Web Workerze.
+Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego **wątek i magazyn wybiera aplikacja przy otwarciu bazy, a nie silnik**. Magazyn podaje się parametrem `store` w `FlatDB.open` (dziś `IndexedDbStore` i `MemoryStore`, w Node.js także `FsStore`); bez niego przeglądarka używa `IndexedDbStore`. Inaczej jest w SQLite, którego magazyn czyta strony z dysku synchronicznie z wnętrza silnika, przez co SQLite z trwałością w przeglądarce musi działać w Web Workerze.
 
 | | Wątek główny – tryb domyślny (zaimplementowany) | Web Worker – opcja (planowana: [todo_future 1.1, 1.5](docs/todo_future.md)) |
 |---|---|---|
@@ -323,7 +326,7 @@ W przeglądarce trwałe zatwierdzenie pojedynczej transakcji (WAL → IndexedDB)
 - **Panel WinUI 3** (C#) – kolejny etap: komunikacja z silnikiem przez FFI (biblioteka `cdylib` z interfejsem C) lub named pipes; rdzeń jest już niezależny od środowiska.
 - Dane są w całości w pamięci (model przeglądarkowego „working set”); bardzo duże zbiory wymagałyby stronicowanego magazynu (np. OPFS w Web Workerze).
 - Wiersze jako osobne alokacje w `BTreeMap` – wolniejsze od stronicowego formatu SQLite przy odtwarzaniu snapshotu i lookupach przez indeks; kierunki optymalizacji opisane w wynikach badań.
-- Synchronizacja LWW per wiersz (bez scalania pól), zmiany schematu replikowane w uproszczony sposób, brak uwierzytelniania na serwerze (prototyp, nasłuch na `127.0.0.1`).
+- Synchronizacja LWW per wiersz (bez scalania pól), zmiany schematu replikowane w uproszczony sposób (różne definicje tej samej tabeli są zgłaszane jako konflikt schematu, a wiersze drugiej definicji odrzucane), brak uwierzytelniania na serwerze (prototyp, nasłuch na `127.0.0.1`).
 - Flat-SQL: brak `CASE`, podzapytań i indeksów złożonych/unikalnych – zgodnie z założeniem „płaskiego” modelu część z nich nie jest planowana.
 
 ## Dokumentacja

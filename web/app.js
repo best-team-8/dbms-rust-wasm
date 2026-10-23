@@ -1,7 +1,7 @@
 // Flat-SQL demo application: SQL console on a local WebAssembly database
 // persisted in IndexedDB and replicated through the sync server.
 
-import { FlatDB, IndexedDbStore, initEngine, MemoryStore, SyncClient, version } from './bridge/index.js';
+import { FlatDB, initEngine, MemoryStore, SyncClient, version } from './bridge/index.js';
 
 const $ = (id) => document.getElementById(id);
 const app = { db: null, sync: null, store: null, persistent: true };
@@ -188,6 +188,7 @@ const STATUS_LABEL = {
   syncing: 'synchronizacja…',
   offline: 'offline – zmiany czekają',
   error: 'błąd serwera',
+  clock: 'zegar urządzenia odbiega od serwera – synchronizacja wstrzymana',
 };
 
 function renderSync() {
@@ -200,6 +201,9 @@ function renderSync() {
   $('sync-pending').textContent = pending;
   $('sync-last').textContent = fmtTime(sync.lastSync);
   $('sync-cursor').textContent = sync.epoch ? `${sync.cursor} @ ${sync.epoch}` : '–';
+  const skew = sync.clockSkewMs;
+  $('sync-skew').textContent =
+    skew === null ? '–' : `${skew >= 0 ? '+' : '−'}${(Math.abs(skew) / 1000).toFixed(1)} s (limit ${sync.maxDriftMs / 1000} s)`;
   const state = status === 'idle' ? (pending ? 'warn' : 'ok') : status === 'syncing' ? 'busy' : 'bad';
   setChip('chip-sync', `Sync: ${pending ? `${pending} oczekuje` : label}`, state);
 }
@@ -209,8 +213,23 @@ function renderNetwork() {
   setChip('chip-network', online ? 'Sieć: online' : 'Sieć: offline', online ? 'ok' : 'bad');
 }
 
+const DURABILITY_LABEL = {
+  default: 'domyślna przeglądarki (Chrome 121+: relaxed)',
+  relaxed: 'relaxed – po przekazaniu do systemu',
+  strict: 'strict – po zapisie na dysk',
+};
+
+function persistenceLabel(persisted) {
+  if (persisted === true) return 'tak – przeglądarka nie usunie danych';
+  if (persisted === false) return 'nie – przeglądarka może usunąć dane, także niewysłane zmiany';
+  return app.persistent ? 'nieznany (brak navigator.storage)' : 'nie dotyczy (tylko pamięć)';
+}
+
 function renderStorage() {
   const s = app.db.stats();
+  $('st-persisted').textContent = persistenceLabel(s.persisted);
+  $('btn-persist').classList.toggle('hidden', s.persisted !== false);
+  $('st-durability').textContent = s.durability ? DURABILITY_LABEL[s.durability] : 'brak (tylko pamięć)';
   $('st-node').textContent = s.nodeId.toString(16).padStart(8, '0');
   $('st-rows').textContent = `${s.rows.toLocaleString('pl-PL')} / ${s.tables}`;
   $('st-lsn').textContent = s.lsn;
@@ -294,6 +313,11 @@ function wireUi() {
     log(`Checkpoint (snapshot + obcięcie WAL): ${fmtDuration(performance.now() - t0)}`, 'ok');
     renderStorage();
   });
+  $('btn-persist').addEventListener('click', async () => {
+    const granted = await app.db.requestPersistence();
+    log(granted ? 'Przeglądarka zgodziła się na trwały magazyn' : 'Przeglądarka odmówiła trwałego magazynu', granted ? 'ok' : 'warn');
+    renderStorage();
+  });
   $('btn-reset').addEventListener('click', async () => {
     if (!confirm('Usunąć lokalną bazę z tej przeglądarki? Dane zsynchronizowane z serwerem zostaną pobrane ponownie.')) return;
     app.sync.stop();
@@ -318,7 +342,6 @@ async function main() {
   log(`Moduł WebAssembly załadowany w ${fmtDuration(loadMs)}`);
 
   app.persistent = await acquireTabLock();
-  app.store = app.persistent ? new IndexedDbStore('demo') : new MemoryStore();
   if (!app.persistent) {
     const banner = $('banner');
     banner.textContent = 'Baza jest już otwarta w innej karcie – ta karta działa tylko w pamięci (bez zapisu do IndexedDB).';
@@ -326,12 +349,20 @@ async function main() {
   }
   setChip('chip-store', `Magazyn: ${app.persistent ? 'IndexedDB' : 'pamięć'}`, app.persistent ? 'ok' : 'warn');
 
-  app.db = await FlatDB.open({ store: app.store });
+  // Without a store FlatDB keeps the database in IndexedDB;
+  // ?durability=strict|relaxed|default selects the durability mode.
+  const durability = new URLSearchParams(location.search).get('durability') ?? undefined;
+  app.db = await FlatDB.open(app.persistent ? { name: 'demo', durability } : { store: new MemoryStore() });
+  app.store = app.db.store;
   const r = app.db.recovery;
   $('st-recovery').textContent =
     `${fmtDuration(r.ms)} · snapshot ${fmtBytes(r.snapshotBytes)} + ${r.framesReplayed} ramek WAL` + (r.tornBytes ? ` · odrzucono ${r.tornBytes} B` : '');
   log(`Baza odtworzona z ${app.persistent ? 'IndexedDB' : 'pamięci'} w ${fmtDuration(r.ms)} (${r.framesReplayed} ramek WAL)`);
   app.db.addEventListener('checkpoint', (e) => log(`Automatyczny checkpoint: snapshot ${fmtBytes(e.detail.bytes)}`));
+  app.db.persistence.then((persisted) => {
+    if (persisted !== null) log(`Trwały magazyn: ${persistenceLabel(persisted)}`, persisted ? 'ok' : 'warn');
+    renderStorage();
+  });
   app.db.addEventListener('error', (e) => log(`Zapis do magazynu nie powiódł się: ${e.detail.message}`, 'error'));
 
   app.sync = new SyncClient(app.db, { url: location.origin, intervalMs: 4000 });
@@ -340,8 +371,21 @@ async function main() {
     renderNetwork();
     if (e.detail.status === 'offline') log('Serwer niedostępny – praca offline, zmiany czekają w outboksie', 'warn');
   });
+  app.sync.addEventListener('conflict', (e) => {
+    for (const c of e.detail.conflicts) {
+      const kind = c.additive === true ? 'nowsza wersja dodała kolumny' : c.additive === false ? 'niezgodne definicje' : 'wiersze nie pasują';
+      const where = e.detail.direction === 'push' ? 'serwer odrzucił' : 'odrzucono';
+      log(`Konflikt schematu tabeli ${c.table} (${kind}): ${where} ${c.rows} zmian; lokalnie ${c.local}, po drugiej stronie ${c.remote ?? '?'}`, 'error');
+    }
+  });
+  app.sync.addEventListener('clock', (e) => {
+    const { skewMs, rejected } = e.detail;
+    const why = rejected ? `serwer odrzucił ${rejected} zmian ze znacznikiem z przyszłości` : 'odchylenie zegara';
+    log(`Zegar urządzenia: ${(skewMs / 1000).toFixed(0)} s względem serwera (${why}) – synchronizacja wstrzymana, zmiany czekają`, 'error');
+  });
   app.sync.addEventListener('synced', (e) => {
-    const { pushed, pulled, ms } = e.detail;
+    const { pushed, pulled, ms, restamped } = e.detail;
+    if (restamped) log(`Zegar poprawiony: ${restamped} niewysłanych zmian dostało nowe znaczniki`, 'ok');
     if (pushed || pulled) log(`Synchronizacja: wysłano ${pushed}, odebrano ${pulled} zmian (${fmtDuration(ms)})`, 'ok');
     renderSync();
   });

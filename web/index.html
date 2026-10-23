@@ -66,6 +66,7 @@
           <dt>Oczekujące zmiany</dt><dd id="sync-pending">0</dd>
           <dt>Ostatnia synchronizacja</dt><dd id="sync-last">–</dd>
           <dt>Kursor serwera</dt><dd id="sync-cursor">–</dd>
+          <dt>Zegar względem serwera</dt><dd id="sync-skew">–</dd>
         </dl>
         <label class="toggle">
           <input type="checkbox" id="toggle-offline">
@@ -87,10 +88,13 @@
           <dt>LSN</dt><dd id="st-lsn">–</dd>
           <dt>WAL</dt><dd id="st-wal">–</dd>
           <dt>Snapshot</dt><dd id="st-snapshot">–</dd>
+          <dt>Trwałość zapisu</dt><dd id="st-durability">–</dd>
+          <dt>Trwały magazyn</dt><dd id="st-persisted">–</dd>
           <dt>Odtworzenie przy starcie</dt><dd id="st-recovery">–</dd>
         </dl>
         <div class="button-row">
           <button class="secondary" id="btn-checkpoint">Checkpoint</button>
+          <button class="secondary hidden" id="btn-persist">Poproś o trwały magazyn</button>
           <button class="danger" id="btn-reset">Usuń lokalną bazę</button>
         </div>
       </section>

@@ -2,6 +2,7 @@
 //! tombstones used by the Local-First synchronisation.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::sync::Arc;
 
 use crate::error::{Error, Result};
@@ -59,6 +60,44 @@ impl TableSchema {
             out.push(v);
         }
         Ok(out)
+    }
+}
+
+/// `name (column TYPE [PRIMARY KEY | NOT NULL], ...)`
+impl fmt::Display for TableSchema {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (", self.name)?;
+        for (i, c) in self.columns.iter().enumerate() {
+            if i > 0 {
+                f.write_str(", ")?;
+            }
+            write!(f, "{} {}", c.name, c.data_type)?;
+            if i == self.pk {
+                f.write_str(" PRIMARY KEY")?;
+            } else if c.not_null {
+                f.write_str(" NOT NULL")?;
+            }
+        }
+        f.write_str(")")
+    }
+}
+
+impl TableSchema {
+    /// How another definition of the same table relates to this one: `None`
+    /// when they are the same, `Some(true)` when one only adds nullable
+    /// columns at the end of the other (the difference allowed between
+    /// application versions), `Some(false)` otherwise.
+    pub fn compare(&self, other: &TableSchema) -> Option<bool> {
+        let same = |a: &Column, b: &Column| {
+            a.name.eq_ignore_ascii_case(&b.name) && a.data_type == b.data_type && a.not_null == b.not_null
+        };
+        let n = self.columns.len().min(other.columns.len());
+        let prefix = self.pk == other.pk && self.columns.iter().zip(&other.columns).all(|(a, b)| same(a, b));
+        if prefix && self.columns.len() == other.columns.len() {
+            return None;
+        }
+        let longer = if self.columns.len() > n { self } else { other };
+        Some(prefix && longer.columns[n..].iter().all(|c| !c.not_null))
     }
 }
 
@@ -246,6 +285,27 @@ mod tests {
         }
         t.add_index("ix".into(), 1);
         assert_eq!(t.indexes[0].map[&Value::from("even")].len(), 5);
+    }
+
+    #[test]
+    fn definitions_compare_as_same_additive_or_incompatible() {
+        let base = table().schema;
+        let with = |columns: Vec<Column>, pk| TableSchema { name: "T".into(), columns, pk };
+        let col = |name: &str, data_type, not_null| Column { name: name.into(), data_type, not_null };
+        let id = col("ID", DataType::Int, true);
+        let tag = col("tag", DataType::Text, false);
+        assert_eq!(base.compare(&with(vec![id.clone(), tag.clone()], 0)), None);
+        let added = with(vec![id.clone(), tag.clone(), col("note", DataType::Text, false)], 0);
+        assert_eq!(base.compare(&added), Some(true));
+        assert_eq!(added.compare(&base), Some(true));
+        let required = with(vec![id.clone(), tag.clone(), col("note", DataType::Text, true)], 0);
+        assert_eq!(base.compare(&required), Some(false), "a NOT NULL column cannot be missing in old rows");
+        assert_eq!(base.compare(&with(vec![id.clone(), col("tag", DataType::Int, false)], 0)), Some(false));
+        assert_eq!(
+            base.compare(&with(vec![col("id", DataType::Int, false), col("tag", DataType::Text, true)], 1)),
+            Some(false)
+        );
+        assert_eq!(base.to_string(), "t (id INT PRIMARY KEY, tag TEXT)");
     }
 
     #[test]

@@ -92,7 +92,7 @@ pub(crate) fn decode(data: &[u8]) -> Result<Database> {
     }
     let node_id = u32::try_from(r.var()?).map_err(|_| Error::Storage("node id out of range".into()))?;
     let mut db = Database::new(node_id);
-    db.clock.observe(r.var()?);
+    db.clock.absorb(r.var()?);
     db.lsn = r.var()?;
     db.next_seq = r.var()?;
     db.acked_seq = r.var()?;

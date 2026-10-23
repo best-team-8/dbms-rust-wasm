@@ -13,7 +13,7 @@ test('engine version is exposed', () => {
 });
 
 test('exec, query, prepared statements and JSON results', async () => {
-  const db = await FlatDB.open();
+  const db = await FlatDB.open({ store: new MemoryStore() });
   db.exec('CREATE TABLE heroes (id INT PRIMARY KEY, name TEXT, level INT, gold FLOAT)');
   db.exec("INSERT INTO heroes VALUES (1, 'Ayla', 12, 99.5), (2, 'Borin', 7, 10.0), (3, 'Cyra', 20, NULL)");
 
@@ -35,7 +35,7 @@ test('exec, query, prepared statements and JSON results', async () => {
 });
 
 test('errors carry a machine readable kind', async () => {
-  const db = await FlatDB.open();
+  const db = await FlatDB.open({ store: new MemoryStore() });
   db.exec('CREATE TABLE t (id INT PRIMARY KEY)');
   assert.throws(() => db.exec('SELECT * FROM missing'), (e) => e.kind === 'schema');
   assert.throws(() => db.exec('SELEC 1'), (e) => e.kind === 'parse');

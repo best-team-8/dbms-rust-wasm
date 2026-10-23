@@ -35,7 +35,7 @@ pub mod value;
 pub use db::{Database, DbStats, Prepared, RecoveryReport};
 pub use error::{Error, Result};
 pub use result::QueryResult;
-pub use sync::{ApplyReport, Stamp};
+pub use sync::{ApplyReport, SchemaConflict, Stamp};
 pub use value::{DataType, Value};
 
 /// Version of the engine (from Cargo.toml).
