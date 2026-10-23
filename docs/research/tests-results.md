@@ -23,6 +23,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [1.2](#12-eksperyment-synchronizacja-katalogu-w-windows) `windows_directory_flush_needs_write_access_and_backup_semantics`, `platform: a directory can be synced…` | Jak w Windows utrwalić wpisy katalogu po zmianie nazwy pliku? | zaliczony (eksperyment) |
 | [1.3](#13-utrwalanie-zapisów-w-magazynie-plikowym-nodejs) `FsStore: flushed transactions survive a crash when only synced writes persist`, `FsStore: fsync can be turned off for WAL appends only` | Czy po `await flush()` i awarii magazyn plikowy Node.js zachowuje wszystkie utrwalone transakcje? | zaliczony |
 | [1.4](#14-wszystkie-stany-po-awarii-dopuszczone-przez-model) `every_permitted_crash_state_recovers_to_a_committed_state`, `FsStore: every permitted crash state recovers to a committed state` | Czy baza wraca do stanu zatwierdzonego w każdym stanie dysku, jaki model systemu plików dopuszcza po awarii, i przyjmuje potem nowe zapisy? | zaliczony (bez `fsync` w Node.js przez losowanie) |
+| [3.1](#31-ten-sam-zapis-każdego-nan) `equal_data_encodes_to_identical_bytes_whatever_the_nan_bits`, `nan_computed_in_sql_is_stored_canonically` | Czy te same dane dają te same bajty snapshotu, WAL i paczek zmian niezależnie od wzorca bitów NaN? | zaliczony |
 
 ## 1. Trwałość i odtwarzanie po awarii
 
@@ -102,3 +103,16 @@ Magazyn plikowy przechowuje bazę w dwóch plikach: `snapshot.fsql` (pełny obra
 ## 2. Synchronizacja replik
 
 ## 3. Zapytania i format danych
+
+### 3.1 Ten sam zapis każdego NaN
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy te same dane logiczne dają identyczne bajty WAL, snapshotu i paczek zmian, gdy kolumna `FLOAT` zawiera NaN (ang. *not a number*, wynik np. odejmowania nieskończoności) o różnych wzorcach bitów? |
+| Uzasadnienie | Standard IEEE 754 dopuszcza wiele wzorców bitów NaN, a dla silnika wszystkie są tą samą wartością: porządek wartości ustawia NaN za wszystkimi liczbami i uznaje dwa NaN za równe. Haas i in. [P2] (§2.5) wskazują wzorce bitów NaN jako jedyny niedeterminizm arytmetyki WebAssembly, więc ten sam program na dwóch urządzeniach może dać różne bity. Kodek zapisywał liczbę zmiennoprzecinkową bit po bicie, przez co repliki z tymi samymi danymi mogły mieć różne bajty i nie dałoby się ich porównać skrótem. |
+| Model awarii i założenia | Źródłem różnicy są tylko bity NaN; pozostałe dane, identyfikator węzła i zegar są takie same (zegar logiczny wstrzyknięty w teście). Test nie obejmuje zera ujemnego, które jest celowo zapisywane ze znakiem. |
+| Procedura | Plik `crates/flatsql-core/tests/format.rs`. Test `equal_data_encodes_to_identical_bytes_whatever_the_nan_bits` buduje bazę z tabelą i dwoma wierszami, z których jeden ma NaN podany parametrem instrukcji przygotowanej, cztery razy, za każdym razem z innym wzorcem: `0x7FF8000000000000` (cichy), `0xFFF8000000000000` (ujemny, wynik 0/0 na x86), `0x7FF0000000000001` (sygnalizujący) i `0x7FFFFFFFFFFFFFFF` (z ładunkiem). Wyrocznia: WAL, snapshot, paczka z outboksu i paczka pełnego stanu są bajt w bajt równe wersji z pierwszym wzorcem. Test `nan_computed_in_sql_is_stored_canonically` porównuje snapshoty po `INSERT` z wyrażeniem `1e308 * 10 - 1e308 * 10` i z jego negacją, a po odtworzeniu sprawdza, że wartość nadal jest NaN. Polecenie: `cargo test -p flatsql-core --test format`. |
+| Kontrola negatywna | Na kodzie sprzed zmiany oba testy zawiodły: `WAL differs for NaN bits 0xfff8000000000000` oraz różnica snapshotów w bajcie wartości (`… 248, 255` wobec `… 248, 127`). Drugi przypadek pokazuje, że różne bity powstają ze zwykłego SQL: na procesorze x86 wynik `inf - inf` ma ustawiony bit znaku, a negacja go zmienia. |
+| Wynik | Zaliczony, 4 wzorce bitów × 4 obrazy bajtowe oraz 1 para wyrażeń SQL. 23.10.2026, środowisko z początku dokumentu, commit „storage: write every NaN with the same bits”. |
+| Wpływ na projekt | Kodek (`crates/flatsql-core/src/storage/codec.rs`) zapisuje każdy NaN jako `0x7FF8000000000000`; dotyczy to WAL, snapshotu i paczek, bo wszystkie używają tego samego kodeka. Odczyt przyjmuje dowolny NaN, więc wersja formatu się nie zmienia. Zero ujemne zachowuje znak. |
+| Ograniczenia | Test sprawdza kodowanie w Rust na x86-64. Moduł WebAssembly używa tego samego kodeka, ale nie uruchomiono go na procesorze, który daje inne bity NaN (np. ARM). Wartości przechowywane w pamięci zachowują swoje bity; kanoniczne są tylko bajty zapisane. |

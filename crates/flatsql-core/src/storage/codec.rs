@@ -15,6 +15,9 @@ const TAG_INT: u8 = 3;
 const TAG_FLOAT: u8 = 4;
 const TAG_TEXT: u8 = 5;
 
+/// The only NaN written to disk and to change batches (quiet, positive).
+const CANONICAL_NAN: u64 = 0x7FF8_0000_0000_0000;
+
 #[derive(Debug, Default, Clone)]
 pub struct Writer {
     pub buf: Vec<u8>,
@@ -73,7 +76,11 @@ impl Writer {
             }
             Value::Float(f) => {
                 self.u8(TAG_FLOAT);
-                self.buf.extend_from_slice(&f.to_le_bytes());
+                // NaN bit patterns differ between platforms (WebAssembly
+                // leaves them unspecified) although every NaN is the same
+                // value, so all of them are written as one quiet NaN.
+                let bits = if f.is_nan() { CANONICAL_NAN } else { f.to_bits() };
+                self.buf.extend_from_slice(&bits.to_le_bytes());
             }
             Value::Text(s) => {
                 self.u8(TAG_TEXT);

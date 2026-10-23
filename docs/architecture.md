@@ -131,7 +131,7 @@ Serwer (`server/server.js`) to Node.js z tym samym modułem `.wasm` – odpowiad
 
 ## 6. Formaty binarne
 
-Wspólny kodek: liczby całkowite jako LEB128 (ze znakiem w kodowaniu zig-zag), tekst jako długość + UTF-8, wartości poprzedzone jednobajtowym znacznikiem typu (`0` NULL, `1` FALSE, `2` TRUE, `3` INT, `4` FLOAT (f64 LE), `5` TEXT).
+Wspólny kodek: liczby całkowite jako LEB128 (ze znakiem w kodowaniu zig-zag), tekst jako długość + UTF-8, wartości poprzedzone jednobajtowym znacznikiem typu (`0` NULL, `1` FALSE, `2` TRUE, `3` INT, `4` FLOAT (f64 LE), `5` TEXT). Każdy NaN jest zapisywany jako ten sam wzorzec bitów `0x7FF8000000000000`: arytmetyka różnych procesorów (i WebAssembly, które tego nie ustala) daje NaN o różnych bitach, a dla silnika to ta sama wartość, więc te same dane dają zawsze te same bajty snapshotu, WAL i paczek. Odczyt przyjmuje dowolny NaN, więc pliki zapisane wcześniej pozostają czytelne. Zero ujemne (`-0.0`) zachowuje znak: arytmetyka IEEE 754 daje je deterministycznie, a aplikacja może je odróżnić (`1 / -0.0`).
 
 **Ramka WAL**
 
