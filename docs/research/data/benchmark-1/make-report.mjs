@@ -145,6 +145,24 @@ summary.workload = W;
 
 // ---- checksums ----------------------------------------------------------------
 
+/**
+ * State after a write phase: [COUNT, SUM(qty), SUM(price)] scaled by 10^6.
+ * The float sum of 100 000 prices depends on the order of addition (an
+ * engine returning rows in another order differs in the last unit), so
+ * numbers are equal within a relative 10^-9.
+ */
+function sameState(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((x, i) => {
+    if (x === b[i]) return true;
+    if (x[0] === 'S' || b[i][0] === 'S' || x === 'N' || b[i] === 'N') return false;
+    const d = BigInt(x) - BigInt(b[i]);
+    const abs = d < 0n ? -d : d;
+    const ref = BigInt(b[i]) < 0n ? -BigInt(b[i]) : BigInt(b[i]);
+    return abs * 1_000_000_000n <= ref;
+  });
+}
+
 /** Compares every run of every engine with the first run of the reference engine. */
 function checkGroup(target, engines, ref) {
   const runs = pick(target, 'workload').filter((r) => engines.includes(r.engine));
@@ -156,7 +174,8 @@ function checkGroup(target, engines, ref) {
     if (!mine.length) continue;
     let ok = 0;
     let headOnly = 0;
-    let bad = [];
+    let tolerated = 0;
+    const bad = [];
     let total = 0;
     for (const r of mine) {
       for (const [op, c] of Object.entries(refRun.result.checks)) {
@@ -173,10 +192,13 @@ function checkGroup(target, engines, ref) {
         if (!mv) continue;
         total++;
         if (JSON.stringify(mv) === JSON.stringify(v)) ok++;
-        else bad.push(`stan ${k} (run ${r.run})`);
+        else if (sameState(mv, v)) {
+          ok++;
+          tolerated++;
+        } else bad.push(`stan ${k} (run ${r.run})`);
       }
     }
-    rows.push({ engine: e, runs: mine.length, total, ok, headOnly, bad });
+    rows.push({ engine: e, runs: mine.length, total, ok, headOnly, tolerated, bad });
   }
   return rows;
 }
@@ -318,10 +340,11 @@ function stackedBars({ title, subtitle, rows, series, unitLabel = 'ms' }) {
 /** Lines over a few x values with Q1–Q3 whiskers and an optional reference line. */
 function lineChart({ title, subtitle, xs, xLabel, series, ref, yUnit = 'ms' }) {
   const left = 70;
-  const width = 760;
+  const width = 820;
   const height = 380;
   const top = 76;
-  const plotW = width - left - 150;
+  const labelW = Math.max(...series.map((q) => textWidth(q.name))) + 20;
+  const plotW = width - left - labelW;
   const plotH = height - top - 56;
   const max = Math.max(ref?.value ?? 0, ...series.flatMap((s) => s.points.map((p) => p?.q3 ?? 0))) * 1.1;
   const step = [1, 2, 5, 10, 20, 25, 50, 100].find((s) => max / s <= 6) ?? 100;
@@ -343,6 +366,7 @@ function lineChart({ title, subtitle, xs, xLabel, series, ref, yUnit = 'ms' }) {
     out.push(`<line x1="${left}" x2="${left + plotW}" y1="${y(ref.value)}" y2="${y(ref.value)}" stroke="${C.ink2}" stroke-width="1.5" stroke-dasharray="4 3"/>`);
     out.push(`<text x="${left + 4}" y="${y(ref.value) - 5}" font-size="11" fill="${C.ink2}">${esc(ref.label)}</text>`);
   }
+  const endLabels = [];
   for (const s of series) {
     const pts = s.points.map((p, i) => (p ? [x(i), y(p.median)] : null)).filter(Boolean);
     out.push(`<polyline points="${pts.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${s.color}" stroke-width="2"/>`);
@@ -353,8 +377,12 @@ function lineChart({ title, subtitle, xs, xLabel, series, ref, yUnit = 'ms' }) {
       out.push(`<circle cx="${x(i)}" cy="${y(p.median)}" r="4.5" fill="${s.color}" stroke="${C.surface}" stroke-width="2"/></g>`);
     });
     const last = pts[pts.length - 1];
-    out.push(`<text x="${last[0] + 10}" y="${last[1] + 4}" font-size="12" fill="${C.ink}">${esc(s.name)}</text>`);
+    endLabels.push({ x: last[0] + 10, y: last[1] + 4, name: s.name, color: s.color });
   }
+  // End labels never overlap: each is at least 15 px below the previous one.
+  endLabels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < endLabels.length; i++) endLabels[i].y = Math.max(endLabels[i].y, endLabels[i - 1].y + 15);
+  for (const l of endLabels) out.push(`<text x="${l.x}" y="${l.y}" font-size="12" fill="${C.ink}">${esc(l.name)}</text>`);
   out.push('</svg>');
   return out.join('\n');
 }
@@ -416,7 +444,13 @@ function workloadTable(target, group, extra = []) {
   const checks = checkGroup(target, engines.filter((e) => e !== 'flatsql-native'), group === 'worker' ? 'flatsql-worker' : engines[0]);
   summary.checks[`${target}/${group}`] = checks;
   const bad = checks.filter((c) => c.bad.length);
-  md.push(`Zgodność wyników (sumy kontrolne wszystkich zapytań i stanu tabeli po każdej fazie, wszystkie uruchomienia): ${bad.length ? bad.map((c) => `${label(c.engine)} – rozbieżne: ${c.bad.slice(0, 5).join(', ')}`).join('; ') : `zgodne we wszystkich ${checks.reduce((a, c) => a + c.total, 0)} porównaniach`}${checks.some((c) => c.headOnly) ? '; przy operacjach przerwanych limitem czasu porównano pierwsze 3 wyniki' : ''}.`, '');
+  const tolerated = checks.filter((c) => c.tolerated);
+  md.push(
+    `Zgodność wyników (sumy kontrolne wszystkich zapytań i stanu tabeli po każdej fazie, wszystkie uruchomienia): ${bad.length ? bad.map((c) => `${label(c.engine)} – rozbieżne: ${c.bad.slice(0, 5).join(', ')}`).join('; ') : `zgodne we wszystkich ${checks.reduce((a, c) => a + c.total, 0)} porównaniach`}` +
+      `${checks.some((c) => c.headOnly) ? '; przy operacjach przerwanych limitem czasu porównano pierwsze 3 wyniki' : ''}` +
+      `${tolerated.length ? `; stan tabeli zgodny w granicy błędu zaokrąglenia sumy (względnie 10^-9): ${tolerated.map((c) => `${label(c.engine)} (${c.tolerated} porównań)`).join(', ')}` : ''}.`,
+    '',
+  );
 }
 const READ_N = { point_lookup: 10000, index_lookup: 500, range_scan: 200, full_scan: 20, group_by: 20, top_k: 20, materialize_10k: 20 };
 
@@ -516,16 +550,25 @@ for (const t of ['browser', 'node']) {
   const mem = summary.memory.browser;
   const memNode = summary.memory.node;
   const engines = sortEngines([...Object.keys(cold), ...Object.keys(coldNode)]);
+  // Module size of the engine's package: the largest set of files loaded by
+  // any configuration of the same adapter (a Worker loads everything the
+  // package needs; in the main thread the browser's resource list missed the
+  // .wasm of DuckDB's synchronous bundle, although the engine compiled it).
+  const moduleGzip = (e) => {
+    const sizes = Object.keys(cold).filter((x) => ENGINES[x]?.module === ENGINES[e]?.module).map((x) => cold[x].gzipBytes?.median ?? 0);
+    return sizes.length ? Math.max(...sizes) : null;
+  };
+  summary.moduleGzipBytes = Object.fromEntries(engines.map((e) => [e, moduleGzip(e)]));
   if (engines.length) {
     md.push('## Rozmiar, zimny start, pamięć i wymagania (4.1, 4.3, 4.4)', '');
-    md.push(`Zimny start: nowy proces przeglądarki z pustym profilem (bez pamięci podręcznej HTTP i skompilowanego kodu), od rozpoczęcia importu silnika do wyniku pierwszego zapytania: import i kompilacja modułu, otwarcie bazy ze schematem, pierwszy zapis i odczyt. Rozmiar: wszystkie pliki silnika pobrane przez stronę (bez kodu pomiaru), gzip -9. Pamięć: po wczytaniu ${manifest.options?.rows?.toLocaleString('pl-PL')} wierszy, pamięć liniowa WebAssembly (nie maleje) i przyrost sterty JS w Node.js po pełnym odśmiecaniu.`, '');
+    md.push(`Zimny start: nowy proces przeglądarki z pustym profilem (bez pamięci podręcznej HTTP i skompilowanego kodu), od rozpoczęcia importu silnika do wyniku pierwszego zapytania: import i kompilacja modułu, otwarcie bazy ze schematem, pierwszy zapis i odczyt. Rozmiar: wszystkie pliki pakietu silnika pobrane w zimnym starcie (bez kodu pomiaru), gzip -9; dla pakietu z kilkoma konfiguracjami największy zestaw, bo lista zasobów strony w wątku głównym nie zawierała pliku .wasm pakietu synchronicznego DuckDB-Wasm, choć silnik go wczytał. Pamięć: po wczytaniu ${manifest.options?.rows?.toLocaleString('pl-PL')} wierszy, pamięć liniowa WebAssembly (nie maleje) i przyrost sterty JS w Node.js po pełnym odśmiecaniu.`, '');
     table(
       ['Silnik', 'Grupa', 'Wymagania', 'Moduł (gzip)', 'Zimny start – przeglądarka', 'w tym import i kompilacja', 'Zimny start – Node.js', 'Pamięć WASM po wczytaniu', 'Przyrost sterty JS (Node.js)'],
       engines.map((e) => [
         label(e),
         GROUP_NAME[ENGINES[e]?.group] ?? '–',
         (ENGINES[e]?.needs ?? []).join(', ') || 'brak',
-        cold[e]?.gzipBytes ? kib(cold[e].gzipBytes.median) : '–',
+        moduleGzip(e) !== null ? kib(moduleGzip(e)) : '–',
         msStat(cold[e]?.totalMs),
         msStat(cold[e]?.initMs),
         msStat(coldNode[e]?.totalMs),
@@ -730,15 +773,12 @@ if (W.native && W.node) {
 }
 if (Object.keys(summary.cold.browser ?? {}).length) {
   const cold = summary.cold.browser;
-  figures['04-zimny-start'] = stackedBars({
+  const us = (st) => ({ ...st, median: st.median * 1000, q1: st.q1 * 1000, q3: st.q3 * 1000 });
+  figures['04-zimny-start'] = dotPlot({
     title: 'Zimny start w przeglądarce',
     subtitle: 'nowy proces przeglądarki z pustym profilem; od importu silnika do wyniku pierwszego zapytania',
-    series: [
-      { name: 'import i kompilacja', color: C.s1 },
-      { name: 'otwarcie bazy', color: C.s2 },
-      { name: 'pierwszy zapis i odczyt', color: C.s3 },
-    ],
-    rows: sortEngines(Object.keys(cold)).map((e) => ({ label: label(e), parts: [cold[e].initMs.median, cold[e].openMs.median, cold[e].firstQueryMs.median] })),
+    series: [{ name: 'czas', color: C.s1 }],
+    rows: grouped(Object.keys(cold), (e) => ({ label: label(e), points: [{ series: 'czas', value: us(cold[e].totalMs) }] })),
   });
 }
 if (Object.keys(summary.checkpoint).length) {

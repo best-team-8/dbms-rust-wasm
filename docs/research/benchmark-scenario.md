@@ -10,7 +10,7 @@ Dokument definiuje pytania badawcze, hipotezy, obciążenie testowe, silniki odn
 | H2 | Jaki jest koszt uruchamiania silnika w WebAssembly zamiast natywnie? | Ten sam kod Rust w WASM jest 1,2–3× wolniejszy od natywnego, zależnie od rodzaju operacji. |
 | H3 | Ile kosztuje granica Rust↔JavaScript i jak ją ograniczyć? | Dla małych wyników dominuje koszt przekazywania danych; serializacja do JSON w Rust jest szybsza niż budowanie obiektów JS przez `js-sys`. |
 | H4 | Jak Flat-SQL wypada na tle dojrzałych silników SQL w WASM? | Flat-SQL jest konkurencyjny w zapytaniach punktowych, agregacji i sortowaniu, słabszy w operacjach, w których SQLite korzysta z formatu stronicowego (snapshot i odtwarzanie) i z indeksów pokrywających. |
-| H5 | Jaki jest koszt trwałego zatwierdzenia w przeglądarce? | Przyrostowy WAL w IndexedDB daje koszt zależny od rozmiaru zmiany, a nie bazy; eksport całej bazy (sql.js) rośnie liniowo z jej rozmiarem. |
+| H5 | Jaki jest koszt trwałego zatwierdzenia w przeglądarce? | Przyrostowy WAL w IndexedDB daje koszt zależny od rozmiaru zmiany i niezależny od rozmiaru bazy; eksport całej bazy (sql.js) rośnie liniowo z jej rozmiarem. |
 | H6 | Czy aplikacja zachowuje pełną funkcjonalność offline i czy repliki są zbieżne po odzyskaniu połączenia? | Tak: odczyty i zapisy działają bez serwera, niewysłane zmiany przetrwają restart aplikacji, a po synchronizacji wszystkie repliki mają identyczny stan. |
 
 Oprócz hipotez pomiar odpowiada na pytania pomocnicze: jaki jest rozmiar modułu i czas zimnego startu każdego silnika, ile pamięci zajmuje baza 100 000 wierszy, jak długo checkpoint blokuje wątek główny, ile kosztuje przeniesienie silnika do Web Workera, ile kosztuje tryb trwałości `strict` w IndexedDB i ile kosztuje `fsync` przy zapisie plików.
@@ -62,7 +62,7 @@ Silniki z trwałym magazynem wykonują dodatkowo fazę zapisu trwałego: 100 zat
 
 ## 4. Silniki i grupy warunków uruchomienia
 
-Wynik porównuje się tylko w obrębie grupy silników uruchomionych w tych samych warunkach: tego samego wątku, tego samego rodzaju API (synchroniczne albo asynchroniczne) i tego samego magazynu. Zestawienie silnika pracującego w pamięci z silnikiem, który każdy zapis utrwala na dysku, mierzyłoby różnicę warunków, a nie silników [B3].
+Wynik porównuje się tylko w obrębie grupy silników uruchomionych w tych samych warunkach: tego samego wątku, tego samego rodzaju API (synchroniczne albo asynchroniczne) i tego samego magazynu. Zestawienie silnika pracującego w pamięci z silnikiem, który każdy zapis utrwala na dysku, mierzyłoby różnicę warunków zamiast różnicy silników [B3].
 
 | Grupa | Warunki | Środowisko | Konfiguracje |
 |---|---|---|---|
@@ -85,7 +85,7 @@ Bazy bez SQL (Dexie.js, PouchDB, RxDB) wykonują te same operacje przez własne 
 | UPDATE, DELETE | `modify` / `delete` w jednej transakcji | `allDocs` i `bulkDocs` | `find` i `bulkUpsert` / `bulkRemove` |
 | Zatwierdzenie | `add`, każde we własnej transakcji IndexedDB | `put` | `insert` |
 
-PouchDB buduje widoki leniwie przy pierwszym zapytaniu; budowę mierzy się osobno zaraz po wstawieniu danych. RxDB zwraca wynik powtórzonego zapytania z pamięci podręcznej zapytań, dopóki kolekcja się nie zmieniła; każde zapytanie dostaje więc dodatkowy, zawsze prawdziwy warunek (`id ≠ −n`, różny w każdym wywołaniu), tak aby było wykonane ponownie.
+PouchDB buduje widoki leniwie przy pierwszym zapytaniu; budowę mierzy się osobno zaraz po wstawieniu danych. RxDB zwraca wynik powtórzonego zapytania z pamięci podręcznej zapytań, dopóki kolekcja się nie zmieniła; adapter opróżnia tę pamięć przed każdym zapytaniem, bez zmiany samego zapytania, więc każde wywołanie jest wykonywane przez magazyn. Zapytania po zakresie klucza głównego dostają wskazówkę indeksu klucza (pole `index` zapytania, opisane w dokumentacji RxDB), bo bez niej planer RxDB wybierał indeks `category` i czytał całą kolekcję (zmierzono 48 ms zamiast 22 ms dla 1000 z 2000 dokumentów). Pierwsza wersja adaptera wymuszała ponowne wykonanie dodatkowym warunkiem na polu bez indeksu, co psuło wybór indeksu; pomiar RxDB powtórzono z poprawionym adapterem.
 
 Silniki rozważane, ale niemierzone:
 
@@ -121,7 +121,7 @@ Dla każdej metryki zbiera się jedną wartość z każdego uruchomienia (np. ś
 
 Każdy wynik zapytania jest zapisywany w postaci kanonicznej: liczba (całkowita, zmiennoprzecinkowa, `BigInt`, `Decimal`) jako liczba całkowita równa wartości pomnożonej przez 10^6 i zaokrąglonej, tekst z prefiksem, `NULL` jako znacznik. Wiersze zapytań bez `ORDER BY` są sortowane. Z tego tekstu liczy się 64-bitową sumę kontrolną (dwa 32-bitowe skróty FNV-1a z różnymi mnożnikami) osobno dla każdej operacji: po pierwszych trzech wykonaniach i po wszystkich. Po wstawieniu, UPDATE, DELETE, odtworzeniu, zatwierdzeniach i ponownym otwarciu silnik zwraca stan tabeli: `COUNT(*)`, `SUM(qty)`, `SUM(price)`. Benchmark natywny w Rust liczy tę samą sumę tym samym algorytmem.
 
-Raport porównuje sumy kontrolne i stan tabeli każdego uruchomienia każdego silnika z silnikiem odniesienia grupy. Skala 10^6 sprawia, że różna kolejność sumowania liczb zmiennoprzecinkowych w różnych silnikach nie zmienia wyniku, a różnica w szóstym miejscu po przecinku już tak. Sama liczba wierszy, porównywana we wstępnych pomiarach, nie wykryłaby np. złego wiersza zwróconego po kluczu [B3].
+Raport porównuje sumy kontrolne i stan tabeli każdego uruchomienia każdego silnika z silnikiem odniesienia grupy. Wyniki zapytań mają co najwyżej kilkaset tysięcy w części całkowitej i są sumami najwyżej 1000 cen, więc błąd zaokrąglenia jest o rzędy wielkości mniejszy niż 10^-6 i różna kolejność sumowania w silnikach nie zmienia sumy kontrolnej. Inaczej jest ze stanem tabeli: suma 100 000 cen (około 5·10^6) zależy od kolejności dodawania już na szóstym miejscu po przecinku, a silniki dokumentowe zwracają dokumenty w innej kolejności niż silniki SQL. Stan tabeli porównuje się więc z tolerancją względną 10^-9, a raport podaje, ile porównań jej wymagało. Sama liczba wierszy, porównywana we wstępnych pomiarach, nie wykryłaby np. złego wiersza zwróconego po kluczu [B3].
 
 ### 5.6 Zimny start
 
@@ -220,13 +220,13 @@ Kryterium zaliczenia (H6): wszystkie kroki zakończone bez utraty zatwierdzonych
 
 Szum pomiarowy pochodzi z kompilatora JIT, odśmiecania pamięci, procesów w tle, zmian częstotliwości procesora i temperatury laptopa. Ogranicza go powtarzanie pomiaru w nowych procesach, losowa kolejność silników i raportowanie mediany z kwartylami; rozrzut każdego pomiaru jest podany przy wyniku, a raport wymienia operacje o największym współczynniku zmienności. Uruchomienia nie są w pełni niezależne, bo dzielą tę samą maszynę i sesję systemu; trend w czasie (np. nagrzanie się laptopa) rozkłada się dzięki losowej kolejności na wszystkie silniki.
 
-Adaptery silników odniesienia napisał autor Flat-SQL. Raasveldt i in. wskazują, że lepsza znajomość własnego systemu jest częstym źródłem nieuczciwych porównań [B3]. Każdy silnik używa więc API i konfiguracji zalecanych w jego dokumentacji, a odstępstwa (dodatkowy warunek w zapytaniach RxDB, budowa widoków PouchDB poza pomiarem odczytów, pakiet synchroniczny DuckDB) są opisane wyżej i w kodzie adapterów. Sumy kontrolne potwierdzają, że wszystkie adaptery zwracają te same odpowiedzi, ale nie potwierdzają, że wybrano najszybszy sposób ich uzyskania w danym silniku.
+Adaptery silników odniesienia napisał autor Flat-SQL. Raasveldt i in. wskazują, że lepsza znajomość własnego systemu jest częstym źródłem nieuczciwych porównań [B3]. Każdy silnik używa więc API i konfiguracji zalecanych w jego dokumentacji, a odstępstwa (opróżnianie pamięci podręcznej zapytań RxDB i wskazówka indeksu, budowa widoków PouchDB poza pomiarem odczytów, pakiet synchroniczny DuckDB) są opisane wyżej i w kodzie adapterów. Przykład z RxDB pokazuje, że sposób użycia API potrafi zmienić wynik około stu razy (zakres klucza 2,9 s w pierwszej wersji adaptera, 30 ms po poprawce); dla silników, których API autor zna słabiej, wynik należy traktować jako górne ograniczenie czasu. Sumy kontrolne potwierdzają, że wszystkie adaptery zwracają te same odpowiedzi, ale nie potwierdzają, że wybrano najszybszy sposób ich uzyskania w danym silniku.
 
 Wynik każdej operacji zawiera koszt przekazania odpowiedzi do JavaScriptu w postaci tablic wierszy. Dla silników, których naturalnym formatem są kolumny Apache Arrow (DuckDB-Wasm) albo obiekty (AlaSQL, bazy dokumentowe), zawiera więc też konwersję do tego formatu. Aplikacja, która korzysta z formatu natywnego silnika, zapłaciłaby mniej.
 
 Gwarancje trwałości różnią się między silnikami mimo wspólnej definicji („obietnica zapisu rozwiązana”): tryb `relaxed` IndexedDB nie chroni przed awarią systemu, a magazyn plikowy bez `fsync` nie chroni przed utratą zasilania. Wyniki trwałego zapisu podaje się więc razem z trybem trwałości.
 
-RxDB odczytuje dokument po kluczu z własnej pamięci podręcznej, gdy dokument był wcześniej odczytany; w obciążeniu poprzedza to sprawdzenie stanu tabeli, które czyta wszystkie dokumenty. Wynik RxDB w odczycie po kluczu dotyczy więc tej pamięci podręcznej, a nie IndexedDB.
+RxDB odczytuje dokument po kluczu z własnej pamięci podręcznej, gdy dokument był wcześniej odczytany; w obciążeniu poprzedza to sprawdzenie stanu tabeli, które czyta wszystkie dokumenty. Wynik RxDB w odczycie po kluczu opisuje więc tę pamięć podręczną; odczyt z IndexedDB jest wolniejszy.
 
 Przeglądarka działa w trybie bez okna (headless). Silnik JavaScript, IndexedDB i OPFS są te same co w trybie z oknem, ale strona nie rysuje klatek, więc pomiar pauzy checkpointu nie obejmuje kosztu renderowania.
 
@@ -234,7 +234,7 @@ Przeglądarka działa w trybie bez okna (headless). Silnik JavaScript, IndexedDB
 
 Wszystkie pomiary wykonano na jednym laptopie z Windows. Wartości bezwzględne nie przenoszą się na inne urządzenia, a zwłaszcza na telefony; przenoszą się proporcje między silnikami w tej samej grupie. Koszt `fsync` i trybu `strict` zależy od systemu plików i dysku.
 
-Obciążenie jest syntetyczne: jedna tabela, równomierny rozkład kluczy i stały zestaw zapytań. Rzeczywiste aplikacje mają rozkład dostępu skośny (np. rozkład Zipfa w YCSB [B5]), wiele tabel i zapytania zależne od interfejsu. Wynik opisuje więc zachowanie silników w typowych operacjach niszy Flat-SQL, a nie wydajność konkretnej aplikacji.
+Obciążenie jest syntetyczne: jedna tabela, równomierny rozkład kluczy i stały zestaw zapytań. Rzeczywiste aplikacje mają rozkład dostępu skośny (np. rozkład Zipfa w YCSB [B5]), wiele tabel i zapytania zależne od interfejsu. Wynik opisuje więc zachowanie silników w typowych operacjach niszy Flat-SQL; wydajność konkretnej aplikacji trzeba zmierzyć na jej obciążeniu.
 
 Symulowana sieć pomija zmienność opóźnień, utratę pakietów, TLS i ustanawianie połączeń, więc przewaga modelu Local-First jest w niej zaniżona.
 

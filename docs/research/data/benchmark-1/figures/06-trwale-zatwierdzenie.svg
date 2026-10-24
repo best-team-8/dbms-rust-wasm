@@ -66,10 +66,10 @@
 <text x="552.1213810900251" y="315" font-size="11" fill="#52514e">1,11 ms</text>
 </g>
 <text x="350.00000000000006" y="341" font-size="12" fill="#0b0b0b" text-anchor="end">RxDB (Dexie storage)</text>
-<g><title>RxDB (Dexie storage): mediana 1,12 ms, Q1–Q3 1,09 ms–1,18 ms, n = 10</title>
-<line x1="539.4744879726654" x2="545.9537907266015" y1="337" y2="337" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
-<circle cx="541.9131703865281" cy="337" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
-<text x="553.9537907266015" y="341" font-size="11" fill="#52514e">1,12 ms</text>
+<g><title>RxDB (Dexie storage): mediana 1,33 ms, Q1–Q3 1,17 ms–2,69 ms, n = 10</title>
+<line x1="545.1200391908233" x2="607.8524069496248" y1="337" y2="337" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="554.8674264891723" cy="337" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="615.8524069496248" y="341" font-size="11" fill="#52514e">1,33 ms</text>
 </g>
 <line x1="16" x2="904" y1="352" y2="352" stroke="#e4e3df"/>
 <text x="16" y="369" font-size="12" font-weight="600" fill="#52514e">grupa „Worker”</text>

@@ -440,5 +440,29 @@
         "runs": 10
       }
     }
-  }
+  },
+  "reruns": [
+    {
+      "target": "browser",
+      "kind": "workload",
+      "engines": [
+        "rxdb"
+      ],
+      "date": "2026-10-24T06:04:44.932Z",
+      "tool": {
+        "commit": "ebf01f8fbf903b9e7498deac9f28681c76189aaf",
+        "describe": "prototyp-2-gebf01f8"
+      },
+      "flatsql": {
+        "describe": "prototyp-2-gebf01f8",
+        "commit": "ebf01f8fbf903b9e7498deac9f28681c76189aaf",
+        "note": "dwa commity po tagu prototyp, zmiany tylko w bench/ i docs/; silnik, most i pkg/ bez zmian"
+      },
+      "browser": {
+        "name": "msedge",
+        "version": "156.0.4314.42"
+      },
+      "reason": "poprawka adaptera RxDB: pamięć podręczna zapytań opróżniana przed zapytaniem zamiast dodatkowego warunku na polu bez indeksu, wskazówka indeksu klucza w zapytaniach po zakresie klucza"
+    }
+  ]
 }

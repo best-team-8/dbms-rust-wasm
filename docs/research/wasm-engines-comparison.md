@@ -2,7 +2,7 @@
 
 Celem analizy jest umiejscowienie Flat-SQL wśród rozwiązań, które pozwalają wykonywać zapytania do bazy danych po stronie klienta (przeglądarka, węzeł edge), oraz uzasadnienie wyboru silników porównywanych w benchmarkach ([scenariusz](benchmark-scenario.md), [wyniki](benchmark-results.md)). To, kto i do czego faktycznie używa tych silników, opisuje [real-world-usage.md](real-world-usage.md); literaturę – [references/README.md](../references/README.md) (identyfikatory w nawiasach, np. [D1]).
 
-Stan na październik 2026 (rewizja 20.10). Rozmiary oznaczone „zmierzono” pochodzą z tego repozytorium (`npm run bench`); pozostałe są deklaracjami autorów i mają charakter orientacyjny.
+Stan na październik 2026 (rewizja 24.10). Rozmiary oznaczone „zmierzono” pochodzą z Benchmarku 1 ([benchmark-results.md](benchmark-results.md)): wszystkie pliki pakietu pobrane przy zimnym starcie w przeglądarce (moduł WebAssembly razem z kodem JavaScript), bez kompresji i po kompresji gzip; pozostałe są deklaracjami autorów i mają charakter orientacyjny.
 
 ## 1. Kryteria
 
@@ -53,7 +53,7 @@ Przepisanie SQLite w Rust (wcześniej Limbo), zgodne z formatem pliku SQLite, z 
 
 ### 2.9 AlaSQL
 
-Silnik SQL napisany w czystym JavaScripcie, bez WebAssembly: tabele są tablicami obiektów JS w pamięci, zapytania są kompilowane do funkcji JavaScript (`alasql.compile`). Obsługuje szeroki dialekt (także złączenia i zapytania na tablicach obiektów, plikach CSV i XLSX), działa w przeglądarce i Node.js, a trwałość zapewniają opcjonalne adaptery (localStorage, IndexedDB) zapisujące całe tabele. Jest punktem odniesienia „SQL bez WASM”: pokazuje, ile daje kompilacja silnika do WebAssembly w porównaniu z interpretacją zapytań w samym JavaScripcie.
+Silnik SQL napisany w czystym JavaScripcie, bez WebAssembly: tabele są tablicami obiektów JS w pamięci, zapytania są kompilowane do funkcji JavaScript (`alasql.compile`). Obsługuje szeroki dialekt (także złączenia i zapytania na tablicach obiektów, plikach CSV i XLSX), działa w przeglądarce i Node.js; trwałość zapewniają opcjonalne adaptery magazynów (localStorage, IndexedDB), których benchmark nie mierzy. Jest punktem odniesienia „SQL bez WASM”: pokazuje, ile daje kompilacja silnika do WebAssembly w porównaniu z interpretacją zapytań w samym JavaScripcie.
 
 ### 2.10 Bazy na IndexedDB i warstwy synchronizacji
 
@@ -62,25 +62,26 @@ Silnik SQL napisany w czystym JavaScripcie, bez WebAssembly: tabele są tablicam
 
 ## 3. Zestawienie
 
-| Rozwiązanie | Model / język | Implementacja | Moduł (orientacyjnie) | Trwałość w przeglądarce | Wymagania | Synchronizacja |
+| Rozwiązanie | Model / język | Implementacja | Moduł | Trwałość w przeglądarce | Wymagania | Synchronizacja |
 |---|---|---|---|---|---|---|
-| **Flat-SQL** | płaskie tabele z kluczem, Flat-SQL (bez JOIN) | Rust → `wasm32`, `wasm-bindgen` | **545 KiB / 206 KiB gzip** (zmierzono) | WAL + snapshot w IndexedDB (przyrostowo, group commit) | brak (wątek główny lub Worker) | **wbudowana**: HLC + LWW, outbox, serwer |
-| SQLite WASM | relacyjny, SQL | C → Emscripten | ok. 0,8–1 MB bez kompresji | OPFS (`opfs`, `opfs-sahpool`), kvvfs | Worker; `opfs` wymaga COOP/COEP | brak (zewnętrzne, np. cr-sqlite) |
-| sql.js | relacyjny, SQL | C → Emscripten | 643 KiB / 315 KiB gzip (zmierzono) | brak – eksport całej bazy | brak | brak |
-| wa-sqlite | relacyjny, SQL | C → Emscripten (Asyncify/JSPI) | zbliżony do SQLite | VFS IndexedDB / OPFS (stronami) | zależnie od VFS | brak |
-| PGlite | relacyjny, PostgreSQL | C → Emscripten | < 3 MB gzip | IndexedDB, OPFS | jedno połączenie | zewnętrzna (Electric) |
-| DuckDB-Wasm [D1] | analityczny (kolumnowy), SQL | C++ → Emscripten | ok. 2,5–2,8 MB po kompresji | pliki/OPFS, głównie odczyt danych | Web Worker | brak |
-| Zeta-Lite [D5] | relacyjny, PostgreSQL, MVCC | Rust → `wasm32`, `wasm-bindgen` | 2,87 MB gzip | snapshot do OPFS na żądanie | – | brak |
+| **Flat-SQL** | płaskie tabele z kluczem, Flat-SQL (bez JOIN) | Rust → `wasm32`, `wasm-bindgen` | **622 KiB / 230 KiB gzip** (zmierzono) | WAL + snapshot w IndexedDB (przyrostowo, group commit) | brak (wątek główny lub Worker) | **wbudowana**: HLC + LWW, outbox, serwer |
+| SQLite WASM | relacyjny, SQL | C → Emscripten | 1532 KiB / 583 KiB gzip (zmierzono, z VFS OPFS) | OPFS (`opfs`, `opfs-sahpool`), kvvfs | Worker; `opfs` wymaga COOP/COEP | brak (zewnętrzne, np. cr-sqlite) |
+| sql.js | relacyjny, SQL | C → Emscripten | 687 KiB / 331 KiB gzip (zmierzono) | brak – eksport całej bazy | brak | brak |
+| AlaSQL | relacyjny, SQL | JavaScript (bez WASM) | 508 KiB / 111 KiB gzip (zmierzono) | opcjonalne adaptery (localStorage, IndexedDB) | brak | brak |
+| wa-sqlite | relacyjny, SQL | C → Emscripten (Asyncify/JSPI) | 2440 KiB / 821 KiB gzip (zmierzono, build Asyncify z `IDBBatchAtomicVFS`) | VFS IndexedDB / OPFS (stronami) | zależnie od VFS | brak |
+| PGlite | relacyjny, PostgreSQL | C → Emscripten | 17 MiB / 5,6 MiB gzip (zmierzono, z obrazem systemu plików `pglite.data`) | IndexedDB, OPFS | jedno połączenie | zewnętrzna (Electric) |
+| DuckDB-Wasm [D1] | analityczny (kolumnowy), SQL | C++ → Emscripten | 34 MiB / 7,6 MiB gzip (zmierzono, build `eh` z Apache Arrow) | pliki/OPFS, głównie odczyt danych | Web Worker | brak |
+| Zeta-Lite [D5] | relacyjny, PostgreSQL, MVCC | Rust → `wasm32`, `wasm-bindgen` | 2,87 MB gzip (deklaracja autora, niezmierzone) | snapshot do OPFS na żądanie | – | brak |
 | GlueSQL | relacyjny, SQL | Rust → `wasm32` | – | localStorage / sessionStorage / IndexedDB | brak | brak |
 | Turso | relacyjny, SQL (zgodny z SQLite) | Rust, async I/O | – (beta) | OPFS | API asynchroniczne | w ekosystemie Turso |
-| Dexie / RxDB / PouchDB | dokumentowy, API JS | JavaScript | – | IndexedDB | brak | RxDB, PouchDB: wbudowana |
+| Dexie / RxDB / PouchDB | dokumentowy, API JS | JavaScript | Dexie 49 KiB, PouchDB 42 KiB, RxDB z magazynem Dexie 80 KiB gzip (zmierzono, po minifikacji) | IndexedDB | brak | RxDB, PouchDB: wbudowana |
 
 ## 4. Wnioski i miejsce Flat-SQL
 
 1. **Rozwiązania oparte na SQLite/PostgreSQL** dają pełny SQL, ale trwałość w przeglądarce wymaga eksportu całej bazy (sql.js – koszt zatwierdzenia rośnie z rozmiarem bazy), VFS na OPFS (Worker, czasem COOP/COEP, ograniczenia wielu kart) albo snapshotu na żądanie (Zeta-Lite – utrata zmian po ostatnim snapshocie). Synchronizacja jest zawsze osobną warstwą.
 2. **DuckDB-Wasm** rozwiązuje inny problem (analityka dużych plików) i jest właściwym wyborem dla scenariusza „CSV 500 MB”; **PGlite** – tam, gdzie liczy się zgodność z PostgreSQL. Flat-SQL nie powinien z nimi konkurować.
 3. **Flat-SQL** celuje w dane operacyjne aplikacji – zapis stanu gier, dane zbierane w terenie, kopie danych serwera, konfigurację – i wybiera węższy dialekt w zamian za:
-   - mały moduł (ok. 2/3 rozmiaru sql.js po kompresji, kilkanaście razy mniejszy od PGlite, DuckDB-Wasm i Zeta-Lite) i brak wymagań środowiskowych,
+   - mały moduł (230 KiB po kompresji: ok. 2/3 sql.js, 2,5 raza mniej niż SQLite WASM, 12–34 razy mniej niż Zeta-Lite, PGlite i DuckDB-Wasm) i brak wymagań środowiskowych,
    - rdzeń bez I/O – ten sam kod w przeglądarce, Node.js, na edge i natywnie (droga do panelu WinUI przez interfejs C),
    - **przyrostową trwałość** (koszt zatwierdzenia proporcjonalny do zmiany, nie do bazy) – w przeciwieństwie do sql.js i Zeta-Lite,
    - **wbudowaną synchronizację** Local-First z deterministycznym rozwiązywaniem konfliktów, prostą dzięki adresowaniu wierszy kluczem.

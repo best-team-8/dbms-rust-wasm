@@ -67,22 +67,22 @@ Zgodność wyników (sumy kontrolne wszystkich zapytań i stanu tabeli po każde
 
 | Operacja | Flat-SQL + IndexedDB | Flat-SQL + IndexedDB (strict) | sql.js + eksport do IndexedDB | wa-sqlite + IDBBatchAtomicVFS | wa-sqlite + IDBBatchAtomicVFS (synchronous=normal) | PGlite + IndexedDB | Dexie.js | Dexie.js (strict) | PouchDB | RxDB (Dexie storage) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Wstawienie N wierszy (1 transakcja) | 471 (467–477) ms | 487 (477–491) ms | 235 (233–330) ms | 1,12 (1,10–1,17) s | 1,10 (1,09–1,13) s | 20,3 (20,2–20,7) s | 8,82 (8,74–9,00) s | 8,88 (8,76–9,07) s | 20,7 (20,4–21,1) s | 16,0 (15,7–16,1) s |
+| Wstawienie N wierszy (1 transakcja) | 471 (467–477) ms | 487 (477–491) ms | 235 (233–330) ms | 1,12 (1,10–1,17) s | 1,10 (1,09–1,13) s | 20,3 (20,2–20,7) s | 8,82 (8,74–9,00) s | 8,88 (8,76–9,07) s | 20,7 (20,4–21,1) s | 16,2 (16,0–16,4) s |
 | Budowa indeksów (widoki PouchDB) | – | – | – | – | – | – | – | – | 96,2 (95,5–98,8) s | – |
-| Odczyt po kluczu | 9,95 (9,85–10,0) µs | 9,93 (9,82–10,00) µs | 14,9 (14,7–15,1) µs | 1,31 (1,28–1,32) ms | 1,19 (1,17–1,23) ms | 36,1 (35,6–36,6) ms [538/10000] | 168 (162–172) µs | 171 (165–180) µs | 383 (381–389) µs | 16,1 (15,8–16,2) µs |
-| COUNT po indeksie | 449 (439–460) µs | 450 (441–460) µs | 67,1 (66,8–68,9) µs | 1,36 (1,33–1,39) ms | 1,30 (1,24–1,31) ms | 36,8 (36,4–37,3) ms | 7,85 (7,77–7,91) ms | 7,86 (7,78–7,98) ms | 54,8 (54,7–56,0) ms [339/500] | 1,40 (1,38–1,40) ms |
-| Zakres klucza (1000 wierszy) + SUM | 85,3 (82,9–87,3) µs | 84,8 (82,8–86,2) µs | 94,6 (93,5–95,6) µs | 2,15 (2,11–2,23) ms | 2,03 (1,98–2,14) ms | 36,3 (35,8–37,1) ms | 7,66 (7,55–7,96) ms | 7,57 (7,49–7,66) ms | 44,0 (43,4–44,6) ms | 2,94 (2,91–2,96) s [7/200] |
-| Pełny skan z filtrem | 8,93 (8,86–9,06) ms | 9,04 (8,98–9,21) ms | 8,23 (8,22–8,30) ms | 163 (162–180) ms | 163 (161–170) ms | 49,0 (47,4–49,6) ms | 1,40 (1,37–1,43) s [14/20] | 1,42 (1,40–1,45) s [13/20] | 4,56 (4,53–4,61) s [5/20] | 1,84 (1,81–1,86) s [11/20] |
-| GROUP BY (100 grup) | 16,2 (16,1–16,6) ms | 16,8 (16,3–17,3) ms | 110 (108–112) ms | 15,0 (14,8–15,2) s [4/20] | 14,9 (14,8–15,1) s [4/20] | 68,6 (67,2–69,4) ms | 573 (568–583) ms | 578 (573–581) ms | 4,61 (4,55–4,64) s [5/20] | 3,10 (3,09–3,13) s [7/20] |
-| ORDER BY … LIMIT 10 | 5,95 (5,71–6,03) ms | 5,58 (5,51–5,86) ms | 11,3 (11,1–11,5) ms | 189 (180–193) ms | 177 (176–186) ms | 58,0 (56,8–58,7) ms | 700 (663–733) µs | 709 (664–747) µs | 7,47 (7,25–7,82) ms | 3,65 (3,61–3,72) s [6/20] |
-| Pobranie 10 000 wierszy | 14,7 (14,6–14,8) ms | 14,7 (13,7–14,8) ms | 14,0 (13,8–14,2) ms | 29,3 (28,9–30,4) ms | 29,4 (28,8–43,0) ms | 115 (114–117) ms | 55,9 (55,6–56,4) ms | 55,5 (55,1–56,4) ms | 416 (414–427) ms | 2,95 (2,93–2,99) s [7/20] |
-| UPDATE 10% wierszy | 38,9 (37,8–47,2) ms | 40,1 (39,0–41,1) ms | 36,8 (31,8–41,4) ms | 1,66 (1,59–1,72) s | 1,72 (1,70–2,02) s | 200 (198–202) ms | 2,88 (2,80–2,93) s | 2,90 (2,86–2,97) s | 7,17 (7,09–7,22) s | 5,89 (5,82–5,94) s |
-| DELETE 10% wierszy | 33,4 (32,9–33,9) ms | 34,3 (34,3–34,7) ms | 37,7 (37,5–37,9) ms | 1,78 (1,75–1,80) s | 1,84 (1,83–1,87) s | 155 (148–158) ms | 2,49 (2,45–2,52) s | 2,55 (2,50–2,74) s | 7,15 (7,11–7,21) s | 4,93 (4,91–4,97) s |
-| Trwałe zatwierdzenie 1 wiersza | 395 (384–403) µs | 1,00 (0,98–1,07) ms | 19,3 (19,2–19,3) ms | 7,52 (7,46–7,58) ms | 6,87 (6,79–7,13) ms | 54,5 (54,0–55,5) ms | 559 (550–587) µs | 1,28 (1,26–1,35) ms | 1,11 (1,07–1,15) ms | 1,12 (1,09–1,18) ms |
-| 1000 zatwierdzeń, jedno oczekiwanie | 5,85 (5,73–5,95) ms | 6,66 (6,59–6,74) ms | 89,0 (85,9–93,6) ms | 4,79 (4,78–4,97) s | 3,70 (3,67–3,76) s | 57,4 (57,1–58,3) s | 358 (347–375) ms | 1,05 (0,99–1,09) s | 1,02 (0,99–1,05) s | 928 (894–968) ms |
-| Ponowne otwarcie + 1. zapytanie | 174 (172–175) ms | 173 (172–174) ms | 10,7 (10,5–10,8) ms | 7,69 (5,74–8,49) ms | 7,81 (6,96–8,05) ms | 847 (844–862) ms | 2,82 (2,77–2,96) ms | 3,12 (2,93–3,34) ms | 944 (937–957) ms | 9,47 (7,65–11,1) ms |
+| Odczyt po kluczu | 9,95 (9,85–10,0) µs | 9,93 (9,82–10,00) µs | 14,9 (14,7–15,1) µs | 1,31 (1,28–1,32) ms | 1,19 (1,17–1,23) ms | 36,1 (35,6–36,6) ms [538/10000] | 168 (162–172) µs | 171 (165–180) µs | 383 (381–389) µs | 10,8 (10,6–10,9) µs |
+| COUNT po indeksie | 449 (439–460) µs | 450 (441–460) µs | 67,1 (66,8–68,9) µs | 1,36 (1,33–1,39) ms | 1,30 (1,24–1,31) ms | 36,8 (36,4–37,3) ms | 7,85 (7,77–7,91) ms | 7,86 (7,78–7,98) ms | 54,8 (54,7–56,0) ms [339/500] | 11,6 (11,6–11,8) ms |
+| Zakres klucza (1000 wierszy) + SUM | 85,3 (82,9–87,3) µs | 84,8 (82,8–86,2) µs | 94,6 (93,5–95,6) µs | 2,15 (2,11–2,23) ms | 2,03 (1,98–2,14) ms | 36,3 (35,8–37,1) ms | 7,66 (7,55–7,96) ms | 7,57 (7,49–7,66) ms | 44,0 (43,4–44,6) ms | 30,3 (29,4–30,9) ms |
+| Pełny skan z filtrem | 8,93 (8,86–9,06) ms | 9,04 (8,98–9,21) ms | 8,23 (8,22–8,30) ms | 163 (162–180) ms | 163 (161–170) ms | 49,0 (47,4–49,6) ms | 1,40 (1,37–1,43) s [14/20] | 1,42 (1,40–1,45) s [13/20] | 4,56 (4,53–4,61) s [5/20] | 1,92 (1,91–1,96) s [10/20] |
+| GROUP BY (100 grup) | 16,2 (16,1–16,6) ms | 16,8 (16,3–17,3) ms | 110 (108–112) ms | 15,0 (14,8–15,2) s [4/20] | 14,9 (14,8–15,1) s [4/20] | 68,6 (67,2–69,4) ms | 573 (568–583) ms | 578 (573–581) ms | 4,61 (4,55–4,64) s [5/20] | 3,16 (3,11–3,24) s [7/20] |
+| ORDER BY … LIMIT 10 | 5,95 (5,71–6,03) ms | 5,58 (5,51–5,86) ms | 11,3 (11,1–11,5) ms | 189 (180–193) ms | 177 (176–186) ms | 58,0 (56,8–58,7) ms | 700 (663–733) µs | 709 (664–747) µs | 7,47 (7,25–7,82) ms | 3,74 (3,69–3,75) s [6/20] |
+| Pobranie 10 000 wierszy | 14,7 (14,6–14,8) ms | 14,7 (13,7–14,8) ms | 14,0 (13,8–14,2) ms | 29,3 (28,9–30,4) ms | 29,4 (28,8–43,0) ms | 115 (114–117) ms | 55,9 (55,6–56,4) ms | 55,5 (55,1–56,4) ms | 416 (414–427) ms | 267 (259–275) ms |
+| UPDATE 10% wierszy | 38,9 (37,8–47,2) ms | 40,1 (39,0–41,1) ms | 36,8 (31,8–41,4) ms | 1,66 (1,59–1,72) s | 1,72 (1,70–2,02) s | 200 (198–202) ms | 2,88 (2,80–2,93) s | 2,90 (2,86–2,97) s | 7,17 (7,09–7,22) s | 5,82 (5,73–5,89) s |
+| DELETE 10% wierszy | 33,4 (32,9–33,9) ms | 34,3 (34,3–34,7) ms | 37,7 (37,5–37,9) ms | 1,78 (1,75–1,80) s | 1,84 (1,83–1,87) s | 155 (148–158) ms | 2,49 (2,45–2,52) s | 2,55 (2,50–2,74) s | 7,15 (7,11–7,21) s | 4,87 (4,84–5,03) s |
+| Trwałe zatwierdzenie 1 wiersza | 395 (384–403) µs | 1,00 (0,98–1,07) ms | 19,3 (19,2–19,3) ms | 7,52 (7,46–7,58) ms | 6,87 (6,79–7,13) ms | 54,5 (54,0–55,5) ms | 559 (550–587) µs | 1,28 (1,26–1,35) ms | 1,11 (1,07–1,15) ms | 1,33 (1,17–2,69) ms |
+| 1000 zatwierdzeń, jedno oczekiwanie | 5,85 (5,73–5,95) ms | 6,66 (6,59–6,74) ms | 89,0 (85,9–93,6) ms | 4,79 (4,78–4,97) s | 3,70 (3,67–3,76) s | 57,4 (57,1–58,3) s | 358 (347–375) ms | 1,05 (0,99–1,09) s | 1,02 (0,99–1,05) s | 993 (917–1048) ms |
+| Ponowne otwarcie + 1. zapytanie | 174 (172–175) ms | 173 (172–174) ms | 10,7 (10,5–10,8) ms | 7,69 (5,74–8,49) ms | 7,81 (6,96–8,05) ms | 847 (844–862) ms | 2,82 (2,77–2,96) ms | 3,12 (2,93–3,34) ms | 944 (937–957) ms | 13,6 (13,2–14,6) ms |
 
-Zgodność wyników (sumy kontrolne wszystkich zapytań i stanu tabeli po każdej fazie, wszystkie uruchomienia): RxDB (Dexie storage) – rozbieżne: stan afterInsert (run 1), stan after_update_10pct (run 1), stan afterInsert (run 2), stan after_update_10pct (run 2), stan afterInsert (run 3); przy operacjach przerwanych limitem czasu porównano pierwsze 3 wyniki.
+Zgodność wyników (sumy kontrolne wszystkich zapytań i stanu tabeli po każdej fazie, wszystkie uruchomienia): zgodne we wszystkich 1200 porównaniach; przy operacjach przerwanych limitem czasu porównano pierwsze 3 wyniki; stan tabeli zgodny w granicy błędu zaokrąglenia sumy (względnie 10^-9): RxDB (Dexie storage) (20 porównań).
 
 ## Obciążenie – przeglądarka, grupa „Worker”: silnik w Web Workerze, wywołanie = komunikat w obie strony
 
@@ -157,16 +157,16 @@ Różnica median (koszt komunikatu w obie strony): odczyt po kluczu 56,3 µs, po
 
 ## Rozmiar, zimny start, pamięć i wymagania (4.1, 4.3, 4.4)
 
-Zimny start: nowy proces przeglądarki z pustym profilem (bez pamięci podręcznej HTTP i skompilowanego kodu), od rozpoczęcia importu silnika do wyniku pierwszego zapytania: import i kompilacja modułu, otwarcie bazy ze schematem, pierwszy zapis i odczyt. Rozmiar: wszystkie pliki silnika pobrane przez stronę (bez kodu pomiaru), gzip -9. Pamięć: po wczytaniu 100 000 wierszy, pamięć liniowa WebAssembly (nie maleje) i przyrost sterty JS w Node.js po pełnym odśmiecaniu.
+Zimny start: nowy proces przeglądarki z pustym profilem (bez pamięci podręcznej HTTP i skompilowanego kodu), od rozpoczęcia importu silnika do wyniku pierwszego zapytania: import i kompilacja modułu, otwarcie bazy ze schematem, pierwszy zapis i odczyt. Rozmiar: wszystkie pliki pakietu silnika pobrane w zimnym starcie (bez kodu pomiaru), gzip -9; dla pakietu z kilkoma konfiguracjami największy zestaw, bo lista zasobów strony w wątku głównym nie zawierała pliku .wasm pakietu synchronicznego DuckDB-Wasm, choć silnik go wczytał. Pamięć: po wczytaniu 100 000 wierszy, pamięć liniowa WebAssembly (nie maleje) i przyrost sterty JS w Node.js po pełnym odśmiecaniu.
 
 | Silnik | Grupa | Wymagania | Moduł (gzip) | Zimny start – przeglądarka | w tym import i kompilacja | Zimny start – Node.js | Pamięć WASM po wczytaniu | Przyrost sterty JS (Node.js) |
 |---|---|---|---:|---:|---:|---:|---:|---:|
 | Flat-SQL | pamięć | brak | 230 KiB | 47,9 (45,3–54,6) ms | 38,0 (34,7–41,8) ms | 56,3 (54,1–57,4) ms | 73,3 MiB | 0,0 MiB |
 | Flat-SQL (JSON) | pamięć | brak | 230 KiB | 48,3 (45,8–51,6) ms | 36,3 (34,1–39,6) ms | 54,6 (53,3–57,3) ms | 73,3 MiB | 0,0 MiB |
 | sql.js | pamięć | brak | 331 KiB | 63,2 (59,5–68,9) ms | 35,7 (34,7–38,3) ms | 49,4 (48,4–50,5) ms | 21,1 MiB | 0,1 MiB |
-| SQLite WASM (:memory:) | pamięć | brak | 572 KiB | 97,2 (93,5–103) ms | 73,5 (69,4–75,8) ms | 59,8 (58,7–60,0) ms | 8,0 MiB | 0,2 MiB |
-| PGlite (pamięć) | pamięć | brak | 5745 KiB | 1,57 (1,56–1,59) s | 50,3 (48,5–52,7) ms | 1,78 (1,73–1,84) s | 189 MiB | 0,6 MiB |
-| DuckDB-Wasm | pamięć | brak | 315 KiB | 844 (836–862) ms | 770 (759–786) ms | 1,12 (1,10–1,15) s | 23,1 MiB | 2,5 MiB |
+| SQLite WASM (:memory:) | pamięć | brak | 583 KiB | 97,2 (93,5–103) ms | 73,5 (69,4–75,8) ms | 59,8 (58,7–60,0) ms | 8,0 MiB | 0,2 MiB |
+| PGlite (pamięć) | pamięć | brak | 5748 KiB | 1,57 (1,56–1,59) s | 50,3 (48,5–52,7) ms | 1,78 (1,73–1,84) s | 189 MiB | 0,6 MiB |
+| DuckDB-Wasm | pamięć | brak | 7813 KiB | 844 (836–862) ms | 770 (759–786) ms | 1,12 (1,10–1,15) s | 23,1 MiB | 2,5 MiB |
 | AlaSQL | pamięć | brak | 111 KiB | 72,2 (65,2–78,5) ms | 59,1 (54,9–67,7) ms | 82,7 (82,0–83,7) ms | nie dotyczy | 13,5 MiB |
 | czysty JS (Map) | pamięć | brak | 0 KiB | 6,22 (5,72–6,66) ms | 6,02 (5,50–6,46) ms | 1,97 (1,79–2,04) ms | nie dotyczy | 20,7 MiB |
 | Flat-SQL + IndexedDB | trwały zapis | IndexedDB | 230 KiB | 91,7 (83,2–102) ms | 40,2 (35,8–47,4) ms | – | – | – |
@@ -174,7 +174,7 @@ Zimny start: nowy proces przeglądarki z pustym profilem (bez pamięci podręczn
 | sql.js + eksport do IndexedDB | trwały zapis | IndexedDB | 331 KiB | 97,7 (93,5–107) ms | 34,3 (32,5–38,4) ms | – | – | – |
 | wa-sqlite + IDBBatchAtomicVFS | trwały zapis | IndexedDB | 821 KiB | 211 (204–216) ms | 95,7 (93,4–105) ms | – | – | – |
 | wa-sqlite + IDBBatchAtomicVFS (synchronous=normal) | trwały zapis | IndexedDB | 821 KiB | 220 (211–379) ms | 111 (103–116) ms | – | – | – |
-| PGlite + IndexedDB | trwały zapis | IndexedDB | 5745 KiB | 2,22 (2,19–2,53) s | 50,0 (47,2–54,6) ms | – | – | – |
+| PGlite + IndexedDB | trwały zapis | IndexedDB | 5748 KiB | 2,22 (2,19–2,53) s | 50,0 (47,2–54,6) ms | – | – | – |
 | Dexie.js | trwały zapis | IndexedDB | 49 KiB | 68,1 (62,5–70,4) ms | 23,0 (21,6–25,7) ms | – | nie dotyczy | – |
 | Dexie.js (strict) | trwały zapis | IndexedDB | 49 KiB | 64,4 (63,8–66,9) ms | 23,4 (21,6–23,9) ms | – | nie dotyczy | – |
 | PouchDB | trwały zapis | IndexedDB | 42 KiB | 77,9 (76,3–83,7) ms | 28,7 (25,6–29,8) ms | – | nie dotyczy | – |
@@ -206,7 +206,7 @@ Wartości podane przez autorów, niepotwierdzone pomiarem w tym benchmarku; waru
 | Dexie.js | trwały zapis | 8,82 (8,74–9,00) s | 559 (550–587) µs | 777 (741–829) µs | 358 (347–375) µs | 2,82 (2,77–2,96) ms |
 | Dexie.js (strict) | trwały zapis | 8,88 (8,76–9,07) s | 1,28 (1,26–1,35) ms | 1,56 (1,54–1,60) ms | 1,05 (0,99–1,09) ms | 3,12 (2,93–3,34) ms |
 | PouchDB | trwały zapis | 20,7 (20,4–21,1) s | 1,11 (1,07–1,15) ms | 1,44 (1,42–1,49) ms | 1,02 (0,99–1,05) ms | 944 (937–957) ms |
-| RxDB (Dexie storage) | trwały zapis | 16,0 (15,7–16,1) s | 1,12 (1,09–1,18) ms | 1,43 (1,41–1,50) ms | 928 (894–968) µs | 9,47 (7,65–11,1) ms |
+| RxDB (Dexie storage) | trwały zapis | 16,2 (16,0–16,4) s | 1,33 (1,17–2,69) ms | 1,70 (1,50–13,5) ms | 993 (917–1048) µs | 13,6 (13,2–14,6) ms |
 | Flat-SQL w Workerze + IndexedDB | Worker | 466 (464–468) ms | 457 (450–460) µs | 685 (642–720) µs | 6,27 (6,00–6,43) µs | 181 (181–183) ms |
 | SQLite WASM + opfs-sahpool | Worker | 930 (922–934) ms | 3,72 (3,66–3,95) ms | 4,25 (4,22–4,64) ms | 3,48 (3,45–3,51) ms | 2,31 (2,16–2,46) ms |
 | PGlite + OPFS (opfs-ahp) | Worker | 21,3 (21,2–21,3) s | 1,26 (1,24–1,33) ms | 1,58 (1,52–1,63) ms | 1,04 (1,03–1,05) ms | 7,14 (7,12–7,38) s |
@@ -265,7 +265,7 @@ Współczynnik zmienności (odchylenie standardowe / średnia) średnich z 386 p
 | przeglądarka | wa-sqlite + IDBBatchAtomicVFS | Ponowne otwarcie + 1. zapytanie | 51,7% |
 | przeglądarka | PGlite + OPFS (opfs-ahp) | DELETE 10% wierszy | 47,8% |
 | przeglądarka | Dexie.js (strict) | Ponowne otwarcie + 1. zapytanie | 43,7% |
-| Node.js | czysty JS (Map) | Pobranie 10 000 wierszy | 40,7% |
+| przeglądarka | RxDB (Dexie storage) | Trwałe zatwierdzenie 1 wiersza | 43,5% |
 
 ## Wykresy
 
