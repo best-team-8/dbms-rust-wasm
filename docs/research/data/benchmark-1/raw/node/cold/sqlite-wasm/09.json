@@ -1,0 +1,1 @@
+{"task":{"kind":"cold","engine":"sqlite-wasm","rows":100000,"flatsqlRoot":".","out":"node/cold/sqlite-wasm/09.json","run":9},"workload":"benchmark-1","started":"2026-10-24T00:48:27.144Z","flatsqlVersion":"0.1.0","node":"v24.21.0","result":{"processBootMs":33.1084,"initMs":31.7631,"openMs":25.088099999999997,"firstQueryMs":1.6495000000000033,"totalMs":58.5007,"firstRow":5}}

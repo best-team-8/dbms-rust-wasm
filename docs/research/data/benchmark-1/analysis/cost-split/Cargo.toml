@@ -1,0 +1,17 @@
+[package]
+name = "cost-split"
+version = "0.1.0"
+edition = "2021"
+publish = false
+default-run = "cost-split"
+
+[dependencies]
+flatsql-core = { path = "../../../../../../crates/flatsql-core" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+# Standalone package, not a member of the repository workspace.
+[workspace]

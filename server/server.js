@@ -215,8 +215,6 @@ export async function createServer(options = {}) {
   const STATIC_DIRS = [
     ['/pkg/', join(ROOT, 'pkg')],
     ['/bridge/', join(ROOT, 'bridge')],
-    ['/bench/', join(ROOT, 'bench')],
-    ['/vendor/sql.js/', join(ROOT, 'node_modules', 'sql.js', 'dist')],
   ];
 
   async function handleStatic(req, res, url) {

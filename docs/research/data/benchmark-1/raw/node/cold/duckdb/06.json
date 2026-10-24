@@ -1,0 +1,1 @@
+{"task":{"kind":"cold","engine":"duckdb","rows":100000,"flatsqlRoot":".","out":"node/cold/duckdb/06.json","run":6},"workload":"benchmark-1","started":"2026-10-24T00:33:59.956Z","flatsqlVersion":"0.1.0","node":"v24.21.0","result":{"processBootMs":34.6591,"initMs":1016.4927,"openMs":35.47070000000008,"firstQueryMs":51.76389999999992,"totalMs":1103.7273,"firstRow":5}}

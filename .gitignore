@@ -20,3 +20,9 @@ node_modules/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Browser bundles of benchmarked engines (bench/browser/build.js)
+/bench/browser/vendor/
+
+# Worktrees of measured Flat-SQL versions (bench/build-version.js)
+/bench/versions/

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; podział zadań na wymagane i dodatkowe (pkt 1) zastąpiony przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | Data | 2026-10-21 |
 | Rodzaj | proces |
 | Powiązane | ADR-0020, ADR-0021, ADR-0022 (zastępuje); [todo.md](../todo.md), [todo_future.md](../todo_future.md) |

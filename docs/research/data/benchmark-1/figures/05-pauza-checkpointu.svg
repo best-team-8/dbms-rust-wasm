@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 380" width="820" height="380" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="820" height="380" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Najdłuższa pauza wątku głównego podczas checkpointu</text>
+<text x="16" y="42" font-size="12" fill="#52514e">przeglądarka, IndexedDB; sql.js – eksport całej bazy i zapis pliku</text>
+<line x1="70" x2="605.12" y1="324" y2="324" stroke="#e4e3df"/>
+<text x="62" y="328" font-size="11" fill="#52514e" text-anchor="end">0 ms</text>
+<line x1="70" x2="605.12" y1="274.4" y2="274.4" stroke="#e4e3df"/>
+<text x="62" y="278.4" font-size="11" fill="#52514e" text-anchor="end">10 ms</text>
+<line x1="70" x2="605.12" y1="224.8" y2="224.8" stroke="#e4e3df"/>
+<text x="62" y="228.8" font-size="11" fill="#52514e" text-anchor="end">20 ms</text>
+<line x1="70" x2="605.12" y1="175.20000000000002" y2="175.20000000000002" stroke="#e4e3df"/>
+<text x="62" y="179.20000000000002" font-size="11" fill="#52514e" text-anchor="end">30 ms</text>
+<line x1="70" x2="605.12" y1="125.6" y2="125.6" stroke="#e4e3df"/>
+<text x="62" y="129.6" font-size="11" fill="#52514e" text-anchor="end">40 ms</text>
+<line x1="70" x2="605.12" y1="76" y2="76" stroke="#e4e3df"/>
+<text x="62" y="80" font-size="11" fill="#52514e" text-anchor="end">50 ms</text>
+<text x="70" y="342" font-size="11" fill="#52514e" text-anchor="middle">10 tys.</text>
+<text x="337.56" y="342" font-size="11" fill="#52514e" text-anchor="middle">50 tys.</text>
+<text x="605.12" y="342" font-size="11" fill="#52514e" text-anchor="middle">100 tys.</text>
+<text x="337.56" y="372" font-size="11" fill="#52514e" text-anchor="middle">liczba wierszy w bazie</text>
+<line x1="70" x2="605.12" y1="241.33333333333331" y2="241.33333333333331" stroke="#52514e" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="74" y="236.33333333333331" font-size="11" fill="#52514e">jedna klatka przy 60 Hz (16,7 ms)</text>
+<polyline points="70,290.9788000059128 337.56,220.36079994678497 605.12,123.9259999704361" fill="none" stroke="#2a78d6" stroke-width="2"/>
+<g><title>Flat-SQL + IndexedDB, 10 tys.: mediana 6,66 ms, Q1–Q3 5,98–6,77 ms</title>
+<line x1="70" x2="70" y1="294.3144000029564" y2="290.4083999586105" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="70" cy="290.9788000059128" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB, 50 tys.: mediana 20,9 ms, Q1–Q3 20,6–21,1 ms</title>
+<line x1="337.56" x2="337.56" y1="221.60699994087219" y2="219.46800013303755" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="337.56" cy="220.36079994678497" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB, 100 tys.: mediana 40,3 ms, Q1–Q3 40,2–40,7 ms</title>
+<line x1="605.12" x2="605.12" y1="124.66379993200303" y2="121.97920005321501" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="605.12" cy="123.9259999704361" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<polyline points="70,293.2108000946045 337.56,222.3819999408722 605.12,122.46280003547668" fill="none" stroke="#eb6834" stroke-width="2"/>
+<g><title>Flat-SQL + IndexedDB (strict), 10 tys.: mediana 6,21 ms, Q1–Q3 6,19–6,34 ms</title>
+<line x1="70" x2="70" y1="293.29140001773834" y2="292.5411999940872" stroke="#eb6834" stroke-width="2"/>
+<circle cx="70" cy="293.2108000946045" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB (strict), 50 tys.: mediana 20,5 ms, Q1–Q3 20,3–20,7 ms</title>
+<line x1="337.56" x2="337.56" y1="223.55999992609026" y2="221.235" stroke="#eb6834" stroke-width="2"/>
+<circle cx="337.56" cy="222.3819999408722" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB (strict), 100 tys.: mediana 40,6 ms, Q1–Q3 40,4–40,9 ms</title>
+<line x1="605.12" x2="605.12" y1="123.57259986400604" y2="121.3034000325203" stroke="#eb6834" stroke-width="2"/>
+<circle cx="605.12" cy="122.46280003547668" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/></g>
+<polyline points="70,312.4183999586105 337.56,291.0159999704361 605.12,265.2859999704361" fill="none" stroke="#1baf7a" stroke-width="2"/>
+<g><title>sql.js + eksport do IndexedDB, 10 tys.: mediana 2,34 ms, Q1–Q3 2,05–2,53 ms</title>
+<line x1="70" x2="70" y1="313.81959995269773" y2="311.4697999024391" stroke="#1baf7a" stroke-width="2"/>
+<circle cx="70" cy="312.4183999586105" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>sql.js + eksport do IndexedDB, 50 tys.: mediana 6,65 ms, Q1–Q3 6,54–7,06 ms</title>
+<line x1="337.56" x2="337.56" y1="291.555400121212" y2="289.00100004434586" stroke="#1baf7a" stroke-width="2"/>
+<circle cx="337.56" cy="291.0159999704361" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>sql.js + eksport do IndexedDB, 100 tys.: mediana 11,8 ms, Q1–Q3 11,5–12,1 ms</title>
+<line x1="605.12" x2="605.12" y1="266.7182000088692" y2="264.03980005025863" stroke="#1baf7a" stroke-width="2"/>
+<circle cx="605.12" cy="265.2859999704361" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/></g>
+<text x="615.12" y="126.46280003547668" font-size="12" fill="#0b0b0b">Flat-SQL + IndexedDB (strict)</text>
+<text x="615.12" y="141.46280003547668" font-size="12" fill="#0b0b0b">Flat-SQL + IndexedDB</text>
+<text x="615.12" y="269.2859999704361" font-size="12" fill="#0b0b0b">sql.js + eksport do IndexedDB</text>
+</svg>

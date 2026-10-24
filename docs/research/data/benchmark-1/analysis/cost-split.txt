@@ -1,0 +1,13 @@
+point lookup, ns per call (SELECT * | SELECT id | binding + access path | tree lookup | lookup + row copy | names + message)
+  round 1: 2262 | 1314 | 279 | 202 | 711 | 258
+  round 2: 2239 | 1293 | 276 | 199 | 697 | 264
+  round 3: 2202 | 1310 | 258 | 200 | 697 | 258
+full scan and GROUP BY, ms (engine scan | hand loop, same filter | tree walk only | engine GROUP BY)
+  round 1: 8.15 | 2.70 | 1.46 | 15.21
+  round 2: 8.01 | 2.84 | 1.47 | 15.15
+  round 3: 8.09 | 2.83 | 1.48 | 15.18
+outbox entries 100002 -> 0; snapshot 5546081 bytes with the outbox, 4170742 without
+snapshot, restore, index rebuild and UPDATE 10%, ms (with outbox / without)
+  round 1: snapshot 27.0 / 18.5 | restore 117.5 / 58.0 | index rebuild 20.5 | UPDATE 30.3 / 28.7 (its WHERE alone 7.1)
+  round 2: snapshot 27.2 / 18.4 | restore 120.1 / 60.6 | index rebuild 21.4 | UPDATE 30.0 / 28.8 (its WHERE alone 6.9)
+  round 3: snapshot 26.8 / 18.3 | restore 120.3 / 59.6 | index rebuild 21.0 | UPDATE 29.8 / 28.5 (its WHERE alone 7.1)

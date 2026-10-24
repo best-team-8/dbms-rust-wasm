@@ -1,0 +1,1 @@
+{"task":{"kind":"cold","engine":"sqljs","rows":100000,"flatsqlRoot":".","out":"node/cold/sqljs/04.json","run":4},"workload":"benchmark-1","started":"2026-10-24T00:24:30.563Z","flatsqlVersion":"0.1.0","node":"v24.21.0","result":{"processBootMs":33.6144,"initMs":16.004599999999996,"openMs":28.42320000000001,"firstQueryMs":1.7280999999999977,"totalMs":46.1559,"firstRow":5}}

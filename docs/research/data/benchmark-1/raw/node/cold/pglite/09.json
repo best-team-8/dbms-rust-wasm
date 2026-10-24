@@ -1,0 +1,1 @@
+{"task":{"kind":"cold","engine":"pglite","rows":100000,"flatsqlRoot":".","out":"node/cold/pglite/09.json","run":9},"workload":"benchmark-1","started":"2026-10-24T00:48:24.773Z","flatsqlVersion":"0.1.0","node":"v24.21.0","result":{"processBootMs":34.568,"initMs":29.975,"openMs":1669.8177,"firstQueryMs":3.8956000000000586,"totalMs":1703.6883,"firstRow":5}}

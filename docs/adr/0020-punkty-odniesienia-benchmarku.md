@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | zastąpiona przez [ADR-0038](0038-metodyka-benchmarku-1.md) |
 | Data | 2026-10-06 ([benchmark-scenario.md](../research/benchmark-scenario.md), [wasm-engines-comparison.md §5](../research/wasm-engines-comparison.md)) |
 | Rodzaj | proces |
 | Powiązane | todo §4 |

@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 498" width="920" height="498" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="920" height="498" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Trwałe zatwierdzenie jednego wiersza – przeglądarka</text>
+<text x="16" y="42" font-size="12" fill="#52514e">zapis jednego wiersza i oczekiwanie na trwałość; 100 zatwierdzeń w każdym uruchomieniu</text>
+<line x1="360.00000000000006" x2="360.00000000000006" y1="60" y2="454" stroke="#e4e3df" stroke-width="1"/>
+<text x="360.00000000000006" y="470" font-size="11" fill="#52514e" text-anchor="middle">100 µs</text>
+<line x1="533.3333333333334" x2="533.3333333333334" y1="60" y2="454" stroke="#e4e3df" stroke-width="1"/>
+<text x="533.3333333333334" y="470" font-size="11" fill="#52514e" text-anchor="middle">1 ms</text>
+<line x1="706.6666666666667" x2="706.6666666666667" y1="60" y2="454" stroke="#e4e3df" stroke-width="1"/>
+<text x="706.6666666666667" y="470" font-size="11" fill="#52514e" text-anchor="middle">10 ms</text>
+<line x1="880" x2="880" y1="60" y2="454" stroke="#e4e3df" stroke-width="1"/>
+<text x="880" y="470" font-size="11" fill="#52514e" text-anchor="middle">100 ms</text>
+<text x="16" y="83" font-size="12" font-weight="600" fill="#52514e">grupa „trwały zapis”</text>
+<text x="350.00000000000006" y="107" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL + IndexedDB</text>
+<g><title>Flat-SQL + IndexedDB: mediana 395 µs, Q1–Q3 384 µs–403 µs, n = 10</title>
+<line x1="461.26692381054346" x2="464.8915171098623" y1="103" y2="103" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="463.3338939845352" cy="103" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="472.8915171098623" y="107" font-size="11" fill="#52514e">395 µs</text>
+</g>
+<text x="350.00000000000006" y="133" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL + IndexedDB (strict)</text>
+<g><title>Flat-SQL + IndexedDB (strict): mediana 1,00 ms, Q1–Q3 984 µs–1,07 ms, n = 10</title>
+<line x1="532.1258440088137" x2="538.4089311771456" y1="129" y2="129" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="533.5925944862349" cy="129" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="546.4089311771456" y="133" font-size="11" fill="#52514e">1,00 ms</text>
+</g>
+<text x="350.00000000000006" y="159" font-size="12" fill="#0b0b0b" text-anchor="end">sql.js + eksport do IndexedDB</text>
+<g><title>sql.js + eksport do IndexedDB: mediana 19,3 ms, Q1–Q3 19,2 ms–19,3 ms, n = 10</title>
+<line x1="755.7319658898266" x2="756.3323055435185" y1="155" y2="155" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="756.0571988473478" cy="155" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="764.3323055435185" y="159" font-size="11" fill="#52514e">19,3 ms</text>
+</g>
+<text x="350.00000000000006" y="185" font-size="12" fill="#0b0b0b" text-anchor="end">wa-sqlite + IDBBatchAtomicVFS</text>
+<g><title>wa-sqlite + IDBBatchAtomicVFS: mediana 7,52 ms, Q1–Q3 7,46 ms–7,58 ms, n = 10</title>
+<line x1="684.5878790307493" x2="685.8219900619645" y1="181" y2="181" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="685.2301096038454" cy="181" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="693.8219900619645" y="185" font-size="11" fill="#52514e">7,52 ms</text>
+</g>
+<text x="350.00000000000006" y="211" font-size="12" fill="#0b0b0b" text-anchor="end">wa-sqlite + IDBBatchAtomicVFS (synchronous=normal)</text>
+<g><title>wa-sqlite + IDBBatchAtomicVFS (synchronous=normal): mediana 6,87 ms, Q1–Q3 6,79 ms–7,13 ms, n = 10</title>
+<line x1="677.4967886175077" x2="681.2396563340076" y1="207" y2="207" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="678.4397948735964" cy="207" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="689.2396563340076" y="211" font-size="11" fill="#52514e">6,87 ms</text>
+</g>
+<text x="350.00000000000006" y="237" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite + IndexedDB</text>
+<g><title>PGlite + IndexedDB: mediana 54,5 ms, Q1–Q3 54,0 ms–55,5 ms, n = 10</title>
+<line x1="833.6017784741559" x2="835.6134032070538" y1="233" y2="233" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="834.3464945650868" cy="233" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="843.6134032070538" y="237" font-size="11" fill="#52514e">54,5 ms</text>
+</g>
+<text x="350.00000000000006" y="263" font-size="12" fill="#0b0b0b" text-anchor="end">Dexie.js</text>
+<g><title>Dexie.js: mediana 559 µs, Q1–Q3 550 µs–587 µs, n = 10</title>
+<line x1="488.2730534140466" x2="493.2898924830664" y1="259" y2="259" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="489.5008637452562" cy="259" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="501.2898924830664" y="263" font-size="11" fill="#52514e">559 µs</text>
+</g>
+<text x="350.00000000000006" y="289" font-size="12" fill="#0b0b0b" text-anchor="end">Dexie.js (strict)</text>
+<g><title>Dexie.js (strict): mediana 1,28 ms, Q1–Q3 1,26 ms–1,35 ms, n = 10</title>
+<line x1="550.8159818946147" x2="556.1639122629715" y1="285" y2="285" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="552.1160860609941" cy="285" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="564.1639122629715" y="289" font-size="11" fill="#52514e">1,28 ms</text>
+</g>
+<text x="350.00000000000006" y="315" font-size="12" fill="#0b0b0b" text-anchor="end">PouchDB</text>
+<g><title>PouchDB: mediana 1,11 ms, Q1–Q3 1,07 ms–1,15 ms, n = 10</title>
+<line x1="538.659205801037" x2="544.1213810900251" y1="311" y2="311" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="540.8886229978742" cy="311" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="552.1213810900251" y="315" font-size="11" fill="#52514e">1,11 ms</text>
+</g>
+<text x="350.00000000000006" y="341" font-size="12" fill="#0b0b0b" text-anchor="end">RxDB (Dexie storage)</text>
+<g><title>RxDB (Dexie storage): mediana 1,33 ms, Q1–Q3 1,17 ms–2,69 ms, n = 10</title>
+<line x1="545.1200391908233" x2="607.8524069496248" y1="337" y2="337" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="554.8674264891723" cy="337" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="615.8524069496248" y="341" font-size="11" fill="#52514e">1,33 ms</text>
+</g>
+<line x1="16" x2="904" y1="352" y2="352" stroke="#e4e3df"/>
+<text x="16" y="369" font-size="12" font-weight="600" fill="#52514e">grupa „Worker”</text>
+<text x="350.00000000000006" y="393" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL w Workerze + IndexedDB</text>
+<g><title>Flat-SQL w Workerze + IndexedDB: mediana 457 µs, Q1–Q3 450 µs–460 µs, n = 10</title>
+<line x1="473.194222056807" x2="474.8862060654798" y1="389" y2="389" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="474.3772381430814" cy="389" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="482.8862060654798" y="393" font-size="11" fill="#52514e">457 µs</text>
+</g>
+<text x="350.00000000000006" y="419" font-size="12" fill="#0b0b0b" text-anchor="end">SQLite WASM + opfs-sahpool</text>
+<g><title>SQLite WASM + opfs-sahpool: mediana 3,72 ms, Q1–Q3 3,66 ms–3,95 ms, n = 10</title>
+<line x1="631.0506789401259" x2="636.6731886765232" y1="415" y2="415" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="632.1940461944992" cy="415" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="644.6731886765232" y="419" font-size="11" fill="#52514e">3,72 ms</text>
+</g>
+<text x="350.00000000000006" y="445" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite + OPFS (opfs-ahp)</text>
+<g><title>PGlite + OPFS (opfs-ahp): mediana 1,26 ms, Q1–Q3 1,24 ms–1,33 ms, n = 10</title>
+<line x1="549.5446355843779" x2="554.9161849295199" y1="441" y2="441" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="550.9754480947181" cy="441" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="562.9161849295199" y="445" font-size="11" fill="#52514e">1,26 ms</text>
+</g>
+<text x="904" y="490" font-size="10.5" fill="#52514e" text-anchor="end">skala logarytmiczna; punkt – mediana uruchomień, odcinek – Q1–Q3</text>
+</svg>

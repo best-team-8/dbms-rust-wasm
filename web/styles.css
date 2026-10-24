@@ -387,36 +387,6 @@ td.null {
   color: var(--bad);
 }
 
-/* benchmark page */
-.bench-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-}
-
-.bench-controls label {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.progress {
-  margin-top: 10px;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 12.5px;
-}
-
-.bench-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 16px 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
