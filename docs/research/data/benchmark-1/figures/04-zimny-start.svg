@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 668" width="760" height="668" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="760" height="668" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Zimny start w przeglądarce</text>
+<text x="16" y="42" font-size="12" fill="#52514e">nowy proces przeglądarki z pustym profilem; od importu silnika do wyniku pierwszego zapytania</text>
+<rect x="230" y="54" width="10" height="10" rx="2" fill="#2a78d6"/><text x="245" y="63" font-size="12" fill="#0b0b0b">import i kompilacja</text>
+<rect x="385.4" y="54" width="10" height="10" rx="2" fill="#eb6834"/><text x="400.4" y="63" font-size="12" fill="#0b0b0b">otwarcie bazy</text>
+<rect x="501.2" y="54" width="10" height="10" rx="2" fill="#1baf7a"/><text x="516.2" y="63" font-size="12" fill="#0b0b0b">pierwszy zapis i odczyt</text>
+<line x1="230" x2="230" y1="72" y2="628" stroke="#e4e3df"/>
+<text x="230" y="644" font-size="11" fill="#52514e" text-anchor="middle">0 ms</text>
+<line x1="322" x2="322" y1="72" y2="628" stroke="#e4e3df"/>
+<text x="322" y="644" font-size="11" fill="#52514e" text-anchor="middle">2000 ms</text>
+<line x1="414" x2="414" y1="72" y2="628" stroke="#e4e3df"/>
+<text x="414" y="644" font-size="11" fill="#52514e" text-anchor="middle">4000 ms</text>
+<line x1="506" x2="506" y1="72" y2="628" stroke="#e4e3df"/>
+<text x="506" y="644" font-size="11" fill="#52514e" text-anchor="middle">6000 ms</text>
+<line x1="598" x2="598" y1="72" y2="628" stroke="#e4e3df"/>
+<text x="598" y="644" font-size="11" fill="#52514e" text-anchor="middle">8000 ms</text>
+<line x1="690" x2="690" y1="72" y2="628" stroke="#e4e3df"/>
+<text x="690" y="644" font-size="11" fill="#52514e" text-anchor="middle">10000 ms</text>
+<text x="220" y="91" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL</text>
+<rect x="230" y="81" width="0" height="14" rx="0" fill="#2a78d6"><title>Flat-SQL – import i kompilacja: 38,0 ms</title></rect>
+<rect x="231.75029999917746" y="81" width="0" height="14" rx="0" fill="#eb6834"><title>Flat-SQL – otwarcie bazy: 6,14 ms</title></rect>
+<rect x="232.03251000010968" y="81" width="0.1920499991774559" height="14" rx="3" fill="#1baf7a"><title>Flat-SQL – pierwszy zapis i odczyt: 4,17 ms</title></rect>
+<text x="238.22455999928712" y="92" font-size="11" fill="#52514e">48,4 ms</text>
+<text x="220" y="115" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL (JSON)</text>
+<rect x="230" y="105" width="0" height="14" rx="0" fill="#2a78d6"><title>Flat-SQL (JSON) – import i kompilacja: 36,3 ms</title></rect>
+<rect x="231.67209999972582" y="105" width="0" height="14" rx="0" fill="#eb6834"><title>Flat-SQL (JSON) – otwarcie bazy: 7,02 ms</title></rect>
+<rect x="231.99490500032903" y="105" width="0.2516199999451637" height="14" rx="3" fill="#1baf7a"><title>Flat-SQL (JSON) – pierwszy zapis i odczyt: 5,47 ms</title></rect>
+<text x="238.2465250002742" y="116" font-size="11" fill="#52514e">48,8 ms</text>
+<text x="220" y="139" font-size="12" fill="#0b0b0b" text-anchor="end">sql.js</text>
+<rect x="230" y="129" width="0" height="14" rx="0" fill="#2a78d6"><title>sql.js – import i kompilacja: 35,7 ms</title></rect>
+<rect x="231.6416250013709" y="129" width="0" height="14" rx="0" fill="#eb6834"><title>sql.js – otwarcie bazy: 23,3 ms</title></rect>
+<rect x="232.7119300019741" y="129" width="0.09326499879360199" height="14" rx="3" fill="#1baf7a"><title>sql.js – pierwszy zapis i odczyt: 2,03 ms</title></rect>
+<text x="238.80519500076772" y="140" font-size="11" fill="#52514e">61,0 ms</text>
+<text x="220" y="163" font-size="12" fill="#0b0b0b" text-anchor="end">SQLite WASM (:memory:)</text>
+<rect x="230" y="153" width="1.3811149998903276" height="14" rx="0" fill="#2a78d6"><title>SQLite WASM (:memory:) – import i kompilacja: 73,5 ms</title></rect>
+<rect x="233.38111499989031" y="153" width="0" height="14" rx="0" fill="#eb6834"><title>SQLite WASM (:memory:) – otwarcie bazy: 20,2 ms</title></rect>
+<rect x="234.3118099992871" y="153" width="0.16180499923229216" height="14" rx="3" fill="#1baf7a"><title>SQLite WASM (:memory:) – pierwszy zapis i odczyt: 3,52 ms</title></rect>
+<text x="240.4736149985194" y="164" font-size="11" fill="#52514e">97,3 ms</text>
+<text x="220" y="187" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite (pamięć)</text>
+<rect x="230" y="177" width="0.3123050006031991" height="14" rx="0" fill="#2a78d6"><title>PGlite (pamięć) – import i kompilacja: 50,3 ms</title></rect>
+<rect x="232.3123050006032" y="177" width="67.6074300006032" height="14" rx="0" fill="#eb6834"><title>PGlite (pamięć) – otwarcie bazy: 1513 ms</title></rect>
+<rect x="301.9197350012064" y="177" width="0.17801999884843825" height="14" rx="3" fill="#1baf7a"><title>PGlite (pamięć) – pierwszy zapis i odczyt: 3,87 ms</title></rect>
+<text x="308.0977550000548" y="188" font-size="11" fill="#52514e">1567 ms</text>
+<text x="220" y="211" font-size="12" fill="#0b0b0b" text-anchor="end">DuckDB-Wasm</text>
+<rect x="230" y="201" width="33.4105699993968" height="14" rx="0" fill="#2a78d6"><title>DuckDB-Wasm – import i kompilacja: 770 ms</title></rect>
+<rect x="265.4105699993968" y="201" width="0" height="14" rx="0" fill="#eb6834"><title>DuckDB-Wasm – otwarcie bazy: 31,9 ms</title></rect>
+<rect x="266.87670499950644" y="201" width="2.098865001261234" height="14" rx="3" fill="#1baf7a"><title>DuckDB-Wasm – pierwszy zapis i odczyt: 45,6 ms</title></rect>
+<text x="274.9755700007677" y="212" font-size="11" fill="#52514e">847 ms</text>
+<text x="220" y="235" font-size="12" fill="#0b0b0b" text-anchor="end">AlaSQL</text>
+<rect x="230" y="225" width="0.7171050011515616" height="14" rx="0" fill="#2a78d6"><title>AlaSQL – import i kompilacja: 59,1 ms</title></rect>
+<rect x="232.71710500115157" y="225" width="0" height="14" rx="0" fill="#eb6834"><title>AlaSQL – otwarcie bazy: 6,73 ms</title></rect>
+<rect x="233.0265700021386" y="225" width="0.18307999950647355" height="14" rx="3" fill="#1baf7a"><title>AlaSQL – pierwszy zapis i odczyt: 3,98 ms</title></rect>
+<text x="239.2096500016451" y="236" font-size="11" fill="#52514e">69,8 ms</text>
+<text x="220" y="259" font-size="12" fill="#0b0b0b" text-anchor="end">czysty JS (Map)</text>
+<rect x="230" y="249" width="0" height="14" rx="0" fill="#2a78d6"><title>czysty JS (Map) – import i kompilacja: 6,02 ms</title></rect>
+<rect x="230.27703499901295" y="249" width="0" height="14" rx="0" fill="#eb6834"><title>czysty JS (Map) – otwarcie bazy: 0,05 ms</title></rect>
+<rect x="230.27921999830008" y="249" width="0.006900000274181366" height="14" rx="3" fill="#1baf7a"><title>czysty JS (Map) – pierwszy zapis i odczyt: 0,15 ms</title></rect>
+<text x="236.28611999857426" y="260" font-size="11" fill="#52514e">6,22 ms</text>
+<text x="220" y="283" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL + IndexedDB</text>
+<rect x="230" y="273" width="0" height="14" rx="0" fill="#2a78d6"><title>Flat-SQL + IndexedDB – import i kompilacja: 40,2 ms</title></rect>
+<rect x="231.84758999961613" y="273" width="0.09069999945163731" height="14" rx="0" fill="#eb6834"><title>Flat-SQL + IndexedDB – otwarcie bazy: 45,4 ms</title></rect>
+<rect x="233.93828999906776" y="273" width="0.20745999819040298" height="14" rx="3" fill="#1baf7a"><title>Flat-SQL + IndexedDB – pierwszy zapis i odczyt: 4,51 ms</title></rect>
+<text x="240.14574999725818" y="284" font-size="11" fill="#52514e">90,1 ms</text>
+<text x="220" y="307" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL + IndexedDB (strict)</text>
+<rect x="230" y="297" width="0" height="14" rx="0" fill="#2a78d6"><title>Flat-SQL + IndexedDB (strict) – import i kompilacja: 35,4 ms</title></rect>
+<rect x="231.6264449993968" y="297" width="0.16797999978065503" height="14" rx="0" fill="#eb6834"><title>Flat-SQL + IndexedDB (strict) – otwarcie bazy: 47,1 ms</title></rect>
+<rect x="233.79442499917744" y="297" width="0.24932000076770783" height="14" rx="3" fill="#1baf7a"><title>Flat-SQL + IndexedDB (strict) – pierwszy zapis i odczyt: 5,42 ms</title></rect>
+<text x="240.04374499994515" y="308" font-size="11" fill="#52514e">87,9 ms</text>
+<text x="220" y="331" font-size="12" fill="#0b0b0b" text-anchor="end">sql.js + eksport do IndexedDB</text>
+<rect x="230" y="321" width="0" height="14" rx="0" fill="#2a78d6"><title>sql.js + eksport do IndexedDB – import i kompilacja: 34,3 ms</title></rect>
+<rect x="231.578375" y="321" width="0.7110099987387657" height="14" rx="0" fill="#eb6834"><title>sql.js + eksport do IndexedDB – otwarcie bazy: 58,9 ms</title></rect>
+<rect x="234.28938499873877" y="321" width="0.21148499983549118" height="14" rx="3" fill="#1baf7a"><title>sql.js + eksport do IndexedDB – pierwszy zapis i odczyt: 4,60 ms</title></rect>
+<text x="240.50086999857425" y="332" font-size="11" fill="#52514e">97,8 ms</text>
+<text x="220" y="355" font-size="12" fill="#0b0b0b" text-anchor="end">wa-sqlite + IDBBatchAtomicVFS</text>
+<rect x="230" y="345" width="2.4015100001096723" height="14" rx="0" fill="#2a78d6"><title>wa-sqlite + IDBBatchAtomicVFS – import i kompilacja: 95,7 ms</title></rect>
+<rect x="234.40151000010968" y="345" width="2.511910000383854" height="14" rx="0" fill="#eb6834"><title>wa-sqlite + IDBBatchAtomicVFS – otwarcie bazy: 98,1 ms</title></rect>
+<rect x="238.91342000049355" y="345" width="0.7272600001096725" height="14" rx="3" fill="#1baf7a"><title>wa-sqlite + IDBBatchAtomicVFS – pierwszy zapis i odczyt: 15,8 ms</title></rect>
+<text x="245.64068000060323" y="356" font-size="11" fill="#52514e">210 ms</text>
+<text x="220" y="379" font-size="12" fill="#0b0b0b" text-anchor="end">wa-sqlite + IDBBatchAtomicVFS (synchronous=normal)</text>
+<rect x="230" y="369" width="3.1088750013709063" height="14" rx="0" fill="#2a78d6"><title>wa-sqlite + IDBBatchAtomicVFS (synchronous=normal) – import i kompilacja: 111 ms</title></rect>
+<rect x="235.1088750013709" y="369" width="2.5711349987387653" height="14" rx="0" fill="#eb6834"><title>wa-sqlite + IDBBatchAtomicVFS (synchronous=normal) – otwarcie bazy: 99,4 ms</title></rect>
+<rect x="239.68001000010966" y="369" width="0.7074799997806549" height="14" rx="3" fill="#1baf7a"><title>wa-sqlite + IDBBatchAtomicVFS (synchronous=normal) – pierwszy zapis i odczyt: 15,4 ms</title></rect>
+<text x="246.3874899998903" y="380" font-size="11" fill="#52514e">226 ms</text>
+<text x="220" y="403" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite + IndexedDB</text>
+<rect x="230" y="393" width="0.3011500002741814" height="14" rx="0" fill="#2a78d6"><title>PGlite + IndexedDB – import i kompilacja: 50,0 ms</title></rect>
+<rect x="232.3011500002742" y="393" width="92.19626999884844" height="14" rx="0" fill="#eb6834"><title>PGlite + IndexedDB – otwarcie bazy: 2048 ms</title></rect>
+<rect x="326.4974199991226" y="393" width="5.057354999780655" height="14" rx="3" fill="#1baf7a"><title>PGlite + IndexedDB – pierwszy zapis i odczyt: 110 ms</title></rect>
+<text x="337.55477499890327" y="404" font-size="11" fill="#52514e">2208 ms</text>
+<text x="220" y="427" font-size="12" fill="#0b0b0b" text-anchor="end">Dexie.js</text>
+<rect x="230" y="417" width="0" height="14" rx="0" fill="#2a78d6"><title>Dexie.js – import i kompilacja: 23,0 ms</title></rect>
+<rect x="231.05627500027418" y="417" width="0" height="14" rx="0" fill="#eb6834"><title>Dexie.js – otwarcie bazy: 38,9 ms</title></rect>
+<rect x="232.84647999978066" y="417" width="0.16766999912261962" height="14" rx="3" fill="#1baf7a"><title>Dexie.js – pierwszy zapis i odczyt: 3,64 ms</title></rect>
+<text x="239.01414999890326" y="428" font-size="11" fill="#52514e">65,5 ms</text>
+<text x="220" y="451" font-size="12" fill="#0b0b0b" text-anchor="end">Dexie.js (strict)</text>
+<rect x="230" y="441" width="0" height="14" rx="0" fill="#2a78d6"><title>Dexie.js (strict) – import i kompilacja: 23,4 ms</title></rect>
+<rect x="231.07697499972582" y="441" width="0" height="14" rx="0" fill="#eb6834"><title>Dexie.js (strict) – otwarcie bazy: 38,3 ms</title></rect>
+<rect x="232.8393499997258" y="441" width="0.21343999934196473" height="14" rx="3" fill="#1baf7a"><title>Dexie.js (strict) – pierwszy zapis i odczyt: 4,64 ms</title></rect>
+<text x="239.05278999906778" y="452" font-size="11" fill="#52514e">66,4 ms</text>
+<text x="220" y="475" font-size="12" fill="#0b0b0b" text-anchor="end">PouchDB</text>
+<rect x="230" y="465" width="0" height="14" rx="0" fill="#2a78d6"><title>PouchDB – import i kompilacja: 28,7 ms</title></rect>
+<rect x="231.32192500054836" y="465" width="0.26768500065803513" height="14" rx="0" fill="#eb6834"><title>PouchDB – otwarcie bazy: 49,3 ms</title></rect>
+<rect x="233.5896100012064" y="465" width="0.12891499906778336" height="14" rx="3" fill="#1baf7a"><title>PouchDB – pierwszy zapis i odczyt: 2,80 ms</title></rect>
+<text x="239.71852500027418" y="476" font-size="11" fill="#52514e">80,8 ms</text>
+<text x="220" y="499" font-size="12" fill="#0b0b0b" text-anchor="end">RxDB (Dexie storage)</text>
+<rect x="230" y="489" width="0" height="14" rx="0" fill="#2a78d6"><title>RxDB (Dexie storage) – import i kompilacja: 31,1 ms</title></rect>
+<rect x="231.43244000071286" y="489" width="0.8313000019192693" height="14" rx="0" fill="#eb6834"><title>RxDB (Dexie storage) – otwarcie bazy: 61,6 ms</title></rect>
+<rect x="234.26374000263212" y="489" width="0.33545499950647356" height="14" rx="3" fill="#1baf7a"><title>RxDB (Dexie storage) – pierwszy zapis i odczyt: 7,29 ms</title></rect>
+<text x="240.5991950021386" y="500" font-size="11" fill="#52514e">100,0 ms</text>
+<text x="220" y="523" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL w Workerze (pamięć)</text>
+<rect x="230" y="513" width="0.613375" height="14" rx="0" fill="#2a78d6"><title>Flat-SQL w Workerze (pamięć) – import i kompilacja: 56,8 ms</title></rect>
+<rect x="232.613375" y="513" width="0" height="14" rx="0" fill="#eb6834"><title>Flat-SQL w Workerze (pamięć) – otwarcie bazy: 6,02 ms</title></rect>
+<rect x="232.8901799992323" y="513" width="0.25369000071287157" height="14" rx="3" fill="#1baf7a"><title>Flat-SQL w Workerze (pamięć) – pierwszy zapis i odczyt: 5,52 ms</title></rect>
+<text x="239.14386999994517" y="524" font-size="11" fill="#52514e">68,3 ms</text>
+<text x="220" y="547" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL w Workerze + IndexedDB</text>
+<rect x="230" y="537" width="0.8163499997258188" height="14" rx="0" fill="#2a78d6"><title>Flat-SQL w Workerze + IndexedDB – import i kompilacja: 61,2 ms</title></rect>
+<rect x="232.81634999972582" y="537" width="0.16372499972581878" height="14" rx="0" fill="#eb6834"><title>Flat-SQL w Workerze + IndexedDB – otwarcie bazy: 47,0 ms</title></rect>
+<rect x="234.98007499945163" y="537" width="0.2563349995613098" height="14" rx="3" fill="#1baf7a"><title>Flat-SQL w Workerze + IndexedDB – pierwszy zapis i odczyt: 5,57 ms</title></rect>
+<text x="241.23640999901295" y="548" font-size="11" fill="#52514e">114 ms</text>
+<text x="220" y="571" font-size="12" fill="#0b0b0b" text-anchor="end">SQLite WASM + opfs-sahpool</text>
+<rect x="230" y="561" width="16.879434999287128" height="14" rx="0" fill="#2a78d6"><title>SQLite WASM + opfs-sahpool – import i kompilacja: 410 ms</title></rect>
+<rect x="248.87943499928713" y="561" width="1.470125" height="14" rx="0" fill="#eb6834"><title>SQLite WASM + opfs-sahpool – otwarcie bazy: 75,4 ms</title></rect>
+<rect x="252.34955999928712" y="561" width="0.34925499868392945" height="14" rx="3" fill="#1baf7a"><title>SQLite WASM + opfs-sahpool – pierwszy zapis i odczyt: 7,59 ms</title></rect>
+<text x="258.69881499797106" y="572" font-size="11" fill="#52514e">493 ms</text>
+<text x="220" y="595" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite + OPFS (opfs-ahp)</text>
+<rect x="230" y="585" width="1.458625" height="14" rx="0" fill="#2a78d6"><title>PGlite + OPFS (opfs-ahp) – import i kompilacja: 75,2 ms</title></rect>
+<rect x="233.458625" y="585" width="438.83180000054836" height="14" rx="0" fill="#eb6834"><title>PGlite + OPFS (opfs-ahp) – otwarcie bazy: 9583 ms</title></rect>
+<rect x="674.2904250005483" y="585" width="0.3430449991226196" height="14" rx="3" fill="#1baf7a"><title>PGlite + OPFS (opfs-ahp) – pierwszy zapis i odczyt: 7,46 ms</title></rect>
+<text x="680.633469999671" y="596" font-size="11" fill="#52514e">9666 ms</text>
+<text x="220" y="619" font-size="12" fill="#0b0b0b" text-anchor="end">DuckDB-Wasm w Workerze (pamięć)</text>
+<rect x="230" y="609" width="35.028619999945164" height="14" rx="0" fill="#2a78d6"><title>DuckDB-Wasm w Workerze (pamięć) – import i kompilacja: 805 ms</title></rect>
+<rect x="267.02861999994514" y="609" width="0" height="14" rx="0" fill="#eb6834"><title>DuckDB-Wasm w Workerze (pamięć) – otwarcie bazy: 36,8 ms</title></rect>
+<rect x="268.72027000021933" y="609" width="2.1507300011515618" height="14" rx="3" fill="#1baf7a"><title>DuckDB-Wasm w Workerze (pamięć) – pierwszy zapis i odczyt: 46,8 ms</title></rect>
+<text x="276.8710000013709" y="620" font-size="11" fill="#52514e">889 ms</text>
+<text x="744" y="660" font-size="10.5" fill="#52514e" text-anchor="end">mediany uruchomień</text>
+</svg>

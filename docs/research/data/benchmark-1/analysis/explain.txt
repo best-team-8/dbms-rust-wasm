@@ -1,0 +1,59 @@
+== point_lookup: SELECT * FROM items WHERE id = 5
+   Flat-SQL  SELECT FROM items
+   Flat-SQL    ACCESS:    PRIMARY KEY LOOKUP (id = 5)
+   Flat-SQL    FILTER:    id = 5
+   Flat-SQL    OUTPUT:    id, category, price, qty, name
+   SQLite    SEARCH items USING INTEGER PRIMARY KEY (rowid=?)
+== index_lookup: SELECT COUNT(*) FROM items WHERE category = 'c5'
+   Flat-SQL  SELECT FROM items
+   Flat-SQL    ACCESS:    INDEX LOOKUP items_category (category = 'c5')
+   Flat-SQL    FILTER:    category = 'c5'
+   Flat-SQL    AGGREGATE: single group; COUNT(*)
+   Flat-SQL    OUTPUT:    COUNT(*)
+   SQLite    SEARCH items USING COVERING INDEX items_category (category=?)
+== range_scan: SELECT SUM(price) FROM items WHERE id BETWEEN 10 AND 1009
+   Flat-SQL  SELECT FROM items
+   Flat-SQL    ACCESS:    PRIMARY KEY RANGE SCAN (id >= 10 AND id <= 1009)
+   Flat-SQL    FILTER:    id BETWEEN 10 AND 1009
+   Flat-SQL    AGGREGATE: single group; SUM(price)
+   Flat-SQL    OUTPUT:    SUM(price)
+   SQLite    SEARCH items USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)
+== full_scan: SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10
+   Flat-SQL  SELECT FROM items
+   Flat-SQL    ACCESS:    FULL TABLE SCAN (1000 rows)
+   Flat-SQL    FILTER:    (price > 50) AND (qty < 10)
+   Flat-SQL    AGGREGATE: single group; COUNT(*)
+   Flat-SQL    OUTPUT:    COUNT(*)
+   SQLite    SCAN items
+== group_by: SELECT category, COUNT(*), AVG(price), MAX(qty) FROM items GROUP BY category
+   Flat-SQL  SELECT FROM items
+   Flat-SQL    ACCESS:    FULL TABLE SCAN (1000 rows)
+   Flat-SQL    AGGREGATE: GROUP BY category; COUNT(*), AVG(price), MAX(qty)
+   Flat-SQL    OUTPUT:    category, COUNT(*), AVG(price), MAX(qty)
+   SQLite    SCAN items USING INDEX items_category
+== top_k: SELECT id, price FROM items ORDER BY price DESC, id ASC LIMIT 10
+   Flat-SQL  SELECT FROM items
+   Flat-SQL    ACCESS:    FULL TABLE SCAN (1000 rows)
+   Flat-SQL    SORT:      price DESC, id (top-10 selection)
+   Flat-SQL    LIMIT:     10 OFFSET 0
+   Flat-SQL    OUTPUT:    id, price
+   SQLite    SCAN items
+   SQLite    USE TEMP B-TREE FOR ORDER BY
+== materialize_10k: SELECT * FROM items WHERE id < 10000
+   Flat-SQL  SELECT FROM items
+   Flat-SQL    ACCESS:    PRIMARY KEY RANGE SCAN (id < 10000)
+   Flat-SQL    FILTER:    id < 10000
+   Flat-SQL    OUTPUT:    id, category, price, qty, name
+   SQLite    SEARCH items USING INTEGER PRIMARY KEY (rowid<?)
+== update_10pct: UPDATE items SET qty = qty + 1 WHERE id % 10 = 0
+   Flat-SQL  UPDATE items
+   Flat-SQL    ACCESS:    FULL TABLE SCAN (1000 rows)
+   Flat-SQL    FILTER:    (id % 10) = 0
+   SQLite    SCAN items
+== delete_10pct: DELETE FROM items WHERE id % 10 = 1
+   Flat-SQL  DELETE FROM items
+   Flat-SQL    ACCESS:    FULL TABLE SCAN (1000 rows)
+   Flat-SQL    FILTER:    (id % 10) = 1
+   SQLite    SCAN items
+COUNT(*) by index: 10 rows counted, rowsScanned = 10
+UPDATE 10%: rowsAffected = 100, rowsScanned = 1000

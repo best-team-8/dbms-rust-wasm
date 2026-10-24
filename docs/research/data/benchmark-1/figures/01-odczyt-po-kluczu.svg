@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 836" width="920" height="836" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="920" height="836" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Odczyt po kluczu – przeglądarka</text>
+<text x="16" y="42" font-size="12" fill="#52514e">SELECT * FROM items WHERE id = ?, 100 000 wierszy; średnia z 10 000 wykonań w każdym uruchomieniu</text>
+<line x1="360.00000000000006" x2="360.00000000000006" y1="60" y2="792" stroke="#e4e3df" stroke-width="1"/>
+<text x="360.00000000000006" y="808" font-size="11" fill="#52514e" text-anchor="middle">0,1 µs</text>
+<line x1="446.66666666666674" x2="446.66666666666674" y1="60" y2="792" stroke="#e4e3df" stroke-width="1"/>
+<text x="446.66666666666674" y="808" font-size="11" fill="#52514e" text-anchor="middle">1 µs</text>
+<line x1="533.3333333333334" x2="533.3333333333334" y1="60" y2="792" stroke="#e4e3df" stroke-width="1"/>
+<text x="533.3333333333334" y="808" font-size="11" fill="#52514e" text-anchor="middle">10 µs</text>
+<line x1="620" x2="620" y1="60" y2="792" stroke="#e4e3df" stroke-width="1"/>
+<text x="620" y="808" font-size="11" fill="#52514e" text-anchor="middle">100 µs</text>
+<line x1="706.6666666666667" x2="706.6666666666667" y1="60" y2="792" stroke="#e4e3df" stroke-width="1"/>
+<text x="706.6666666666667" y="808" font-size="11" fill="#52514e" text-anchor="middle">1 ms</text>
+<line x1="793.3333333333335" x2="793.3333333333335" y1="60" y2="792" stroke="#e4e3df" stroke-width="1"/>
+<text x="793.3333333333335" y="808" font-size="11" fill="#52514e" text-anchor="middle">10 ms</text>
+<line x1="880" x2="880" y1="60" y2="792" stroke="#e4e3df" stroke-width="1"/>
+<text x="880" y="808" font-size="11" fill="#52514e" text-anchor="middle">100 ms</text>
+<text x="16" y="83" font-size="12" font-weight="600" fill="#52514e">grupa „pamięć”</text>
+<text x="350.00000000000006" y="107" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL</text>
+<g><title>Flat-SQL: mediana 9,15 µs, Q1–Q3 9,10 µs–9,21 µs, n = 10</title>
+<line x1="529.7990946727531" x2="530.2266383399846" y1="103" y2="103" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="529.9939414598123" cy="103" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="538.2266383399846" y="107" font-size="11" fill="#52514e">9,15 µs</text>
+</g>
+<text x="350.00000000000006" y="133" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL (JSON)</text>
+<g><title>Flat-SQL (JSON): mediana 5,59 µs, Q1–Q3 5,51 µs–5,65 µs, n = 10</title>
+<line x1="510.90065908509456" x2="511.8641787406707" y1="129" y2="129" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="511.4137295078574" cy="129" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="519.8641787406707" y="133" font-size="11" fill="#52514e">5,59 µs</text>
+</g>
+<text x="350.00000000000006" y="159" font-size="12" fill="#0b0b0b" text-anchor="end">sql.js</text>
+<g><title>sql.js: mediana 14,1 µs, Q1–Q3 14,0 µs–14,2 µs, n = 10</title>
+<line x1="546.0323614887483" x2="546.5654368081622" y1="155" y2="155" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="546.2182443319327" cy="155" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="554.5654368081622" y="159" font-size="11" fill="#52514e">14,1 µs</text>
+</g>
+<text x="350.00000000000006" y="185" font-size="12" fill="#0b0b0b" text-anchor="end">SQLite WASM (:memory:)</text>
+<g><title>SQLite WASM (:memory:): mediana 7,99 µs, Q1–Q3 7,92 µs–8,16 µs, n = 10</title>
+<line x1="524.5544002225863" x2="525.6884614019139" y1="181" y2="181" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="524.8744307762248" cy="181" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="533.6884614019139" y="185" font-size="11" fill="#52514e">7,99 µs</text>
+</g>
+<text x="350.00000000000006" y="211" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite (pamięć)</text>
+<g><title>PGlite (pamięć): mediana 299 µs, Q1–Q3 294 µs–301 µs, n = 10</title>
+<line x1="660.6115557616824" x2="661.4462092272263" y1="207" y2="207" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="661.202580018205" cy="207" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="669.4462092272263" y="211" font-size="11" fill="#52514e">299 µs</text>
+</g>
+<text x="350.00000000000006" y="237" font-size="12" fill="#0b0b0b" text-anchor="end">DuckDB-Wasm</text>
+<g><title>DuckDB-Wasm: mediana 1,28 ms, Q1–Q3 1,28 ms–1,28 ms, n = 10</title>
+<line x1="715.8247437724945" x2="716.0888242668009" y1="233" y2="233" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="715.9037581113691" cy="233" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="724.0888242668009" y="237" font-size="11" fill="#52514e">1,28 ms</text>
+</g>
+<text x="350.00000000000006" y="263" font-size="12" fill="#0b0b0b" text-anchor="end">AlaSQL</text>
+<g><title>AlaSQL: mediana 1,64 ms, Q1–Q3 1,63 ms–1,67 ms, n = 10</title>
+<line x1="724.997038084266" x2="726.0430242605945" y1="259" y2="259" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="725.3839776668271" cy="259" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="734.0430242605945" y="263" font-size="11" fill="#52514e">1,64 ms</text>
+</g>
+<text x="350.00000000000006" y="289" font-size="12" fill="#0b0b0b" text-anchor="end">czysty JS (Map)</text>
+<g><title>czysty JS (Map): mediana 0,93 µs, Q1–Q3 0,86 µs–0,98 µs, n = 10</title>
+<line x1="440.8857773460405" x2="445.7137334180643" y1="285" y2="285" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="443.7424547834542" cy="285" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="453.7137334180643" y="289" font-size="11" fill="#52514e">0,93 µs</text>
+</g>
+<line x1="16" x2="904" y1="300" y2="300" stroke="#e4e3df"/>
+<text x="16" y="317" font-size="12" font-weight="600" fill="#52514e">grupa „trwały zapis”</text>
+<text x="350.00000000000006" y="341" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL + IndexedDB</text>
+<g><title>Flat-SQL + IndexedDB: mediana 9,95 µs, Q1–Q3 9,85 µs–10,0 µs, n = 10</title>
+<line x1="532.7644733154871" x2="533.5009230639841" y1="337" y2="337" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="533.1323708804703" cy="337" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="541.5009230639841" y="341" font-size="11" fill="#52514e">9,95 µs</text>
+</g>
+<text x="350.00000000000006" y="367" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL + IndexedDB (strict)</text>
+<g><title>Flat-SQL + IndexedDB (strict): mediana 9,93 µs, Q1–Q3 9,82 µs–10,00 µs, n = 10</title>
+<line x1="532.6419957422759" x2="533.3229812289649" y1="363" y2="363" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="533.0566139982791" cy="363" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="541.3229812289649" y="367" font-size="11" fill="#52514e">9,93 µs</text>
+</g>
+<text x="350.00000000000006" y="393" font-size="12" fill="#0b0b0b" text-anchor="end">sql.js + eksport do IndexedDB</text>
+<g><title>sql.js + eksport do IndexedDB: mediana 14,9 µs, Q1–Q3 14,7 µs–15,1 µs, n = 10</title>
+<line x1="547.8949310182246" x2="548.7442060701433" y1="389" y2="389" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="548.386359905308" cy="389" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="556.7442060701433" y="393" font-size="11" fill="#52514e">14,9 µs</text>
+</g>
+<text x="350.00000000000006" y="419" font-size="12" fill="#0b0b0b" text-anchor="end">wa-sqlite + IDBBatchAtomicVFS</text>
+<g><title>wa-sqlite + IDBBatchAtomicVFS: mediana 1,31 ms, Q1–Q3 1,28 ms–1,32 ms, n = 10</title>
+<line x1="716.00868923953" x2="717.2081613389495" y1="415" y2="415" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="716.8155731095178" cy="415" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="725.2081613389495" y="419" font-size="11" fill="#52514e">1,31 ms</text>
+</g>
+<text x="350.00000000000006" y="445" font-size="12" fill="#0b0b0b" text-anchor="end">wa-sqlite + IDBBatchAtomicVFS (synchronous=normal)</text>
+<g><title>wa-sqlite + IDBBatchAtomicVFS (synchronous=normal): mediana 1,19 ms, Q1–Q3 1,17 ms–1,23 ms, n = 10</title>
+<line x1="712.6179017347141" x2="714.426669887876" y1="441" y2="441" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="713.2095783602213" cy="441" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="722.426669887876" y="445" font-size="11" fill="#52514e">1,19 ms</text>
+</g>
+<text x="350.00000000000006" y="471" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite + IndexedDB</text>
+<g><title>PGlite + IndexedDB: mediana 36,1 ms, Q1–Q3 35,6 ms–36,6 ms, n = 10</title>
+<line x1="841.1517815686659" x2="842.1413450077039" y1="467" y2="467" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="841.6889226031451" cy="467" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="850.1413450077039" y="471" font-size="11" fill="#52514e">36,1 ms</text>
+</g>
+<text x="350.00000000000006" y="497" font-size="12" fill="#0b0b0b" text-anchor="end">Dexie.js</text>
+<g><title>Dexie.js: mediana 168 µs, Q1–Q3 162 µs–172 µs, n = 10</title>
+<line x1="638.2407056380388" x2="640.4238155226667" y1="493" y2="493" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="639.553847626094" cy="493" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="648.4238155226667" y="497" font-size="11" fill="#52514e">168 µs</text>
+</g>
+<text x="350.00000000000006" y="523" font-size="12" fill="#0b0b0b" text-anchor="end">Dexie.js (strict)</text>
+<g><title>Dexie.js (strict): mediana 171 µs, Q1–Q3 165 µs–180 µs, n = 10</title>
+<line x1="638.830440515785" x2="642.1631432841787" y1="519" y2="519" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="640.1393060820972" cy="519" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="650.1631432841787" y="523" font-size="11" fill="#52514e">171 µs</text>
+</g>
+<text x="350.00000000000006" y="549" font-size="12" fill="#0b0b0b" text-anchor="end">PouchDB</text>
+<g><title>PouchDB: mediana 383 µs, Q1–Q3 381 µs–389 µs, n = 10</title>
+<line x1="670.3558570464666" x2="671.1454953385721" y1="545" y2="545" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="670.5353675287174" cy="545" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="679.1454953385721" y="549" font-size="11" fill="#52514e">383 µs</text>
+</g>
+<text x="350.00000000000006" y="575" font-size="12" fill="#0b0b0b" text-anchor="end">RxDB (Dexie storage)</text>
+<g><title>RxDB (Dexie storage): mediana 16,1 µs, Q1–Q3 15,8 µs–16,2 µs, n = 10</title>
+<line x1="550.5636783843108" x2="551.4026177644683" y1="571" y2="571" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="551.1956539696712" cy="571" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="559.4026177644683" y="575" font-size="11" fill="#52514e">16,1 µs</text>
+</g>
+<line x1="16" x2="904" y1="586" y2="586" stroke="#e4e3df"/>
+<text x="16" y="603" font-size="12" font-weight="600" fill="#52514e">grupa „Worker”</text>
+<text x="350.00000000000006" y="627" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL w Workerze (pamięć)</text>
+<g><title>Flat-SQL w Workerze (pamięć): mediana 65,4 µs, Q1–Q3 64,2 µs–68,8 µs, n = 10</title>
+<line x1="603.3227069727233" x2="605.9419020393946" y1="623" y2="623" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="604.0446404490776" cy="623" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="613.9419020393946" y="627" font-size="11" fill="#52514e">65,4 µs</text>
+</g>
+<text x="350.00000000000006" y="653" font-size="12" fill="#0b0b0b" text-anchor="end">Flat-SQL w Workerze + IndexedDB</text>
+<g><title>Flat-SQL w Workerze + IndexedDB: mediana 63,9 µs, Q1–Q3 62,8 µs–65,2 µs, n = 10</title>
+<line x1="602.4626306905285" x2="603.9196383198058" y1="649" y2="649" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="603.17255327785" cy="649" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="611.9196383198058" y="653" font-size="11" fill="#52514e">63,9 µs</text>
+</g>
+<text x="350.00000000000006" y="679" font-size="12" fill="#0b0b0b" text-anchor="end">SQLite WASM + opfs-sahpool</text>
+<g><title>SQLite WASM + opfs-sahpool: mediana 93,0 µs, Q1–Q3 92,4 µs–93,5 µs, n = 10</title>
+<line x1="617.0365117693475" x2="617.4747171356798" y1="675" y2="675" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="617.2611353635921" cy="675" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="625.4747171356798" y="679" font-size="11" fill="#52514e">93,0 µs</text>
+</g>
+<text x="350.00000000000006" y="705" font-size="12" fill="#0b0b0b" text-anchor="end">PGlite + OPFS (opfs-ahp)</text>
+<g><title>PGlite + OPFS (opfs-ahp): mediana 521 µs, Q1–Q3 511 µs–543 µs, n = 10</title>
+<line x1="681.3713156519411" x2="683.7097448929063" y1="701" y2="701" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="682.1504907923942" cy="701" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="691.7097448929063" y="705" font-size="11" fill="#52514e">521 µs</text>
+</g>
+<text x="350.00000000000006" y="731" font-size="12" fill="#0b0b0b" text-anchor="end">DuckDB-Wasm w Workerze (pamięć)</text>
+<g><title>DuckDB-Wasm w Workerze (pamięć): mediana 1,58 ms, Q1–Q3 1,56 ms–1,60 ms, n = 10</title>
+<line x1="723.3078034211605" x2="724.4102336433864" y1="727" y2="727" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="723.9489074035855" cy="727" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="732.4102336433864" y="731" font-size="11" fill="#52514e">1,58 ms</text>
+</g>
+<line x1="16" x2="904" y1="742" y2="742" stroke="#e4e3df"/>
+<text x="16" y="759" font-size="12" font-weight="600" fill="#52514e">niemierzone</text>
+<text x="350.00000000000006" y="783" font-size="12" fill="#0b0b0b" text-anchor="end">Zeta-Lite [D5]</text>
+<g><title>Zeta-Lite [D5]: 3,20 µs–3,70 µs według autora, niepotwierdzone pomiarem</title>
+<line x1="490.44633145439195" x2="495.9108160858063" y1="779" y2="779" stroke="#8b8a86" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 3"/>
+<circle cx="493.27765490635045" cy="779" r="4.5" fill="#ffffff" stroke="#8b8a86" stroke-width="2"/>
+<text x="503.9108160858063" y="783" font-size="11" fill="#52514e">3,20 µs–3,70 µs, deklaracja autora, niepotwierdzona</text>
+</g>
+<text x="904" y="828" font-size="10.5" fill="#52514e" text-anchor="end">skala logarytmiczna; punkt – mediana uruchomień, odcinek – Q1–Q3; pusty punkt – wartość deklarowana przez autora, niezmierzona</text>
+</svg>

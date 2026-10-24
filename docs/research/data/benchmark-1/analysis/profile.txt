@@ -1,0 +1,26 @@
+objects: 10.13 µs per lookup (with the profiler running)
+   13.0%  (anonymous) flatsql.js
+   11.2%  decodeUTF8
+    6.7%  decodeText flatsql.js
+    6.1%  decode encoding
+    5.7%  wasm-to-js
+    5.0%  wasm-function[42] 002356da
+    4.5%  wasm-function[180] 002356da
+    3.2%  wasm-function[136] 002356da
+    2.8%  (garbage collector)
+    2.5%  wasm-function[41] 002356da
+    2.2%  (anonymous) profile.mjs
+    1.6%  wasm-function[147] 002356da
+json: 5.71 µs per lookup (with the profiler running)
+   21.8%  (anonymous) profile.mjs
+    6.7%  wasm-function[42] 002356da
+    5.8%  wasm-function[180] 002356da
+    4.2%  (garbage collector)
+    3.1%  wasm-function[41] 002356da
+    2.6%  wasm-function[104] 002356da
+    2.1%  wasm-function[153] 002356da
+    2.0%  wasm-function[218] 002356da
+    2.0%  wasm-function[147] 002356da
+    2.0%  wasm-function[39] 002356da
+    1.8%  wasm-to-js
+    1.8%  set

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 710 320" width="710" height="320" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="710" height="320" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Odczyt po kluczu: lokalnie a przez serwer</text>
+<text x="16" y="42" font-size="12" fill="#52514e">ten sam silnik po obu stronach; opóźnienie sieci symulowane</text>
+<circle cx="155" cy="70" r="4.5" fill="#2a78d6"/><text x="164" y="74" font-size="12" fill="#0b0b0b">Node.js</text>
+<circle cx="225.2" cy="70" r="4.5" fill="#eb6834"/><text x="234.2" y="74" font-size="12" fill="#0b0b0b">przeglądarka</text>
+<line x1="150" x2="150" y1="82" y2="276" stroke="#e4e3df" stroke-width="1"/>
+<text x="150" y="292" font-size="11" fill="#52514e" text-anchor="middle">10 µs</text>
+<line x1="254" x2="254" y1="82" y2="276" stroke="#e4e3df" stroke-width="1"/>
+<text x="254" y="292" font-size="11" fill="#52514e" text-anchor="middle">100 µs</text>
+<line x1="358" x2="358" y1="82" y2="276" stroke="#e4e3df" stroke-width="1"/>
+<text x="358" y="292" font-size="11" fill="#52514e" text-anchor="middle">1 ms</text>
+<line x1="462" x2="462" y1="82" y2="276" stroke="#e4e3df" stroke-width="1"/>
+<text x="462" y="292" font-size="11" fill="#52514e" text-anchor="middle">10 ms</text>
+<line x1="566" x2="566" y1="82" y2="276" stroke="#e4e3df" stroke-width="1"/>
+<text x="566" y="292" font-size="11" fill="#52514e" text-anchor="middle">100 ms</text>
+<line x1="670" x2="670" y1="82" y2="276" stroke="#e4e3df" stroke-width="1"/>
+<text x="670" y="292" font-size="11" fill="#52514e" text-anchor="middle">1 s</text>
+<text x="140" y="109" font-size="12" fill="#0b0b0b" text-anchor="end">lokalnie</text>
+<g><title>lokalnie – Node.js: mediana 14,8 µs, Q1–Q3 14,6 µs–15,3 µs, n = 10</title>
+<line x1="167.10348036335714" x2="169.29797998375852" y1="95" y2="95" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="167.80443218877542" cy="95" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="177.29797998375852" y="99" font-size="11" fill="#52514e">14,8 µs</text>
+</g>
+<g><title>lokalnie – przeglądarka: mediana 21,9 µs, Q1–Q3 20,7 µs–22,7 µs, n = 10</title>
+<line x1="182.87152129691333" x2="186.94509226402147" y1="107" y2="107" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="185.36320075564385" cy="107" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="194.94509226402147" y="111" font-size="11" fill="#52514e">21,9 µs</text>
+</g>
+<text x="140" y="147" font-size="12" fill="#0b0b0b" text-anchor="end">serwer, localhost</text>
+<g><title>serwer, localhost – Node.js: mediana 637 µs, Q1–Q3 622 µs–665 µs, n = 10</title>
+<line x1="336.5669966158925" x2="339.55485425510267" y1="133" y2="133" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="337.61871143126007" cy="133" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="347.55485425510267" y="137" font-size="11" fill="#52514e">637 µs</text>
+</g>
+<g><title>serwer, localhost – przeglądarka: mediana 2,28 ms, Q1–Q3 2,22 ms–2,34 ms, n = 10</title>
+<line x1="394.05058168438075" x2="396.3296335218391" y1="145" y2="145" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="395.1384724454474" cy="145" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="404.3296335218391" y="149" font-size="11" fill="#52514e">2,28 ms</text>
+</g>
+<text x="140" y="185" font-size="12" fill="#0b0b0b" text-anchor="end">serwer, RTT 20 ms</text>
+<g><title>serwer, RTT 20 ms – Node.js: mediana 20,8 ms, Q1–Q3 20,8 ms–20,8 ms, n = 10</title>
+<line x1="495.09081599876106" x2="495.13631381072963" y1="171" y2="171" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="495.10726288159736" cy="171" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="503.13631381072963" y="175" font-size="11" fill="#52514e">20,8 ms</text>
+</g>
+<g><title>serwer, RTT 20 ms – przeglądarka: mediana 22,8 ms, Q1–Q3 22,7 ms–22,8 ms, n = 10</title>
+<line x1="499.07503830682504" x2="499.29858500237117" y1="183" y2="183" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="499.1552160686266" cy="183" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="507.29858500237117" y="187" font-size="11" fill="#52514e">22,8 ms</text>
+</g>
+<text x="140" y="223" font-size="12" fill="#0b0b0b" text-anchor="end">serwer, RTT 50 ms</text>
+<g><title>serwer, RTT 50 ms – Node.js: mediana 50,8 ms, Q1–Q3 50,8 ms–50,8 ms, n = 10</title>
+<line x1="535.3978093119157" x2="535.4278980031202" y1="209" y2="209" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="535.4187940521385" cy="209" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="543.4278980031202" y="213" font-size="11" fill="#52514e">50,8 ms</text>
+</g>
+<g><title>serwer, RTT 50 ms – przeglądarka: mediana 52,8 ms, Q1–Q3 52,7 ms–52,9 ms, n = 10</title>
+<line x1="537.1110827411012" x2="537.1981212802841" y1="221" y2="221" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="537.1339278742691" cy="221" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="545.1981212802841" y="225" font-size="11" fill="#52514e">52,8 ms</text>
+</g>
+<text x="140" y="261" font-size="12" fill="#0b0b0b" text-anchor="end">serwer, RTT 100 ms</text>
+<g><title>serwer, RTT 100 ms – Node.js: mediana 101 ms, Q1–Q3 101 ms–101 ms, n = 10</title>
+<line x1="566.3496241411444" x2="566.3651504708234" y1="247" y2="247" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="566.3582654131292" cy="247" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="574.3651504708234" y="251" font-size="11" fill="#52514e">101 ms</text>
+</g>
+<g><title>serwer, RTT 100 ms – przeglądarka: mediana 103 ms, Q1–Q3 103 ms–103 ms, n = 10</title>
+<line x1="567.2612864838393" x2="567.29106180476" y1="259" y2="259" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="567.2721560658779" cy="259" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="575.29106180476" y="263" font-size="11" fill="#52514e">103 ms</text>
+</g>
+<text x="694" y="312" font-size="10.5" fill="#52514e" text-anchor="end">skala logarytmiczna; punkt – mediana uruchomień, odcinek – Q1–Q3</text>
+</svg>

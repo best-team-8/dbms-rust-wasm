@@ -1,0 +1,1 @@
+{"task":{"kind":"cold","engine":"alasql","rows":100000,"flatsqlRoot":".","out":"node/cold/alasql/07.json","run":7},"workload":"benchmark-1","started":"2026-10-24T00:38:47.081Z","flatsqlVersion":"0.1.0","node":"v24.21.0","result":{"processBootMs":34.365,"initMs":64.4323,"openMs":11.014399999999995,"firstQueryMs":5.826499999999996,"totalMs":81.2732,"firstRow":5}}

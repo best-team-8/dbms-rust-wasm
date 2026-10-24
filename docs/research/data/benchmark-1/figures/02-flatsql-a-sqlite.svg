@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 819.2 730" width="819.2" height="730" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="819.2" height="730" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Flat-SQL a SQLite w WebAssembly – przeglądarka, dane w pamięci</text>
+<text x="16" y="42" font-size="12" fill="#52514e">100 000 wierszy; czas jednej operacji</text>
+<circle cx="264.20000000000005" cy="70" r="4.5" fill="#2a78d6"/><text x="273.20000000000005" y="74" font-size="12" fill="#0b0b0b">Flat-SQL (JSON)</text>
+<circle cx="387.20000000000005" cy="70" r="4.5" fill="#eb6834"/><text x="396.20000000000005" y="74" font-size="12" fill="#0b0b0b">sql.js</text>
+<circle cx="450.80000000000007" cy="70" r="4.5" fill="#1baf7a"/><text x="459.80000000000007" y="74" font-size="12" fill="#0b0b0b">SQLite WASM (:memory:)</text>
+<line x1="259.20000000000005" x2="259.20000000000005" y1="82" y2="686" stroke="#e4e3df" stroke-width="1"/>
+<text x="259.20000000000005" y="702" font-size="11" fill="#52514e" text-anchor="middle">1 µs</text>
+<line x1="345.8666666666667" x2="345.8666666666667" y1="82" y2="686" stroke="#e4e3df" stroke-width="1"/>
+<text x="345.8666666666667" y="702" font-size="11" fill="#52514e" text-anchor="middle">10 µs</text>
+<line x1="432.53333333333336" x2="432.53333333333336" y1="82" y2="686" stroke="#e4e3df" stroke-width="1"/>
+<text x="432.53333333333336" y="702" font-size="11" fill="#52514e" text-anchor="middle">100 µs</text>
+<line x1="519.2" x2="519.2" y1="82" y2="686" stroke="#e4e3df" stroke-width="1"/>
+<text x="519.2" y="702" font-size="11" fill="#52514e" text-anchor="middle">1 ms</text>
+<line x1="605.8666666666667" x2="605.8666666666667" y1="82" y2="686" stroke="#e4e3df" stroke-width="1"/>
+<text x="605.8666666666667" y="702" font-size="11" fill="#52514e" text-anchor="middle">10 ms</text>
+<line x1="692.5333333333334" x2="692.5333333333334" y1="82" y2="686" stroke="#e4e3df" stroke-width="1"/>
+<text x="692.5333333333334" y="702" font-size="11" fill="#52514e" text-anchor="middle">100 ms</text>
+<line x1="779.2" x2="779.2" y1="82" y2="686" stroke="#e4e3df" stroke-width="1"/>
+<text x="779.2" y="702" font-size="11" fill="#52514e" text-anchor="middle">1 s</text>
+<text x="249.20000000000005" y="115" font-size="12" fill="#0b0b0b" text-anchor="end">Wstawienie N wierszy (1 transakcja)</text>
+<g><title>Wstawienie N wierszy (1 transakcja) – Flat-SQL (JSON): mediana 343 ms, Q1–Q3 341 ms–345 ms, n = 10</title>
+<line x1="738.7395811134049" x2="739.1514122833094" y1="95" y2="95" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="738.8804724416734" cy="95" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Wstawienie N wierszy (1 transakcja) – sql.js: mediana 208 ms, Q1–Q3 208 ms–213 ms, n = 10</title>
+<line x1="720.0227439957155" x2="720.9964329681043" y1="107" y2="107" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="720.1024413174705" cy="107" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Wstawienie N wierszy (1 transakcja) – SQLite WASM (:memory:): mediana 846 ms, Q1–Q3 837 ms–867 ms, n = 10</title>
+<line x1="772.5204067592942" x2="773.8282132480474" y1="119" y2="119" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="772.9196656890418" cy="119" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="165" font-size="12" fill="#0b0b0b" text-anchor="end">Odczyt po kluczu</text>
+<g><title>Odczyt po kluczu – Flat-SQL (JSON): mediana 5,59 µs, Q1–Q3 5,51 µs–5,65 µs, n = 10</title>
+<line x1="323.4339924184279" x2="324.39751207400406" y1="145" y2="145" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="323.9470628411907" cy="145" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Odczyt po kluczu – sql.js: mediana 14,1 µs, Q1–Q3 14,0 µs–14,2 µs, n = 10</title>
+<line x1="358.56569482208164" x2="359.0987701414955" y1="157" y2="157" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="358.751577665266" cy="157" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Odczyt po kluczu – SQLite WASM (:memory:): mediana 7,99 µs, Q1–Q3 7,92 µs–8,16 µs, n = 10</title>
+<line x1="337.08773355591967" x2="338.22179473524716" y1="169" y2="169" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="337.4077641095581" cy="169" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="215" font-size="12" fill="#0b0b0b" text-anchor="end">COUNT po indeksie</text>
+<g><title>COUNT po indeksie – Flat-SQL (JSON): mediana 442 µs, Q1–Q3 437 µs–448 µs, n = 10</title>
+<line x1="488.0180313002274" x2="488.9828884731057" y1="195" y2="195" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="488.5005736149452" cy="195" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>COUNT po indeksie – sql.js: mediana 68,9 µs, Q1–Q3 67,8 µs–70,4 µs, n = 10</title>
+<line x1="417.9287727699376" x2="419.31628018908395" y1="207" y2="207" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="418.5205258881597" cy="207" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>COUNT po indeksie – SQLite WASM (:memory:): mediana 62,6 µs, Q1–Q3 61,6 µs–65,7 µs, n = 10</title>
+<line x1="414.2756032800998" x2="416.7481032442321" y1="219" y2="219" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="414.9151321180508" cy="219" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="265" font-size="12" fill="#0b0b0b" text-anchor="end">Zakres klucza (1000 wierszy) + SUM</text>
+<g><title>Zakres klucza (1000 wierszy) + SUM – Flat-SQL (JSON): mediana 78,9 µs, Q1–Q3 75,6 µs–83,2 µs, n = 10</title>
+<line x1="421.9989984243547" x2="425.59654841384497" y1="245" y2="245" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="423.619302866226" cy="245" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Zakres klucza (1000 wierszy) + SUM – sql.js: mediana 89,5 µs, Q1–Q3 88,9 µs–89,7 µs, n = 10</title>
+<line x1="428.0915862171077" x2="428.4420117254859" y1="257" y2="257" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="428.36325285784" cy="257" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Zakres klucza (1000 wierszy) + SUM – SQLite WASM (:memory:): mediana 78,2 µs, Q1–Q3 77,1 µs–80,3 µs, n = 10</title>
+<line x1="422.7538651016524" x2="424.2753471932275" y1="269" y2="269" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="423.2658837696726" cy="269" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="315" font-size="12" fill="#0b0b0b" text-anchor="end">Pełny skan z filtrem</text>
+<g><title>Pełny skan z filtrem – Flat-SQL (JSON): mediana 7,97 ms, Q1–Q3 7,83 ms–8,11 ms, n = 10</title>
+<line x1="596.6458305835994" x2="597.9713635637781" y1="295" y2="295" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="597.3074928517044" cy="295" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Pełny skan z filtrem – sql.js: mediana 8,68 ms, Q1–Q3 8,31 ms–8,74 ms, n = 10</title>
+<line x1="598.9032844666283" x2="600.7922739830383" y1="307" y2="307" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="600.5286183030921" cy="307" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Pełny skan z filtrem – SQLite WASM (:memory:): mediana 7,19 ms, Q1–Q3 6,86 ms–7,62 ms, n = 10</title>
+<line x1="591.6632442267204" x2="595.6200407762799" y1="319" y2="319" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="593.4570344553822" cy="319" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="365" font-size="12" fill="#0b0b0b" text-anchor="end">GROUP BY (100 grup)</text>
+<g><title>GROUP BY (100 grup) – Flat-SQL (JSON): mediana 15,6 ms, Q1–Q3 15,4 ms–15,8 ms, n = 10</title>
+<line x1="621.9965193385667" x2="623.1937787416853" y1="345" y2="345" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="622.6752406811813" cy="345" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>GROUP BY (100 grup) – sql.js: mediana 110 ms, Q1–Q3 109 ms–111 ms, n = 10</title>
+<line x1="695.8381628405942" x2="696.5333757674968" y1="357" y2="357" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="696.1461397790708" cy="357" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>GROUP BY (100 grup) – SQLite WASM (:memory:): mediana 45,8 ms, Q1–Q3 45,0 ms–46,3 ms, n = 10</title>
+<line x1="662.4663401245346" x2="663.5187364627425" y1="369" y2="369" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="663.1589287960326" cy="369" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="415" font-size="12" fill="#0b0b0b" text-anchor="end">ORDER BY … LIMIT 10</text>
+<g><title>ORDER BY … LIMIT 10 – Flat-SQL (JSON): mediana 5,47 ms, Q1–Q3 5,45 ms–5,50 ms, n = 10</title>
+<line x1="583.0020333239454" x2="583.3322460944028" y1="395" y2="395" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="583.133089159815" cy="395" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>ORDER BY … LIMIT 10 – sql.js: mediana 11,6 ms, Q1–Q3 11,4 ms–11,9 ms, n = 10</title>
+<line x1="610.8190501342946" x2="612.3861863503658" y1="407" y2="407" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="611.336847562874" cy="407" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>ORDER BY … LIMIT 10 – SQLite WASM (:memory:): mediana 10,6 ms, Q1–Q3 10,5 ms–10,7 ms, n = 10</title>
+<line x1="607.7247982733097" x2="608.5793226846561" y1="419" y2="419" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="608.161789983832" cy="419" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="465" font-size="12" fill="#0b0b0b" text-anchor="end">Pobranie 10 000 wierszy</text>
+<g><title>Pobranie 10 000 wierszy – Flat-SQL (JSON): mediana 7,75 ms, Q1–Q3 7,68 ms–7,78 ms, n = 10</title>
+<line x1="595.9297741759699" x2="596.4342538741791" y1="445" y2="445" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="596.2637069423097" cy="445" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Pobranie 10 000 wierszy – sql.js: mediana 14,1 ms, Q1–Q3 14,0 ms–14,2 ms, n = 10</title>
+<line x1="618.5562925806435" x2="619.0225559570199" y1="457" y2="457" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="618.7732878006211" cy="457" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Pobranie 10 000 wierszy – SQLite WASM (:memory:): mediana 37,9 ms, Q1–Q3 37,6 ms–38,1 ms, n = 10</title>
+<line x1="655.7522373497793" x2="656.1844672396481" y1="469" y2="469" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="655.9818658154687" cy="469" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="515" font-size="12" fill="#0b0b0b" text-anchor="end">UPDATE 10% wierszy</text>
+<g><title>UPDATE 10% wierszy – Flat-SQL (JSON): mediana 31,7 ms, Q1–Q3 31,2 ms–32,0 ms, n = 10</title>
+<line x1="648.6918901741162" x2="649.6036695259149" y1="495" y2="495" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="649.2472509021269" cy="495" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>UPDATE 10% wierszy – sql.js: mediana 13,7 ms, Q1–Q3 13,5 ms–14,1 ms, n = 10</title>
+<line x1="617.151803297852" x2="618.7823020954412" y1="507" y2="507" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="617.8186677550749" cy="507" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>UPDATE 10% wierszy – SQLite WASM (:memory:): mediana 8,76 ms, Q1–Q3 8,68 ms–8,93 ms, n = 10</title>
+<line x1="600.5221116887793" x2="601.5965877456678" y1="519" y2="519" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="600.9051663758212" cy="519" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="565" font-size="12" fill="#0b0b0b" text-anchor="end">DELETE 10% wierszy</text>
+<g><title>DELETE 10% wierszy – Flat-SQL (JSON): mediana 26,9 ms, Q1–Q3 26,7 ms–27,2 ms, n = 10</title>
+<line x1="642.8186391064849" x2="643.5604272438334" y1="545" y2="545" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="643.1188596881522" cy="545" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>DELETE 10% wierszy – sql.js: mediana 18,9 ms, Q1–Q3 18,5 ms–19,4 ms, n = 10</title>
+<line x1="629.0393477911151" x2="630.7876503063027" y1="557" y2="557" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="629.9012959733531" cy="557" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>DELETE 10% wierszy – SQLite WASM (:memory:): mediana 12,2 ms, Q1–Q3 11,9 ms–12,3 ms, n = 10</title>
+<line x1="612.528551887315" x2="613.6546176590614" y1="569" y2="569" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="613.2120968125689" cy="569" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="615" font-size="12" fill="#0b0b0b" text-anchor="end">Snapshot / eksport</text>
+<g><title>Snapshot / eksport – Flat-SQL (JSON): mediana 32,7 ms, Q1–Q3 32,5 ms–33,1 ms, n = 10</title>
+<line x1="650.1820885601122" x2="650.9241113471883" y1="595" y2="595" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="650.4348979983703" cy="595" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Snapshot / eksport – sql.js: mediana 1,54 ms, Q1–Q3 1,36 ms–1,70 ms, n = 10</title>
+<line x1="530.6347394480554" x2="539.2827795200456" y1="607" y2="607" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="535.5128480393278" cy="607" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Snapshot / eksport – SQLite WASM (:memory:): mediana 3,19 ms, Q1–Q3 2,78 ms–3,41 ms, n = 10</title>
+<line x1="557.6669541898921" x2="565.3996304718216" y1="619" y2="619" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="562.8913454762173" cy="619" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="249.20000000000005" y="665" font-size="12" fill="#0b0b0b" text-anchor="end">Odtworzenie / import</text>
+<g><title>Odtworzenie / import – Flat-SQL (JSON): mediana 117 ms, Q1–Q3 116 ms–117 ms, n = 10</title>
+<line x1="698.1123910585048" x2="698.57123507236" y1="645" y2="645" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="698.5142848738594" cy="645" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Odtworzenie / import – sql.js: mediana 1,19 ms, Q1–Q3 1,14 ms–1,27 ms, n = 10</title>
+<line x1="524.1730028102381" x2="528.1963219175707" y1="657" y2="657" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="525.6682459744543" cy="657" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Odtworzenie / import – SQLite WASM (:memory:): mediana 1,61 ms, Q1–Q3 1,57 ms–1,95 ms, n = 10</title>
+<line x1="536.2079249935875" x2="544.3845573196863" y1="669" y2="669" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<circle cx="537.241618505512" cy="669" r="4.5" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+</g>
+<text x="803.2" y="722" font-size="10.5" fill="#52514e" text-anchor="end">skala logarytmiczna; punkt – mediana uruchomień, odcinek – Q1–Q3</text>
+</svg>

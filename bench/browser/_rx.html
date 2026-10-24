@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><script type="module">
+import { createRxDatabase, removeRxDatabase, getRxStorageDexie } from '/vendor/rxdb.js';
+const storage = getRxStorageDexie();
+await removeRxDatabase('rxprobe', storage);
+const db = await createRxDatabase({ name: 'rxprobe', storage, multiInstance: false, eventReduce: false });
+const { items } = await db.addCollections({ items: { schema: { version: 0, primaryKey: 'pk', type: 'object', properties: { pk: { type: 'string', maxLength: 8 }, id: { type: 'number', minimum: 0, maximum: 1e8, multipleOf: 1 }, category: { type: 'string', maxLength: 8 }, price: { type: 'number', minimum: 0, maximum: 100, multipleOf: 0.01 } }, required: ['pk','id','category','price'], indexes: ['category', ['price','id']] } } });
+const docs = []; for (let i = 0; i < 2000; i++) docs.push({ pk: String(i).padStart(8,'0'), id: i, category: 'c' + (i % 100), price: ((i*7919)%10000)/100 });
+await items.bulkInsert(docs);
+const out = {};
+const cases = {
+  range: { selector: { pk: { $gte: '00000100', $lte: '00001099' } } },
+  rangeHint: { selector: { pk: { $gte: '00000100', $lte: '00001099' } }, index: ['pk'] },
+  topk: { sort: [{ price: 'desc' }, { id: 'asc' }], limit: 10 },
+  topkHint: { sort: [{ price: 'desc' }, { id: 'asc' }], limit: 10, index: ['price', 'id'] },
+  scan: { selector: { price: { $gt: 50 } } },
+};
+for (const [k, q] of Object.entries(cases)) {
+  try {
+    const rq = items.find(q); const prep = rq.getPreparedQuery();
+    let t = performance.now(); for (let i = 0; i < 10; i++) { items._queryCache._map.clear(); await items.find(q).exec(); }
+    out[k] = { ms: (performance.now() - t) / 10, index: prep.queryPlan.index.join(','), n: (await items.find(q).exec()).length };
+  } catch (e) { out[k] = String(e).slice(0, 200); }
+}
+window.__r = out;
+</script>

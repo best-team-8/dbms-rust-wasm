@@ -595,28 +595,38 @@ table(
   }
 }
 {
-  const nat = pick('native', 'fsync');
-  const node = pick('node', 'fsync');
-  if (nat.length || node.length) {
+  const agg = (list, get) => {
+    const out = {};
+    for (const r of list) for (const [mode, ops] of Object.entries(get(r))) for (const [op, v] of Object.entries(ops)) ((out[mode] ??= {})[op] ??= []).push(v.meanUs);
+    for (const m of Object.keys(out)) for (const op of Object.keys(out[m])) out[m][op] = stat(out[m][op]);
+    return out;
+  };
+  const all = {};
+  const push = {};
+  for (const [suffix, os] of [['', 'Windows'], ['-linux', 'Linux']]) {
+    const nat = pick(`native${suffix}`, 'fsync');
+    const node = pick(`node${suffix}`, 'fsync');
+    Object.assign(
+      all,
+      agg(nat, (r) => ({ [`${os}: FileStorage (CLI), fsync`]: r.result.fsync, [`${os}: FileStorage (CLI), bez fsync`]: r.result.nofsync })),
+      agg(node, (r) => ({ [`${os}: FsStore (Node.js), fsync`]: r.result.fsStore.fsync, [`${os}: FsStore (Node.js), bez fsync`]: r.result.fsStore.nofsync })),
+    );
+    if (node.length) {
+      push[os] = {
+        durableServer: stat(node.map((r) => r.result.syncPush.durableServer.meanUs)),
+        memoryServer: stat(node.map((r) => r.result.syncPush.memoryServer.meanUs)),
+      };
+    }
+  }
+  if (Object.keys(all).length) {
+    summary.fsync = { ...all, syncPush: push };
     md.push('## Koszt utrwalania plików (4.13)', '');
-    const agg = (list, get) => {
-      const out = {};
-      for (const r of list) for (const [mode, ops] of Object.entries(get(r))) for (const [op, v] of Object.entries(ops)) ((out[mode] ??= {})[op] ??= []).push(v.meanUs);
-      for (const m of Object.keys(out)) for (const op of Object.keys(out[m])) out[m][op] = stat(out[m][op]);
-      return out;
-    };
-    const n = agg(nat, (r) => ({ 'FileStorage (CLI), fsync': r.result.fsync, 'FileStorage (CLI), bez fsync': r.result.nofsync }));
-    const j = agg(node, (r) => ({ 'FsStore (Node.js), fsync': r.result.fsStore.fsync, 'FsStore (Node.js), bez fsync': r.result.fsStore.nofsync }));
-    const all = { ...n, ...j };
-    summary.fsync = all;
+    if (manifest.linux) md.push(`Linux: ${manifest.linux.note}; jądro ${manifest.linux.kernel}, ${manifest.linux.distro}, Node.js ${manifest.linux.node}.`, '');
     const ops = ['insert', 'commit_single', 'commit_group', 'checkpoint', 'reopen'];
     const names = { ...OP_LABEL, checkpoint: 'Checkpoint (snapshot + fsync katalogu)' };
     table(['Magazyn', ...ops.map((o) => names[o])], Object.entries(all).map(([m, s]) => [m, ...ops.map((o) => dur(s[o]))]));
-    const push = { durableServer: [], memoryServer: [] };
-    for (const r of node) for (const k of Object.keys(push)) push[k].push(r.result.syncPush[k].meanUs);
-    if (node.length) {
-      summary.fsync.syncPush = { durableServer: stat(push.durableServer), memoryServer: stat(push.memoryServer) };
-      md.push(`Runda synchronizacji z jedną zmianą (\`/sync/push\` + \`/sync/pull\`, localhost): serwer z katalogiem danych (FsStore, fsync) ${dur(summary.fsync.syncPush.durableServer)}, serwer w pamięci ${dur(summary.fsync.syncPush.memoryServer)}.`, '');
+    for (const [os, p] of Object.entries(push)) {
+      md.push(`${os}: runda synchronizacji z jedną zmianą (\`/sync/push\` + \`/sync/pull\`, localhost) wobec serwera z katalogiem danych (FsStore, fsync) ${dur(p.durableServer)}, wobec serwera w pamięci ${dur(p.memoryServer)}.`, '');
     }
   }
 }
