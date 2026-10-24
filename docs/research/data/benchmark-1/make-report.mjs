@@ -90,6 +90,18 @@ const ROWS = `${(manifest.options?.rows ?? 0).toLocaleString('pl-PL')}`;
 const label = (id) => (id === 'flatsql-native' ? 'Flat-SQL natywnie' : ENGINES[id]?.label ?? id);
 const sortEngines = (ids) => [...new Set(ids)].sort((a, b) => (ORDER.indexOf(a) + 1 || 999) - (ORDER.indexOf(b) + 1 || 999));
 
+// Values declared by authors of engines that could not be measured (closed
+// code, no module to download). Shown separately, marked as unverified.
+const DECLARED = [
+  {
+    engine: 'Zeta-Lite',
+    source: '[D5]',
+    note: 'preprint, wrzesień 2026; warunki pomiaru autora, nie powtórzone w tym benchmarku',
+    pointLookupUs: [3.2, 3.7], // 268–315 tys. odczytów punktowych/s
+    moduleGzipBytes: 2.87e6,
+  },
+];
+
 const OPS = [
   ['insert', 'Wstawienie N wierszy (1 transakcja)'],
   ['index_build', 'Budowa indeksów (widoki PouchDB)'],
@@ -182,26 +194,29 @@ function logTicks(lo, hi) {
 }
 const tickLabel = (us) => {
   const [u, k] = unitFor(us);
-  return `${Math.round(us / k)} ${u}`;
+  const v = us / k;
+  return `${v < 1 ? dec(v, 1) : Math.round(v)} ${u}`;
 };
+const textWidth = (str, px = 12) => str.length * px * 0.56;
 
 /**
  * Horizontal dot plot on a log axis: median dot, whisker Q1–Q3.
  * rows: [{ label, points: [{ series, value: stat }] }]; series: [{ name, color }].
  */
 function dotPlot({ title, subtitle, rows, series, unit = 'us', refs = [] }) {
-  const left = 230;
-  const width = 760;
+  const left = Math.max(150, ...rows.map((r) => textWidth(r.label ?? "") + 24));
+  const width = left + 560;
   const plotW = width - left - 40;
   const rowH = 14 + series.length * 12;
   const top = 64 + (series.length > 1 ? 22 : 0);
   const height = top + rows.length * rowH + 44;
-  const values = rows.flatMap((r) => r.points.flatMap((p) => (p.value ? [p.value.q1, p.value.q3, p.value.median] : []))).filter((x) => x > 0);
+  const values = rows.flatMap((r) => (r.points ?? []).flatMap((p) => (p.value ? [p.value.q1, p.value.q3, p.value.median] : []))).filter((x) => x > 0);
   const ticks = logTicks(Math.min(...values, ...refs.map((r) => r.value)), Math.max(...values, ...refs.map((r) => r.value)));
   const lo = Math.log10(ticks[0]);
   const hi = Math.log10(ticks[ticks.length - 1]);
   const x = (v) => left + ((Math.log10(v) - lo) / (hi - lo || 1)) * plotW;
-  const fmt = unit === 'us' ? tickLabel : (v) => `${num(v)}${unit}`;
+  const fmt = unit === 'us' ? durPlain : (v) => `${num(v)}${unit}`;
+  const tickFmt = unit === 'us' ? tickLabel : fmt;
   const out = [];
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" ${FONT}>`);
   out.push(`<rect width="${width}" height="${height}" fill="${C.surface}"/>`);
@@ -217,7 +232,7 @@ function dotPlot({ title, subtitle, rows, series, unit = 'us', refs = [] }) {
   const bottom = top + rows.length * rowH;
   for (const t of ticks) {
     out.push(`<line x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${bottom}" stroke="${C.grid}" stroke-width="1"/>`);
-    out.push(`<text x="${x(t)}" y="${bottom + 16}" font-size="11" fill="${C.ink2}" text-anchor="middle">${esc(fmt(t))}</text>`);
+    out.push(`<text x="${x(t)}" y="${bottom + 16}" font-size="11" fill="${C.ink2}" text-anchor="middle">${esc(tickFmt(t))}</text>`);
   }
   for (const r of refs) {
     out.push(`<line x1="${x(r.value)}" x2="${x(r.value)}" y1="${top - 4}" y2="${bottom}" stroke="${C.ink2}" stroke-width="1.5" stroke-dasharray="4 3"/>`);
@@ -225,20 +240,35 @@ function dotPlot({ title, subtitle, rows, series, unit = 'us', refs = [] }) {
   }
   rows.forEach((row, i) => {
     const y0 = top + i * rowH;
+    if (row.section) {
+      if (i > 0) out.push(`<line x1="16" x2="${width - 16}" y1="${y0 + 2}" y2="${y0 + 2}" stroke="${C.grid}"/>`);
+      out.push(`<text x="16" y="${y0 + rowH / 2 + 6}" font-size="12" font-weight="600" fill="${C.ink2}">${esc(row.section)}</text>`);
+      return;
+    }
     out.push(`<text x="${left - 10}" y="${y0 + rowH / 2 + 4}" font-size="12" fill="${C.ink}" text-anchor="end">${esc(row.label)}</text>`);
     row.points.forEach((p, j) => {
       if (!p.value) return;
       const s = series.find((q) => q.name === p.series) ?? series[0];
       const y = y0 + 9 + j * 12 + (series.length === 1 ? rowH / 2 - 9 : 0);
-      const tip = `${row.label}${series.length > 1 ? ` – ${s.name}` : ''}: mediana ${fmt(p.value.median)}, Q1–Q3 ${fmt(p.value.q1)}–${fmt(p.value.q3)}, n = ${p.value.n}`;
+      const tip = p.declared
+        ? `${row.label}: ${fmt(p.value.q1)}–${fmt(p.value.q3)} według autora, niepotwierdzone pomiarem`
+        : `${row.label}${series.length > 1 ? ` – ${s.name}` : ''}: mediana ${fmt(p.value.median)}, Q1–Q3 ${fmt(p.value.q1)}–${fmt(p.value.q3)}, n = ${p.value.n}`;
       out.push(`<g><title>${esc(tip)}</title>`);
-      out.push(`<line x1="${x(p.value.q1)}" x2="${x(p.value.q3)}" y1="${y}" y2="${y}" stroke="${s.color}" stroke-width="2" stroke-linecap="round"/>`);
-      out.push(`<circle cx="${x(p.value.median)}" cy="${y}" r="4.5" fill="${s.color}" stroke="${C.surface}" stroke-width="2"/>`);
-      if (series.length === 1 || p.labelled) out.push(`<text x="${x(p.value.q3) + 8}" y="${y + 4}" font-size="11" fill="${C.ink2}">${esc(fmt(p.value.median))}</text>`);
+      out.push(`<line x1="${x(p.value.q1)}" x2="${x(p.value.q3)}" y1="${y}" y2="${y}" stroke="${p.declared ? C.mute : s.color}" stroke-width="2" stroke-linecap="round"${p.declared ? ' stroke-dasharray="3 3"' : ''}/>`);
+      out.push(
+        p.declared
+          ? `<circle cx="${x(p.value.median)}" cy="${y}" r="4.5" fill="${C.surface}" stroke="${C.mute}" stroke-width="2"/>`
+          : `<circle cx="${x(p.value.median)}" cy="${y}" r="4.5" fill="${s.color}" stroke="${C.surface}" stroke-width="2"/>`,
+      );
+      if (series.length === 1 || p.labelled) {
+        const text = p.declared ? `${fmt(p.value.q1)}–${fmt(p.value.q3)}, deklaracja autora, niepotwierdzona` : fmt(p.value.median);
+        out.push(`<text x="${x(p.value.q3) + 8}" y="${y + 4}" font-size="11" fill="${C.ink2}">${esc(text)}</text>`);
+      }
       out.push('</g>');
     });
   });
-  out.push(`<text x="${width - 16}" y="${height - 8}" font-size="10.5" fill="${C.ink2}" text-anchor="end">skala logarytmiczna; punkt – mediana uruchomień, odcinek – Q1–Q3</text>`);
+  const declared = rows.some((r) => (r.points ?? []).some((p) => p.declared)) ? '; pusty punkt – wartość deklarowana przez autora, niezmierzona' : '';
+  out.push(`<text x="${width - 16}" y="${height - 8}" font-size="10.5" fill="${C.ink2}" text-anchor="end">skala logarytmiczna; punkt – mediana uruchomień, odcinek – Q1–Q3${declared}</text>`);
   out.push('</svg>');
   return out.join('\n');
 }
@@ -507,6 +537,14 @@ for (const t of ['browser', 'node']) {
   }
 }
 
+md.push('### Silniki niemierzone – dane deklarowane przez autorów', '');
+md.push('Wartości podane przez autorów, niepotwierdzone pomiarem w tym benchmarku; warunki ich pomiaru są inne niż w tabelach powyżej i nie można ich porównywać wprost.', '');
+table(
+  ['Silnik', 'Źródło', 'Odczyt po kluczu', 'Moduł (gzip)', 'Uwagi'],
+  DECLARED.map((d) => [d.engine, d.source, `${num(d.pointLookupUs[0])}–${num(d.pointLookupUs[1])} µs`, `${dec(d.moduleGzipBytes / 1e6, 2)} MB`, d.note]),
+  2,
+);
+
 // ---- durable writes, strict, checkpoint, fsync ---------------------------------
 
 {
@@ -633,13 +671,31 @@ for (const t of ['browser', 'node']) {
 // ---- figures ------------------------------------------------------------------------
 
 const figures = {};
+/** Rows of a figure, one section per group of run conditions. */
+function grouped(ids, row) {
+  const out = [];
+  for (const g of ['memory', 'durable', 'worker']) {
+    const list = sortEngines(ids.filter((e) => ENGINES[e]?.group === g));
+    if (!list.length) continue;
+    out.push({ section: `grupa „${GROUP_NAME[g]}”` });
+    out.push(...list.map(row));
+  }
+  return out;
+}
 const memBrowser = W.browser ? sortEngines(Object.keys(W.browser).filter((e) => ENGINES[e]?.group === 'memory')) : [];
 if (memBrowser.length) {
   figures['01-odczyt-po-kluczu'] = dotPlot({
     title: 'Odczyt po kluczu – przeglądarka',
     subtitle: `SELECT * FROM items WHERE id = ?, ${ROWS} wierszy; średnia z 10 000 wykonań w każdym uruchomieniu`,
     series: [{ name: 'czas', color: C.s1 }],
-    rows: sortEngines(Object.keys(W.browser)).filter((e) => W.browser[e].point_lookup).map((e) => ({ label: `${label(e)} [${GROUP_NAME[ENGINES[e]?.group]}]`, points: [{ series: 'czas', value: W.browser[e].point_lookup }] })),
+    rows: [
+      ...grouped(Object.keys(W.browser).filter((e) => W.browser[e].point_lookup), (e) => ({ label: label(e), points: [{ series: 'czas', value: W.browser[e].point_lookup }] })),
+      { section: 'niemierzone' },
+      ...DECLARED.map((d) => ({
+        label: `${d.engine} ${d.source}`,
+        points: [{ series: 'czas', declared: true, value: { q1: d.pointLookupUs[0], q3: d.pointLookupUs[1], median: (d.pointLookupUs[0] + d.pointLookupUs[1]) / 2 } }],
+      })),
+    ],
   });
   const trio = ['flatsql-json', 'sqljs', 'sqlite-wasm'].filter((e) => W.browser[e]);
   figures['02-flatsql-a-sqlite'] = dotPlot({
@@ -695,7 +751,7 @@ if (W.browser) {
       title: 'Trwałe zatwierdzenie jednego wiersza – przeglądarka',
       subtitle: 'zapis jednego wiersza i oczekiwanie na trwałość; 100 zatwierdzeń w każdym uruchomieniu',
       series: [{ name: 'czas', color: C.s1 }],
-      rows: engines.map((e) => ({ label: `${label(e)} [${GROUP_NAME[ENGINES[e].group]}]`, points: [{ series: 'czas', value: W.browser[e].commit_single }] })),
+      rows: grouped(engines, (e) => ({ label: label(e), points: [{ series: 'czas', value: W.browser[e].commit_single }] })),
     });
   }
 }

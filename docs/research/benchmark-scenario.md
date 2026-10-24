@@ -91,7 +91,7 @@ Silniki rozważane, ale niemierzone:
 
 | Silnik | Powód |
 |---|---|
-| Zeta-Lite [D5] | kod zamknięty, brak pakietu ani publicznego modułu do pobrania (stan na październik 2026); dostępne są tylko deklaracje autora z preprintu |
+| Zeta-Lite [D5] | kod zamknięty, brak pakietu ani publicznego modułu do pobrania (stan na październik 2026); wyniki podają osobno wartości deklarowane przez autora w preprincie (odczyt po kluczu, rozmiar modułu), oznaczone jako niepotwierdzone pomiarem i nieporównywalne wprost, bo warunki pomiaru autora są inne |
 | absurd-sql | projekt nierozwijany od 2021 r., jego rolę przejęły VFS na OPFS (mierzony `opfs-sahpool`) i IndexedDB (mierzony wa-sqlite) |
 | SQLite z VFS `opfs` | wymaga nagłówków COOP/COEP i `SharedArrayBuffer`; dokumentacja SQLite wskazuje `opfs-sahpool` jako szybszy wariant bez tych wymagań [Q7] |
 
