@@ -277,3 +277,5 @@ await writeFile(join(outDir, 'summary.md'), `${md}\n`);
 console.log(md);
 if (failures.length) console.error(`${failures.length} failed processes, see manifest.json`);
 console.error(`results: ${outDir}`);
+// A failed process or a different answer of an engine fails the run (CI smoke run).
+if (failures.length || md.includes('- checksum mismatch:')) process.exitCode = 1;

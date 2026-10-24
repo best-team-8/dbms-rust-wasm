@@ -41,4 +41,4 @@ jobs:
       - run: npm run build
       - run: npm test
       - name: Benchmark smoke run
-        run: node bench/run.js --rows 5000 --no-network
+        run: node bench/run.js --targets node --runs 1 --rows 5000 --kinds workload --out bench/results/ci-smoke
