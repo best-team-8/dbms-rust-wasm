@@ -254,27 +254,27 @@ Procedura. Program `data/benchmark-1/analysis/cost-split/` (Rust, uruchomienie o
 - pełny skan z filtrem i grupowanie w silniku oraz ręczną pętlę po tym samym drzewie z tym samym warunkiem i samo przejście drzewa (średnia z 20 wykonań);
 - snapshot, odtworzenie i `UPDATE` 10% bazy, której outbox zawiera wszystkie 100 002 lokalne zmiany, oraz tej samej bazy po potwierdzeniu całego outboxa; osobno budowę indeksu pomocniczego.
 
-Wyniki. Pierwsze uruchomienie dało wartości zgodne z Benchmarkiem 1 (odczyt po kluczu 2,2–2,6 µs wobec 2,38 µs, pełny skan 8,2–8,5 ms wobec 8,14 ms) i z niego pochodzą liczby poniżej. Zapisane wyjście programu (`analysis/cost-split.txt`) pochodzi z drugiego uruchomienia, wykonanego, gdy inna aplikacja obciążała procesor; jego wartości są 1,4–2 razy wyższe, a udziały części są takie same. Przed użyciem liczb bezwzględnych pomiar trzeba powtórzyć na nieobciążonej maszynie.
+Wyniki. Program uruchomiono dwa razy po trzy rundy na laptopie z Benchmarku 1, bez innych aplikacji obciążających procesor (wyjście pierwszego uruchomienia: `analysis/cost-split.txt`). Rundy różnią się o kilka procent, a całe operacje trwają tyle co w Benchmarku 1: odczyt po kluczu 2,2 µs wobec 2,38 µs, pełny skan 8,1 ms wobec 8,14 ms, grupowanie 15,2 ms wobec 14,9 ms, odtworzenie 118 ms wobec 114 ms, `UPDATE` 30 ms wobec 32 ms. Wcześniejsze uruchomienie przy procesorze obciążonym inną aplikacją dało wartości 1,4–2 razy wyższe przy tych samych udziałach i zostało odrzucone.
 
 | Operacja | Część | Czas | Udział |
 |---|---|---:|---:|
-| odczyt po kluczu (`SELECT *`, 2,3 µs) | wyszukanie w drzewie | 0,21 µs | 9% |
-| | kopia wiersza (pięć wartości, dwa teksty) | 0,52 µs | 22% |
-| | wiązanie nazw i wybór ścieżki dostępu | 0,26 µs | 11% |
-| | nazwy kolumn i komunikat | 0,25 µs | 11% |
-| | pozostałe (struktury planu, wektor wyniku, zwalnianie) | ok. 1,1 µs | 47% |
-| pełny skan z filtrem (8,2 ms) | przejście drzewa | 1,6 ms | 20% |
+| odczyt po kluczu (`SELECT *`, 2,2 µs) | wyszukanie w drzewie | 0,20 µs | 9% |
+| | kopia wiersza (pięć wartości, dwa teksty) | 0,50 µs | 22% |
+| | wiązanie nazw i wybór ścieżki dostępu | 0,26 µs | 12% |
+| | nazwy kolumn i komunikat | 0,26 µs | 12% |
+| | pozostałe (struktury planu, wektor wyniku, zwalnianie) | ok. 1,0 µs | 45% |
+| pełny skan z filtrem (8,1 ms) | przejście drzewa | 1,5 ms | 19% |
 | | odczyt wartości i warunek w pętli ręcznej | 1,3 ms | 16% |
-| | interpreter wyrażeń (różnica silnika i pętli ręcznej) | 5,3 ms | 64% |
+| | interpreter wyrażeń (różnica silnika i pętli ręcznej) | 5,3 ms | 65% |
 
 | Operacja | Z outboxem | Outbox potwierdzony |
 |---|---:|---:|
 | rozmiar snapshotu | 5,55 MB | 4,17 MB |
-| snapshot | 29–33 ms | 19–21 ms |
-| odtworzenie | 143–181 ms | 76–112 ms |
-| `UPDATE` 10% | 37–47 ms | 30–35 ms |
+| snapshot | 26,8–27,2 ms | 18,3–18,9 ms |
+| odtworzenie | 117–120 ms | 58–61 ms |
+| `UPDATE` 10% | 29,8–30,6 ms | 27,8–29,1 ms |
 
-Budowa indeksu pomocniczego zajmuje 22–30 ms, czyli około jednej piątej czasu odtworzenia. Sam warunek `id % 10 = 0`, wykonany jako zapytanie, trwa 7,4–8,0 ms, czyli około jednej czwartej czasu `UPDATE`.
+Budowa indeksu pomocniczego zajmuje 20–21,5 ms, czyli około jednej szóstej obecnego czasu odtworzenia i jednej trzeciej czasu odtworzenia bez outboxa. Sam warunek `id % 10 = 0`, wykonany jako zapytanie, trwa 6,9–7,6 ms, czyli około jednej czwartej czasu `UPDATE`; outbox wydłuża `UPDATE` o około 5%.
 
 Wnioski. Wyszukanie wiersza to mniej niż jedna dziesiąta czasu odczytu po kluczu; reszta to praca, którą silnik powtarza przy każdym wykonaniu instrukcji przygotowanej (instrukcja przechowuje tylko drzewo składni, a plan powstaje od nowa), i kopiowanie danych do wyniku. Czas pełnego skanu wyznacza głównie interpretacja wyrażeń wiersz po wierszu, a nie rozproszenie wierszy w pamięci: ta sama pętla bez interpretera jest prawie trzy razy szybsza. Outbox, który przy braku synchronizacji zawiera wpis dla każdego wstawionego wiersza, odpowiada za około połowę czasu odtworzenia, jedną trzecią czasu snapshotu i jedną czwartą jego rozmiaru. Pomiar zmienił kolejność planowanych optymalizacji: zapamiętanie planu w instrukcji przygotowanej, kompilacja wyrażeń i zmiana outboxa idą przed zmianą reprezentacji wierszy.
 

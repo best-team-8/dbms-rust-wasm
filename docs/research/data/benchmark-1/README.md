@@ -27,6 +27,6 @@ node docs/research/data/benchmark-1/analysis/profile.mjs
 cargo run --release --manifest-path docs/research/data/benchmark-1/analysis/cost-split/Cargo.toml --target-dir target/analysis
 ```
 
-`cost-split` mierzy bieżący rdzeń z `crates/flatsql-core`; dla innej wersji zmienia się ścieżkę zależności w jego `Cargo.toml`. Wyjście zapisane w `analysis/cost-split.txt` pochodzi z uruchomienia przy procesorze obciążonym inną aplikacją (wartości 1,4–2 razy wyższe niż w pierwszym uruchomieniu, udziały te same).
+`cost-split` mierzy bieżący rdzeń z `crates/flatsql-core`; dla innej wersji zmienia się ścieżkę zależności w jego `Cargo.toml`. Program działa około 11 s (pierwsza kompilacja około 25 s); wynik zależy od obciążenia procesora, więc uruchamia się go bez innych obciążających aplikacji.
 
 Pomiar RxDB w grupie „trwały zapis” (`raw/browser/workload/rxdb/`) powtórzono po poprawce adaptera: pierwsza wersja wymuszała ponowne wykonanie zapytania dodatkowym warunkiem na polu bez indeksu, co zmieniało plan zapytania. Powtórzenie wykonano tą samą wersją silnika i tym samym środowiskiem tego samego dnia; opis w `manifest.json` (`reruns`).
