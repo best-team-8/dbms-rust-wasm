@@ -332,8 +332,9 @@ function lineChart({ title, subtitle, xs, xLabel, series, ref, yUnit = 'ms' }) {
 // ---- tables -----------------------------------------------------------------
 
 const md = [];
-const table = (head, rows) => {
-  md.push(`| ${head.join(' | ')} |`, `|${head.map((_, i) => (i ? '---:' : '---')).join('|')}|`);
+/** Markdown table; the first `textCols` columns are left-aligned, the rest (numbers) right-aligned. */
+const table = (head, rows, textCols = 1) => {
+  md.push(`| ${head.join(' | ')} |`, `|${head.map((_, i) => (i < textCols ? '---' : '---:')).join('|')}|`);
   for (const r of rows) md.push(`| ${r.join(' | ')} |`);
   md.push('');
 };
@@ -355,6 +356,7 @@ table(
     ['Uruchomienia', Object.entries(manifest.targets ?? {}).map(([t, v]) => `${t}: ${v.runs}`).join(', ')],
     ...Object.entries(manifest.packages ?? {}).map(([k, v]) => [k, v ?? '–']),
   ],
+  2,
 );
 
 const GROUP_NAME = { memory: 'pamięć', durable: 'trwały zapis', worker: 'Worker' };
@@ -500,6 +502,7 @@ for (const t of ['browser', 'node']) {
         mem[e]?.wasmAfter?.median ? mib(mem[e].wasmAfter.median) : memNode[e]?.wasmAfter?.median ? mib(memNode[e].wasmAfter.median) : ENGINES[e]?.wasm === false ? 'nie dotyczy' : '–',
         memNode[e]?.heapDelta ? mib(Math.max(0, memNode[e].heapDelta.median)) : '–',
       ]),
+      3,
     );
   }
 }
@@ -519,6 +522,7 @@ for (const t of ['browser', 'node']) {
           const per = s.commit_group ? { ...s.commit_group, median: s.commit_group.median / 1000, q1: s.commit_group.q1 / 1000, q3: s.commit_group.q3 / 1000 } : null;
           return [label(e), GROUP_NAME[ENGINES[e].group], dur(s.insert), dur(s.commit_single), dur(s['commit_single:p95']), dur(per), dur(s.reopen)];
         }),
+        2,
       );
     }
   }
@@ -621,6 +625,7 @@ for (const t of ['browser', 'node']) {
     table(
       ['Środowisko', 'Silnik', 'Operacja', 'CV'],
       rows.sort((a, b) => b.cv - a.cv).slice(0, 8).map((r) => [TARGET_TITLE[r.t], label(r.e), OP_LABEL[r.op] ?? r.op, `${dec(r.cv * 100, 1)}%`]),
+      3,
     );
   }
 }

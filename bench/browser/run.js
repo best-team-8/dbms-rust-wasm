@@ -43,8 +43,10 @@ function enginesFor(kind, selected) {
 /** Raw and gzip size of every file the page loaded for one engine (cold start). */
 async function moduleSizes(resources, server) {
   const files = [];
+  const seen = new Set();
   for (const r of resources) {
-    if (r.name.startsWith('/bench/')) continue; // the harness, not the engine
+    if (r.name.startsWith('/bench/') || seen.has(r.name)) continue; // the harness, not the engine
+    seen.add(r.name);
     const path = server.filePath(r.name);
     if (!path || !existsSync(path)) continue;
     const bytes = await readFile(path);

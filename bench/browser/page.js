@@ -62,6 +62,7 @@ async function workerEngine(id) {
       await rpc('close', o ?? {});
     },
     terminate: () => w.terminate(),
+    resources: () => rpc('resources'),
   };
   if (info.durable) {
     Object.assign(engine, {
@@ -125,6 +126,7 @@ async function cold() {
     startMs: r.startTime,
     durationMs: r.duration,
   }));
+  if (engine.resources) resources.push(...(await engine.resources()));
   await call(engine.finalize?.(st));
   await call(engine.close({ destroy: true }));
   return { pageStartMs: pageStart, initMs: t1 - t0, openMs: t2 - t1, firstQueryMs: t3 - t2, totalMs: t3 - t0, sinceNavigationMs: t3, firstRow: first[0]?.length ?? 0, resources };

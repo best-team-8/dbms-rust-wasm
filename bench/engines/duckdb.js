@@ -17,7 +17,12 @@ function toRows(table) {
   const out = new Array(table.numRows);
   for (let r = 0; r < out.length; r++) {
     const row = new Array(cols);
-    for (let c = 0; c < cols; c++) row[c] = vectors[c].get(r);
+    for (let c = 0; c < cols; c++) {
+      // Decimal (e.g. SUM of INTEGER) arrives as an Arrow big-number object;
+      // a plain number survives postMessage like the other engines' values.
+      const v = vectors[c].get(r);
+      row[c] = typeof v === 'object' && v !== null ? Number(v) : v;
+    }
     out[r] = row;
   }
   return out;

@@ -39,6 +39,16 @@ const methods = {
   reopen: () => engine.reopen(),
   checkpoint: () => engine.checkpoint?.(),
   close: (o) => engine.close(o),
+  // Files loaded by the Worker are not in the page's resource timeline.
+  resources: () =>
+    performance.getEntriesByType('resource').map((r) => ({
+      name: new URL(r.name).pathname,
+      transferSize: r.transferSize,
+      encodedBodySize: r.encodedBodySize,
+      decodedBodySize: r.decodedBodySize,
+      startMs: r.startTime,
+      durationMs: r.duration,
+    })),
 };
 
 self.onmessage = async ({ data: { id, method, args } }) => {
