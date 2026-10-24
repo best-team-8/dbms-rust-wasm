@@ -62,10 +62,34 @@ struct ReadOp {
 }
 
 const READ_OPS: [ReadOp; 7] = [
-    ReadOp { name: "point_lookup", n: 10_000, sql: "SELECT * FROM items WHERE id = ?", params: Params::Id, ordered: true },
-    ReadOp { name: "index_lookup", n: 500, sql: "SELECT COUNT(*) FROM items WHERE category = ?", params: Params::Category, ordered: true },
-    ReadOp { name: "range_scan", n: 200, sql: "SELECT SUM(price) FROM items WHERE id BETWEEN ? AND ?", params: Params::Range, ordered: true },
-    ReadOp { name: "full_scan", n: 20, sql: "SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10", params: Params::None, ordered: true },
+    ReadOp {
+        name: "point_lookup",
+        n: 10_000,
+        sql: "SELECT * FROM items WHERE id = ?",
+        params: Params::Id,
+        ordered: true,
+    },
+    ReadOp {
+        name: "index_lookup",
+        n: 500,
+        sql: "SELECT COUNT(*) FROM items WHERE category = ?",
+        params: Params::Category,
+        ordered: true,
+    },
+    ReadOp {
+        name: "range_scan",
+        n: 200,
+        sql: "SELECT SUM(price) FROM items WHERE id BETWEEN ? AND ?",
+        params: Params::Range,
+        ordered: true,
+    },
+    ReadOp {
+        name: "full_scan",
+        n: 20,
+        sql: "SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10",
+        params: Params::None,
+        ordered: true,
+    },
     ReadOp {
         name: "group_by",
         n: 20,
@@ -73,8 +97,20 @@ const READ_OPS: [ReadOp; 7] = [
         params: Params::None,
         ordered: false,
     },
-    ReadOp { name: "top_k", n: 20, sql: "SELECT id, price FROM items ORDER BY price DESC, id ASC LIMIT 10", params: Params::None, ordered: true },
-    ReadOp { name: "materialize_10k", n: 20, sql: "SELECT * FROM items WHERE id < 10000", params: Params::None, ordered: false },
+    ReadOp {
+        name: "top_k",
+        n: 20,
+        sql: "SELECT id, price FROM items ORDER BY price DESC, id ASC LIMIT 10",
+        params: Params::None,
+        ordered: true,
+    },
+    ReadOp {
+        name: "materialize_10k",
+        n: 20,
+        sql: "SELECT * FROM items WHERE id < 10000",
+        params: Params::None,
+        ordered: false,
+    },
 ];
 
 const WRITE_OPS: [(&str, &str); 2] = [
@@ -103,7 +139,11 @@ fn canon(v: &Value) -> String {
         Value::Int(i) => (*i as i128 * 1_000_000).to_string(),
         Value::Float(f) => {
             let r = (f * 1e6).round();
-            if r == 0.0 { "0".into() } else { format!("{}", r as i64) }
+            if r == 0.0 {
+                "0".into()
+            } else {
+                format!("{}", r as i64)
+            }
         }
         Value::Text(s) => format!("S{s}"),
     }
@@ -273,7 +313,13 @@ fn workload(rows: i64) -> String {
             op.n,
             results.last().map_or(0, Vec::len)
         );
-        stats.push(OpStat { name: op.name, n: op.n, mean_us: total / op.n as f64, samples_us: samples, extra: String::new() });
+        stats.push(OpStat {
+            name: op.name,
+            n: op.n,
+            mean_us: total / op.n as f64,
+            samples_us: samples,
+            extra: String::new(),
+        });
     }
 
     for (name, sql) in WRITE_OPS {
@@ -339,7 +385,13 @@ fn durable(dir: &Path, rows: i64, fsync: bool) -> String {
         p.flush().unwrap();
         samples.push(us_since(t0));
     }
-    stats.push(OpStat { name: "commit_single", n: 100, mean_us: us_since(start) / 100.0, samples_us: samples, extra: String::new() });
+    stats.push(OpStat {
+        name: "commit_single",
+        n: 100,
+        mean_us: us_since(start) / 100.0,
+        samples_us: samples,
+        extra: String::new(),
+    });
 
     let t = Instant::now();
     for i in 0..1000 {
