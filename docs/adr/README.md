@@ -42,7 +42,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0026](0026-reguly-w-backendzie-mechanizmy-w-serwerze.md) | Reguły w backendzie, mechanizmy w serwerze synchronizacji | architektura | przyjęta |
 | [0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) | Struktura tabel w kodzie aplikacji, między wersjami tylko dokładanie | architektura | przyjęta |
 | [0028](0028-kursor-jako-numer-przyjecia.md) | Kursor synchronizacji jako numer przyjęcia nadany przez serwer | architektura | przyjęta |
-| [0029](0029-listy-zadan-wedlug-zakresu-pracy.md) | Listy zadań według zakresu pracy inżynierskiej | proces | przyjęta |
+| [0029](0029-listy-zadan-wedlug-zakresu-pracy.md) | Listy zadań według zakresu pracy inżynierskiej | proces | przyjęta; podział zadań na wymagane i dodatkowe zastąpiony przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | [0030](0030-zlaczenia-postgresql-i-edycja-na-zywo-poza-zakresem.md) | Złączenia, integracja z PostgreSQL i wspólna edycja na żywo poza zakresem | proces | przyjęta |
 | [0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) | Rdzeń literatury według cytowań w pracy dyplomowej | proces | przyjęta |
 | [0032](0032-metodyka-testow-poprawnosci.md) | Metodyka testów poprawności oddzielna od metodyki benchmarków | proces | przyjęta |
@@ -50,7 +50,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0034](0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md) | Magazyn domyślny: IndexedDB w przeglądarce, jawny wybór poza nią | architektura | przyjęta |
 | [0035](0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md) | Granica dryfu zegara: odrzucenie, wstrzymanie synchronizacji i nowe znaczniki | architektura | przyjęta |
 | [0036](0036-jawne-konflikty-schematu-przed-wersjami-struktury.md) | Jawne konflikty schematu przed wersjami struktury | architektura | proponowana |
-| [0037](0037-pomiar-prototypu-przed-optymalizacjami.md) | Pomiar prototypu przed optymalizacjami, ta sama metodyka w obu pomiarach | proces | przyjęta |
+| [0037](0037-pomiar-prototypu-przed-optymalizacjami.md) | Pomiar prototypu przed optymalizacjami, ta sama metodyka w obu pomiarach | proces | przyjęta; kolejność z pkt 1 zastąpiona przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | [0038](0038-metodyka-benchmarku-1.md) | Metodyka benchmarku: powtórzenia procesu, sumy kontrolne, grupy warunków, wskazana wersja silnika | proces | przyjęta |
 | [0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) | Zadania optymalizacji z rozbicia kosztów silnika jako wymagane | proces | przyjęta |
 

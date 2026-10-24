@@ -14,36 +14,15 @@
 use std::hint::black_box;
 use std::time::Instant;
 
+use cost_split::{load, row, Lcg, ROWS};
 use flatsql_core::expr::Binder;
 use flatsql_core::plan;
 use flatsql_core::sql::{parse_one, Statement};
 use flatsql_core::table::Table;
 use flatsql_core::{Database, Stamp, Value};
 
-const ROWS: i64 = 100_000;
 const LOOKUPS: usize = 200_000;
 const ROUNDS: usize = 3;
-
-/// Row `i` of `bench/suite.js` (`makeRow`).
-fn row(i: i64) -> Vec<Value> {
-    vec![
-        Value::Int(i),
-        Value::Text(format!("c{}", i % 100)),
-        Value::Float(((i * 7919) % 10000) as f64 / 100.0),
-        Value::Int(i % 50),
-        Value::Text(format!("item-{i}")),
-    ]
-}
-
-/// Linear congruential generator of `bench/suite.js` (`Rng`).
-struct Lcg(u64);
-
-impl Lcg {
-    fn below(&mut self, n: u64) -> u64 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-        (self.0 >> 33) % n
-    }
-}
 
 fn per_op_ns(t: Instant, n: usize) -> f64 {
     t.elapsed().as_nanos() as f64 / n as f64
@@ -54,16 +33,7 @@ fn ms(t: Instant) -> f64 {
 }
 
 fn main() {
-    let mut db = Database::new(1);
-    db.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, category TEXT, price FLOAT, qty INT, name TEXT)").unwrap();
-    db.execute("CREATE INDEX items_category ON items (category)").unwrap();
-    let ins = db.prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?)").unwrap();
-    db.execute("BEGIN").unwrap();
-    for i in 0..ROWS {
-        db.execute_prepared(&ins, &row(i)).unwrap();
-    }
-    db.execute("COMMIT").unwrap();
-    db.take_wal();
+    let mut db = load();
 
     // The same rows in a table outside the database, for the raw costs.
     let schema = db.table_schema("items").unwrap().clone();

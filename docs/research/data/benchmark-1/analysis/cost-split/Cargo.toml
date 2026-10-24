@@ -3,6 +3,7 @@ name = "cost-split"
 version = "0.1.0"
 edition = "2021"
 publish = false
+default-run = "cost-split"
 
 [dependencies]
 flatsql-core = { path = "../../../../../../crates/flatsql-core" }

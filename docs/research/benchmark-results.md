@@ -252,7 +252,8 @@ Procedura. Program `data/benchmark-1/analysis/cost-split/` (Rust, uruchomienie o
 
 - odczyt po kluczu jako całą instrukcję przygotowaną (`SELECT *` i `SELECT id`) oraz osobno: wiązanie nazw z wyborem ścieżki dostępu, samo wyszukanie w drzewie, wyszukanie z kopią wiersza, kopię nazw kolumn z utworzeniem komunikatu (średnia z 200 000 wywołań);
 - pełny skan z filtrem i grupowanie w silniku oraz ręczną pętlę po tym samym drzewie z tym samym warunkiem i samo przejście drzewa (średnia z 20 wykonań);
-- snapshot, odtworzenie i `UPDATE` 10% bazy, której outbox zawiera wszystkie 100 002 lokalne zmiany, oraz tej samej bazy po potwierdzeniu całego outboxa; osobno budowę indeksu pomocniczego.
+- snapshot, odtworzenie i `UPDATE` 10% bazy, której outbox zawiera wszystkie 100 002 lokalne zmiany, oraz tej samej bazy po potwierdzeniu całego outboxa; osobno budowę indeksu pomocniczego;
+- liczbę alokacji pamięci w tych samych operacjach. Liczy je osobny program tego pakietu (`allocations`), który opakowuje systemowy alokator licznikiem; w programie mierzącym czas licznika nie ma, więc go nie spowalnia. Liczba alokacji nie zależy od obciążenia maszyny.
 
 Wyniki. Program uruchomiono dwa razy po trzy rundy na laptopie z Benchmarku 1, bez innych aplikacji obciążających procesor (wyjście pierwszego uruchomienia: `analysis/cost-split.txt`). Rundy różnią się o kilka procent, a całe operacje trwają tyle co w Benchmarku 1: odczyt po kluczu 2,2 µs wobec 2,38 µs, pełny skan 8,1 ms wobec 8,14 ms, grupowanie 15,2 ms wobec 14,9 ms, odtworzenie 118 ms wobec 114 ms, `UPDATE` 30 ms wobec 32 ms. Wcześniejsze uruchomienie przy procesorze obciążonym inną aplikacją dało wartości 1,4–2 razy wyższe przy tych samych udziałach i zostało odrzucone.
 
@@ -276,7 +277,21 @@ Wyniki. Program uruchomiono dwa razy po trzy rundy na laptopie z Benchmarku 1, b
 
 Budowa indeksu pomocniczego zajmuje 20–21,5 ms, czyli około jednej szóstej obecnego czasu odtworzenia i jednej trzeciej czasu odtworzenia bez outboxa. Sam warunek `id % 10 = 0`, wykonany jako zapytanie, trwa 6,9–7,6 ms, czyli około jednej czwartej czasu `UPDATE`; outbox wydłuża `UPDATE` o około 5%.
 
-Wnioski. Wyszukanie wiersza to mniej niż jedna dziesiąta czasu odczytu po kluczu; reszta to praca, którą silnik powtarza przy każdym wykonaniu instrukcji przygotowanej (instrukcja przechowuje tylko drzewo składni, a plan powstaje od nowa), i kopiowanie danych do wyniku. Czas pełnego skanu wyznacza głównie interpretacja wyrażeń wiersz po wierszu, a nie rozproszenie wierszy w pamięci: ta sama pętla bez interpretera jest prawie trzy razy szybsza. Outbox, który przy braku synchronizacji zawiera wpis dla każdego wstawionego wiersza, odpowiada za około połowę czasu odtworzenia, jedną trzecią czasu snapshotu i jedną czwartą jego rozmiaru. Pomiar zmienił kolejność planowanych optymalizacji: zapamiętanie planu w instrukcji przygotowanej, kompilacja wyrażeń i zmiana outboxa idą przed zmianą reprezentacji wierszy.
+Liczba alokacji (`analysis/allocations.txt`) była identyczna w dwóch uruchomieniach:
+
+| Operacja | Alokacje | Przydzielone bajty |
+|---|---:|---:|
+| odczyt po kluczu, `SELECT *` | 26 | 1590 |
+| odczyt po kluczu, `SELECT id` | 13 | 738 |
+| pełny skan z filtrem | 25 | 3022 |
+| `GROUP BY` (100 grup) | 540 | 72 442 |
+| odtworzenie z outboxem | 559 268 | 67,9 MB |
+| odtworzenie bez outboxa | 325 926 | 37,6 MB |
+| `UPDATE` 10% (10 000 wierszy) | 41 769 | 15,6 MB |
+
+Pełny skan i grupowanie alokują pamięć tylko na początku i na końcu zapytania, a nie dla każdego z 100 000 wierszy. Klucz grupy powstaje w buforze używanym ponownie, a kopia klucza powstaje tylko dla nowej grupy. Czas skanu i grupowania wyznacza więc interpretacja wyrażeń i porównania kluczy w drzewie, a nie przydział pamięci; hipoteza S9 o kluczu grupy budowanym osobno dla każdego wiersza się nie potwierdziła. Odczyt po kluczu wykonuje 26 alokacji, z czego połowa przypada na kopie wartości i nazw czterech kolumn, których `SELECT id` nie zwraca. Outbox dodaje do odtworzenia 233 tys. alokacji (42% wszystkich), a `UPDATE` wykonuje około czterech alokacji na zmieniany wiersz.
+
+Wnioski. Wyszukanie wiersza to mniej niż jedna dziesiąta czasu odczytu po kluczu; reszta to praca, którą silnik powtarza przy każdym wykonaniu instrukcji przygotowanej (instrukcja przechowuje tylko drzewo składni, a plan powstaje od nowa), i kopiowanie danych do wyniku. Czas pełnego skanu wyznacza głównie interpretacja wyrażeń wiersz po wierszu, a nie rozproszenie wierszy w pamięci ani przydział pamięci: ta sama pętla bez interpretera jest prawie trzy razy szybsza, a skan wykonuje 25 alokacji. Outbox, który przy braku synchronizacji zawiera wpis dla każdego wstawionego wiersza, odpowiada za około połowę czasu odtworzenia, jedną trzecią czasu snapshotu i jedną czwartą jego rozmiaru. Pomiar zmienił kolejność planowanych optymalizacji: zapamiętanie planu w instrukcji przygotowanej, kompilacja wyrażeń i zmiana outboxa idą przed zmianą reprezentacji wierszy.
 
 ## 2. Wyniki wstępne (6 października 2026, inna metodyka)
 

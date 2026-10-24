@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; kolejność z pkt 1 zastąpiona przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | Data | 2026-10-24 |
 | Rodzaj | proces |
 | Powiązane | ADR-0020, ADR-0029, ADR-0038; zadania todo §1, §2, §4 |

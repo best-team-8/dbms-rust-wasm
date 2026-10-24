@@ -17,11 +17,12 @@ Benchmark 1 ([benchmark-results.md §1](../research/benchmark-results.md#1-bench
 
 ## Decyzja
 
-1. Do sekcji 2 [todo.md](../todo.md) dochodzą zadania 2.9–2.16 jako wymagane, bez dopisku „dobrze mieć”: 2.9 plan zapamiętany w instrukcji przygotowanej (z hipotezami O2, O3), 2.10 wyrażenia kompilowane przy przygotowaniu, 2.11 outbox tylko przy synchronizacji i w zwartej postaci (O7), 2.12 hurtowa budowa indeksów przy odtwarzaniu (część O9), 2.13 internowanie stałych łańcuchów wyniku (O1), 2.14 wstawianie wielu wierszy jednym wywołaniem (O4), 2.15 grupowanie bez alokacji klucza na wiersz (O11), 2.16 `FsStore` z otwartym plikiem WAL (O10).
+1. Do sekcji 2 [todo.md](../todo.md) dochodzą zadania 2.9–2.16: 2.9 plan zapamiętany w instrukcji przygotowanej (z hipotezami O2, O3), 2.10 wyrażenia kompilowane przy przygotowaniu, 2.11 outbox tylko przy synchronizacji i w zwartej postaci (O7), 2.12 hurtowa budowa indeksów przy odtwarzaniu (część O9), 2.13 internowanie stałych łańcuchów wyniku (O1), 2.14 wstawianie wielu wierszy jednym wywołaniem (O4), 2.15 grupowanie przez tablicę mieszającą (O11), 2.16 `FsStore` z otwartym plikiem WAL (O10).
 2. Zadania 2.4, 2.5 i 2.7 dostają dopiski: 2.4 koduje wynik wprost z wierszy tabeli i osiąga cel dopiero z 2.9 i 2.13; 2.5 mierzy też alokator (dlmalloc wobec talc) i flagę `+simd128`; 2.7 idzie po 2.10.
-3. Kolejność sekcji 2: 2.1, 2.2 → 2.9, 2.10, 2.11 → 2.8 → 2.12, 2.15, 2.16 → 2.3, 2.13 → 2.4 → 2.14 → 2.5. Zadania 2.6 i 2.7 pozostają „dobrze mieć”.
-4. Hipotezy O5, O6, O8 i O12 pozostają hipotezami bez zadania.
-5. Każde nowe zadanie jest oceniane jak pozostałe zadania sekcji 2: pomiar narzędziem z §4 razem z tagiem `prototyp` (ADR-0037).
+3. Kolejność sekcji 2: 2.1, 2.2 → 2.9, 2.10, 2.11 → 2.8 → 2.12, 2.15, 2.16 → 2.3, 2.13 → 2.4 → 2.14 → 2.7 → 2.6 → 2.5.
+4. Znika podział zadań `todo.md` na wymagane i wykonywane, jeśli starczy czasu (ADR-0029 pkt 1, kolejność z ADR-0037 pkt 1): wszystkie zadania listy są wymagane, także 2.6, 2.7 i zadania sekcji 4.
+5. Hipotezy O5, O6, O8 i O12 pozostają hipotezami bez zadania.
+6. Każde zadanie sekcji 2 to osobny commit z tagiem `po-2.N`, mierzony przed zmianą i po niej oraz w końcowym pomiarze razem z tagiem `prototyp` (ADR-0037). Zadanie zależne zaczyna się po pomiarze zadania, od którego zależy. Wynik każdej optymalizacji, także odrzuconej pomiarem, opisuje [optimization-results.md](../research/optimization-results.md).
 
 ## Uzasadnienie
 
@@ -33,14 +34,16 @@ Benchmark 1 ([benchmark-results.md §1](../research/benchmark-results.md#1-bench
 
 ## Odrzucone alternatywy
 
-- **Nowe zadania jako „dobrze mieć”** – 2.9 jest warunkiem celu 2.4, a 2.10 i 2.11 dotyczą operacji, w których Flat-SQL przegrywa z SQLite (UPDATE, snapshot, odtworzenie); bez nich ponowny pomiar oceniałby głównie zmiany drugorzędne.
+- **Nowe zadania jako wykonywane, jeśli starczy czasu** – 2.9 jest warunkiem celu 2.4, a 2.10 i 2.11 dotyczą operacji, w których Flat-SQL przegrywa z SQLite (UPDATE, snapshot, odtworzenie); bez nich ponowny pomiar oceniałby głównie zmiany drugorzędne. Z tego samego powodu podział znika dla całej listy: 2.6 i 2.7 dotyczą pauzy checkpointu, pamięci i odtworzenia, czyli słabości S5–S7.
+- **Jeden pomiar wszystkich zmian na końcu** – zadania zależą od siebie (2.9 → 2.10 → 2.15, 2.9 i 2.13 → 2.4 → 2.14), więc słabe rozwiązanie wykryte dopiero na końcu oznacza przeróbkę kilku zadań, a zysku nie da się przypisać pojedynczej zmianie.
 - **Zwarte wiersze (2.7) przed kompilacją wyrażeń** – układ wierszy odpowiada za około jedną trzecią czasu skanu, a 2.7 ma duży nakład.
 - **Kompilacja zapytań do kodu WASM w czasie wykonania** – koszt kompilacji przy zapytaniach trwających mikrosekundy; domknięcia dają większość zysku bez generowania kodu.
 - **Wpisanie wszystkich hipotez O1–O13** – O5, O6, O8 i O12 nie mają jeszcze potwierdzenia albo wymagają nowej wersji obciążenia (O12).
 
 ## Konsekwencje
 
-- Sekcja 2 rośnie o osiem zadań; szacunkowo 2000–3400 linii kodu z testami, z czego około 1100–1700 w kodzie produkcyjnym rdzenia.
+- Sekcja 2 rośnie o osiem zadań; szacunkowo 2000–3400 linii kodu z testami, z czego około 1100–1700 w kodzie produkcyjnym rdzenia. Do zakresu wchodzą też 2.6 i 2.7 (duży nakład) oraz pomiar na telefonie (4.7).
+- ADR-0029 (podział zadań w pkt 1) i ADR-0037 (kolejność w pkt 1) są w tych punktach zastąpione.
 - 2.11 zmienia format snapshotu i decyzję ADR-0016; przy jego wykonaniu powstaje osobny ADR, a odczyt starego formatu zostaje.
 - 2.14 wymaga nowej operacji obciążenia i nowego identyfikatora obciążenia; adapter wykrywa metodę, której prototyp nie ma (ADR-0037).
 - Pomiar rozbicia kosztów trzeba powtórzyć na nieobciążonej maszynie przed użyciem liczb bezwzględnych w pracy.

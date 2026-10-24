@@ -102,6 +102,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 - Dowód: wykonawca (`exec.rs`, typ `Groups`) dla każdego wiersza buduje klucz `Vec<Cow<Value>>` i szuka go w `BTreeMap` porównaniami łańcuchów.
 - Zmiana: ścieżka dla jednej kolumny grupującej bez wektora klucza, tablica mieszająca z kluczem tekstowym, a przy indeksie na kolumnie grupującej przejście po indeksie (grupy już rozdzielone).
 - Pomiar: `group_by` natywnie i w WASM (narzut WASM wynosi tu 1,05–1,13×, więc zysk będzie widoczny w obu).
+- Wynik licznika alokacji: grupowanie wykonuje 540 alokacji na całe zapytanie, bo klucz powstaje w buforze używanym ponownie, a kopia tylko dla nowej grupy. Część hipotezy o alokacji klucza na wiersz jest odrzucona; zostają porównania łańcuchów w `BTreeMap` i interpretacja wyrażeń.
 
 ### O12. Odczyt wyłącznie z indeksu dla innych zapytań niż `COUNT(*)`
 
