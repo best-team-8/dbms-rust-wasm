@@ -1,8 +1,22 @@
-# Hipotetyczne optymalizacje spoza zadań 2.*
+# Hipotetyczne optymalizacje z Benchmarku 1
 
-Propozycje wynikające z Benchmarku 1 ([benchmark-results.md](research/benchmark-results.md), dane i skrypty: [research/data/benchmark-1/](research/data/benchmark-1/)), które nie są objęte zadaniami 2.1–2.8 z [todo.md](todo.md). Każda pozycja to hipoteza: objaw zmierzony w Benchmarku 1, podejrzana przyczyna z dowodem (profil, `EXPLAIN`, analiza kodu), proponowana zmiana i pomiar, który ją potwierdzi albo odrzuci. Żadnej nie wykonano; przed wpisaniem do listy zadań każdą trzeba potwierdzić pomiarem według metodyki Benchmarku 1 (ta sama wersja narzędzia, prototyp mierzony obok nowej wersji).
+Propozycje wynikające z Benchmarku 1 ([benchmark-results.md](research/benchmark-results.md), dane i skrypty: [research/data/benchmark-1/](research/data/benchmark-1/)), które nie były objęte zadaniami 2.1–2.8 z [todo.md](todo.md). Każda pozycja to hipoteza: objaw zmierzony w Benchmarku 1, podejrzana przyczyna z dowodem (profil, `EXPLAIN`, analiza kodu), proponowana zmiana i pomiar, który ją potwierdzi albo odrzuci. Żadnej nie wykonano; przed wpisaniem do listy zadań każdą trzeba potwierdzić pomiarem według metodyki Benchmarku 1 (ta sama wersja narzędzia, prototyp mierzony obok nowej wersji).
 
 Wartości to mediany z 10 uruchomień, 100 000 wierszy, przeglądarka Edge 156 albo Node.js 24, jeśli nie podano inaczej.
+
+Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchmark-results.md#112-rozbicie-kosztów-silnika-pomiar-pomocniczy)): część hipotez potwierdził pomiar natywny i trafiły do listy zadań jako wymagane.
+
+| Hipoteza | Stan |
+|---|---|
+| O1 | zadanie 2.13 |
+| O2, O3 | część zadania 2.9 |
+| O4 | zadanie 2.14 |
+| O7 | zadanie 2.11 (outbox to około połowy czasu odtworzenia) |
+| O9 | budowa indeksów: zadanie 2.12; outbox: 2.11; dekodowanie wierszy: 2.7 |
+| O10 | zadanie 2.16 |
+| O11 | zadanie 2.15 |
+| O13 | przyczyna poprawiona, zob. niżej; zadanie 2.10 przed 2.7 |
+| O5, O6, O8, O12 | hipotezy, bez zadania |
 
 ## Granica JS↔WASM i most
 
@@ -102,3 +116,4 @@ Wartości to mediany z 10 uruchomień, 100 000 wierszy, przeglądarka Edge 156 a
 - Dowód: wiersze są osobnymi alokacjami `Vec<Value>` w węzłach `BTreeMap`; każdy wiersz to kilka odwołań do pamięci rozrzuconej po stercie, a `Value` ma 32 bajty niezależnie od typu.
 - Zmiana: 2.7 (zwarte wiersze) jest głównym kierunkiem; dodatkowo profil natywny (Windows Performance Toolkit jest zainstalowany) przed 2.7, żeby oddzielić koszt przechodzenia drzewa od ewaluacji predykatu.
 - Pomiar: `full_scan`, `top_k`, `group_by` natywnie z profilem.
+- Wynik rozbicia kosztów: ręczna pętla po tym samym drzewie z tym samym warunkiem trwa 2,9 ms wobec 8,2 ms silnika, a samo przejście drzewa 1,6 ms. Układ wierszy odpowiada więc za około jedną trzecią czasu, interpreter wyrażeń za dwie trzecie. Głównym kierunkiem jest kompilacja wyrażeń przy przygotowaniu (2.10), zwarte wiersze (2.7) w drugiej kolejności.

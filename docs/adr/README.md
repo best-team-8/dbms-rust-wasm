@@ -52,6 +52,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0036](0036-jawne-konflikty-schematu-przed-wersjami-struktury.md) | Jawne konflikty schematu przed wersjami struktury | architektura | proponowana |
 | [0037](0037-pomiar-prototypu-przed-optymalizacjami.md) | Pomiar prototypu przed optymalizacjami, ta sama metodyka w obu pomiarach | proces | przyjęta |
 | [0038](0038-metodyka-benchmarku-1.md) | Metodyka benchmarku: powtórzenia procesu, sumy kontrolne, grupy warunków, wskazana wersja silnika | proces | przyjęta |
+| [0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) | Zadania optymalizacji z rozbicia kosztów silnika jako wymagane | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 
