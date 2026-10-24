@@ -250,6 +250,9 @@ const manifest = existsSync(manifestPath)
       node: process.version,
       rustc: sh('rustc', ['--version'], ROOT),
       packages: packageVersions(),
+      // Engine registry at measurement time: labels, groups and requirements
+      // used by the report scripts.
+      engines: ENGINES,
       targets: {},
     };
 

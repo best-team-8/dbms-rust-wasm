@@ -33,7 +33,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0017](0017-protokol-push-pull-z-kursorem.md) | Protokół push/pull z kursorem i epoką | architektura | przyjęta; pkt 2 zastąpiony przez [ADR-0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) |
 | [0018](0018-atomowosc-wiersza-miedzy-replikami.md) | Między replikami atomowy jest wiersz | architektura | przyjęta |
 | [0019](0019-przekazywanie-wynikow-do-js.md) | Przekazywanie wyników do JS: JSON teraz, bufor binarny docelowo | architektura | przyjęta |
-| [0020](0020-punkty-odniesienia-benchmarku.md) | Punkty odniesienia i metodyka benchmarku | proces | przyjęta |
+| [0020](0020-punkty-odniesienia-benchmarku.md) | Punkty odniesienia i metodyka benchmarku | proces | zastąpiona przez [ADR-0038](0038-metodyka-benchmarku-1.md) |
 | [0021](0021-rdzen-literatury.md) | Rdzeń literatury i kryteria doboru | proces | przyjęta; kryterium włączenia i skład rdzenia zastąpione przez [ADR-0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) |
 | [0022](0022-podzial-list-zadan.md) | Podział list zadań: optymalizacja i rozszerzenia | proces | zastąpiona przez [ADR-0029](0029-listy-zadan-wedlug-zakresu-pracy.md) |
 | [0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) | Konfigurowalne tryby serwera synchronizacji | architektura | przyjęta |
@@ -51,6 +51,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0035](0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md) | Granica dryfu zegara: odrzucenie, wstrzymanie synchronizacji i nowe znaczniki | architektura | przyjęta |
 | [0036](0036-jawne-konflikty-schematu-przed-wersjami-struktury.md) | Jawne konflikty schematu przed wersjami struktury | architektura | proponowana |
 | [0037](0037-pomiar-prototypu-przed-optymalizacjami.md) | Pomiar prototypu przed optymalizacjami, ta sama metodyka w obu pomiarach | proces | przyjęta |
+| [0038](0038-metodyka-benchmarku-1.md) | Metodyka benchmarku: powtórzenia procesu, sumy kontrolne, grupy warunków, wskazana wersja silnika | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

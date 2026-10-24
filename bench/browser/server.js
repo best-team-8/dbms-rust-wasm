@@ -5,7 +5,6 @@
 // (DuckDB runs its single-threaded build, SQLite the opfs-sahpool VFS), so the
 // headers change only the measuring instruments.
 //
-//   /                 → bench/browser/index.html
 //   /bench/…          → bench/ of this checkout (harness, workload, adapters)
 //   /node_modules/…   → node_modules/ of this checkout (engines)
 //   /vendor/…         → bench/browser/vendor/ (bundled engines)
@@ -13,7 +12,7 @@
 
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize, sep } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -36,12 +35,11 @@ export async function startBenchServer({ flatsqlRoot, port = 0, isolated = true 
     ['/bench/', join(ROOT, 'bench')],
     ['/node_modules/', join(ROOT, 'node_modules')],
     ['/vendor/', join(ROOT, 'bench', 'browser', 'vendor')],
-    ['/flatsql/', flatsqlRoot],
+    ['/flatsql/', resolve(flatsqlRoot)],
   ];
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     let path = decodeURIComponent(url.pathname);
-    if (path === '/') path = '/bench/browser/index.html';
     const entry = dirs.find(([p]) => path.startsWith(p));
     const headers = {
       'cache-control': 'no-store',

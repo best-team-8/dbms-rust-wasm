@@ -57,9 +57,9 @@ The primary objective is to implement the **Edge Computing** paradigm by shiftin
 | Synchronizacja | zegar hybrydowy (HLC) z granicą dryfu (urządzenie z błędnym zegarem wstrzymuje synchronizację, a po poprawie zegara jego zmiany dostają nowe znaczniki), LWW per wiersz z tombstone'ami, outbox odtwarzany z WAL, binarne paczki zmian, serwer z logiem i kompaktowaniem |
 | WASM-Bridge (`crates/flatsql-wasm`, `bridge/`) | wiązania `wasm-bindgen`, API JavaScript (`FlatDB`, `SyncClient`, magazyny IndexedDB/pamięć/pliki), typy TypeScript |
 | Serwer (`server/`) | ten sam silnik WASM w Node.js (tryb edge): hub synchronizacji, API zapytań „cloud” z symulowaną latencją, hosting dema |
-| Demo (`web/`) | konsola SQL w przeglądarce, panel synchronizacji i trybu offline, Service Worker, benchmark w przeglądarce |
+| Demo (`web/`) | konsola SQL w przeglądarce, panel synchronizacji i trybu offline, Service Worker |
 | CLI (`crates/flatsql-cli`) | interaktywna powłoka `flatsql`, bazy plikowe, natywny benchmark |
-| Badania (`bench/`, `docs/research/`) | porównanie Flat-SQL (WASM i natywnie), SQLite (sql.js) i czystego JS; Local-First vs Cloud-First; trwałość zapisów w przeglądarce |
+| Badania (`bench/`, `docs/research/`) | porównanie Flat-SQL (WASM i natywnie) z silnikami SQL w WebAssembly (sql.js, SQLite WASM, wa-sqlite, PGlite, DuckDB-Wasm), AlaSQL, bazami na IndexedDB (Dexie.js, PouchDB, RxDB) i czystym JS; Local-First vs Cloud-First; trwałość zapisów, zimny start, pamięć, pauza checkpointu |
 | Testy | 94 testy w Rust (w tym odtwarzanie po ucięciu WAL w każdym bajcie, wszystkie stany po awarii dopuszczone przez model systemu plików, losowe sesje offline wielu replik z przesuniętymi zegarami i podziałami sieci) + 27 testów end-to-end w Node (scenariusze offline z prawdziwym serwerem, zegar urządzenia, konflikty schematu, magazyny przeglądarki); opisy i wyniki: [docs/research/tests-results.md](docs/research/tests-results.md) |
 
 ## Szybki start
@@ -112,7 +112,7 @@ npm run bench
 npm run bench:full
 ```
 
-`bench` porównuje silniki w Node.js (domyślnie 100 000 wierszy, opcje: `--rows N`, `--engines flatsql,json,sqljs,js`, `--no-network`, `--md plik.md`). `bench:full` dodatkowo buduje i uruchamia wersję natywną (narzut WebAssembly). Wersja przeglądarkowa jest dostępna w demo pod <http://127.0.0.1:8080/bench.html>. Metodyka: [docs/research/benchmark-scenario.md](docs/research/benchmark-scenario.md).
+`bench` mierzy silniki w Node.js, `bench:full` dodatkowo wersję natywną (narzut WebAssembly) i przeglądarkę (Microsoft Edge sterowany przez playwright-core). Każdy pomiar powtarza się w 10 nowych procesach (`--runs N`), a surowe wyniki trafiają do `bench/results/`; tabele i wykresy tworzy `node docs/research/data/benchmark-1/make-report.mjs KATALOG`. `bench:serve` uruchamia stronę do pomiarów ręcznych (inna przeglądarka, telefon). Opis narzędzia i pomiar innej wersji silnika: [bench/README.md](bench/README.md); metodyka: [docs/research/benchmark-scenario.md](docs/research/benchmark-scenario.md).
 
 ## Korzystanie
 
@@ -293,8 +293,8 @@ crates/
   flatsql-cli/       powłoka flatsql i natywny benchmark
 bridge/              WASM-Bridge: FlatDB, SyncClient, magazyny, typy TS
 server/              serwer synchronizacji / edge / cloud API (Node.js)
-web/                 aplikacja demo, Service Worker, benchmark w przeglądarce
-bench/               scenariusz benchmarku, adaptery silników, runner Node
+web/                 aplikacja demo, Service Worker
+bench/               narzędzie pomiarowe: obciążenie, adaptery silników, runner (Node.js, natywnie, przeglądarka)
 test/                testy end-to-end (node:test)
 docs/                architektura, specyfikacja Flat-SQL, badania
 pkg/                 (generowane) wynik npm run build

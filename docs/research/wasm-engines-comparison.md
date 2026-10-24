@@ -51,7 +51,11 @@ Silnik SQL w Rust (parser `sqlparser-rs`, funkcyjna warstwa wykonawcza, wymienne
 
 Przepisanie SQLite w Rust (wcześniej Limbo), zgodne z formatem pliku SQLite, z asynchronicznym I/O i współbieżnymi zapisami MVCC, z pakietem przeglądarkowym (WASM + OPFS, API asynchroniczne). W 2026 r. nadal w fazie beta. Osobno Turso rozwija repliki osadzone libSQL – lokalną kopię bazy głównej z synchronizacją, używaną m.in. w aplikacjach mobilnych, kasach i zbieraniu danych w terenie.
 
-### 2.9 Bazy na IndexedDB i warstwy synchronizacji
+### 2.9 AlaSQL
+
+Silnik SQL napisany w czystym JavaScripcie, bez WebAssembly: tabele są tablicami obiektów JS w pamięci, zapytania są kompilowane do funkcji JavaScript (`alasql.compile`). Obsługuje szeroki dialekt (także złączenia i zapytania na tablicach obiektów, plikach CSV i XLSX), działa w przeglądarce i Node.js, a trwałość zapewniają opcjonalne adaptery (localStorage, IndexedDB) zapisujące całe tabele. Jest punktem odniesienia „SQL bez WASM”: pokazuje, ile daje kompilacja silnika do WebAssembly w porównaniu z interpretacją zapytań w samym JavaScripcie.
+
+### 2.10 Bazy na IndexedDB i warstwy synchronizacji
 
 - **Dexie.js, RxDB, PouchDB** – bazy dokumentowe / nakładki na IndexedDB w JavaScript, bez modułu WASM i bez SQL. RxDB i PouchDB mają wbudowaną replikację (PouchDB – protokół CouchDB, np. w Community Health Toolkit).
 - **cr-sqlite, ElectricSQL, PowerSync** – warstwy synchronizacji dla SQLite/PostgreSQL (CRDT na poziomie kolumn w cr-sqlite, replikacja strumieniowa w Electric i PowerSync). Uzupełniają silniki z punktów 2.1–2.4, które same synchronizacji nie mają. W literaturze odpowiadają im CRR [L24] (rejestr LWW per atrybut nad bazą relacyjną) i Simba [L27] (usługa synchronizacji tabel z atomowością per wiersz).
@@ -85,15 +89,24 @@ Przepisanie SQLite w Rust (wcześniej Limbo), zgodne z formatem pliku SQLite, z 
 
 ## 5. Wybór silników do benchmarku
 
-| Silnik | Rola w badaniu |
-|---|---|
-| Flat-SQL (WASM, dwie ścieżki interop) | badany silnik; porównanie budowania wyników w Rust vs JSON (H3) |
-| Flat-SQL natywnie | koszt samego WebAssembly (ten sam kod, bez WASM – H2) |
-| sql.js | dojrzały silnik SQL w WASM, działa identycznie w Node.js i przeglądarce bez Workerów i nagłówków – uczciwe porównanie „SQL w pamięci w WASM”; punkt odniesienia dla trwałości przez eksport |
-| czysty JavaScript (`Map`) | dolna granica: koszt warstwy SQL i granicy WASM↔JS |
-| serwer HTTP z tym samym silnikiem | model Cloud-First z symulowanym RTT (H1) |
+Benchmark porównuje silniki w grupach o tych samych warunkach uruchomienia ([benchmark-scenario.md §4](benchmark-scenario.md#4-silniki-i-grupy-warunków-uruchomienia)). Wersje są dokładnie przypięte w `package.json`.
 
-Planowane uzupełnienia ([todo.md 4.1](../todo.md)): **SQLite WASM z `opfs-sahpool`** – uczciwy punkt odniesienia dla trwałości (H5), bez którego teza brzmi „szybszy niż sql.js”, a nie „szybszy niż SQLite” ([B3]); **PGlite** i **Zeta-Lite** – rozmiar, zimny start i odczyt po kluczu. Interfejs adapterów w `bench/engines.js` pozwala je dodać; wymagają osobnej konfiguracji (Worker, OPFS).
+| Silnik (pakiet, wersja) | Grupy | Rola w badaniu |
+|---|---|---|
+| Flat-SQL (WASM, dwie ścieżki przekazywania wyników) | pamięć, trwały zapis, Worker | badany silnik; wyniki jako obiekty JS budowane w Rust i jako JSON (H3) |
+| Flat-SQL natywnie (`flatsql bench`) | natywnie | koszt samego WebAssembly: ten sam kod bez WASM i bez granicy JS (H2) |
+| sql.js 1.14.2 | pamięć, trwały zapis | SQLite w pamięci WASM; trwałość tylko przez eksport całej bazy (H5) |
+| SQLite WASM 3.54.1 (`@sqlite.org/sqlite-wasm`) | pamięć (`:memory:`), Worker (`opfs-sahpool`) | oficjalny build SQLite; z OPFS uczciwy punkt odniesienia dla trwałości, bez którego teza dotyczyłaby tylko sql.js [B3], [Q7] |
+| wa-sqlite 2.0.8 (`@journeyapps/wa-sqlite`, utrzymywana gałąź projektu wa-sqlite) | trwały zapis | SQLite zapisujący strony bazy w IndexedDB (`IDBBatchAtomicVFS`), w wątku głównym; ten sam magazyn co Flat-SQL |
+| PGlite 0.5.11 | pamięć, trwały zapis (IndexedDB), Worker (OPFS) | PostgreSQL w WASM; rozmiar i zimny start dużego silnika |
+| DuckDB-Wasm 1.32.0 | pamięć, Worker | silnik kolumnowy: przewaga w skanach i agregacji, słabość w odczytach po kluczu i pojedynczych zapisach wyznacza granicę zastosowań Flat-SQL [D1] |
+| AlaSQL 4.21.0 | pamięć | SQL w czystym JavaScripcie, bez WebAssembly |
+| Dexie.js 4.4.7 | trwały zapis | nakładka na IndexedDB: trwały zapis bez WASM i bez SQL |
+| PouchDB 9.0.0, RxDB 17.6.0 (magazyn Dexie) | trwały zapis | bazy local-first z synchronizacją, konkurencja w aplikacjach offline; zapytania odwzorowane na ich API |
+| czysty JavaScript (`Map`) | pamięć | dolna granica: koszt warstwy SQL i granicy WASM↔JS |
+| serwer HTTP z tym samym silnikiem | – | model Cloud-First z symulowanym RTT (H1) |
+
+Niemierzone: Zeta-Lite [D5], bo kod jest zamknięty i nie ma modułu do pobrania (porównanie opiera się na deklaracjach z preprintu); absurd-sql, bo projekt nie jest rozwijany, a jego podejście reprezentują wa-sqlite i `opfs-sahpool`; GlueSQL i Turso są opisane w przeglądzie, ale nie należą do zestawu punktów odniesienia tej wersji benchmarku (Turso w przeglądarce jest w fazie beta).
 
 ## Źródła
 

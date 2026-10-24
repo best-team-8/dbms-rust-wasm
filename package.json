@@ -14,8 +14,10 @@
     "test:rust": "cargo test --workspace",
     "start": "node server/server.js",
     "start:persistent": "node server/server.js --data server/data",
-    "bench": "node bench/run.js",
-    "bench:full": "cargo build --release -p flatsql-cli && node bench/run.js --native"
+    "bench": "node bench/run.js --targets node",
+    "bench:full": "cargo build --release -p flatsql-cli && node bench/run.js --targets node,native,browser",
+    "bench:browser": "node bench/run.js --targets browser",
+    "bench:serve": "node bench/browser/serve.js"
   },
   "devDependencies": {
     "@duckdb/duckdb-wasm": "1.32.0",
