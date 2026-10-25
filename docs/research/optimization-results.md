@@ -40,6 +40,7 @@ Rozmiar modułu WebAssembly (gzip -9) obu wersji zapisuje się w manifeście pom
 | [6. UPDATE w miejscu](#6-update-w-miejscu) | S4 | `UPDATE` 10% natywnie 23,1 → 15,7 ms, Node.js 33,8 → 17,5 ms | potwierdzona |
 | [7. Hurtowa budowa indeksów](#7-hurtowa-budowa-indeksów) | S5 | budowa indeksu 21–22 → 10,6–11,1 ms, odtworzenie natywnie 53,9 → 46,2 ms | potwierdzona |
 | [8. Grupowanie przez tablicę mieszającą](#8-grupowanie-przez-tablicę-mieszającą) | S9 | `GROUP BY` (100 grup) natywnie 16,7 → 11,0 ms, Node.js 19,2 → 11,7 ms | potwierdzona |
+| [9. Magazyn plikowy z otwartym plikiem WAL](#9-magazyn-plikowy-z-otwartym-plikiem-wal) | S11 | zatwierdzenie w `FsStore` bez `fsync`: Windows 595 → 85 µs, Linux 432 → 177 µs; z `fsync`: 1,42 → 0,72 ms i 3,14 → 2,83 ms | potwierdzona |
 
 ## 1. Liczenie wierszy po indeksie bez ich czytania
 
@@ -150,5 +151,19 @@ Status: potwierdzona.
 | Wynik | `GROUP BY`: natywnie 16,7 (16,3–16,8) ms → 11,0 (10,8–11,2) ms (−34%), Node.js z wynikiem jako obiekty 19,2 (18,6–20,2) ms → 11,7 (11,6–12,3) ms (−39%), z wynikiem jako JSON 18,9 (18,5–19,6) ms → 12,1 (11,9–12,4) ms (−36%); przedziały ufności rozłączne. W rozbiciu kosztów silnik 15,4–15,8 → 10,4–10,7 ms, czyli spadek o tyle, ile w pętli ręcznej dzieli drzewo od tablicy mieszającej. Alokacje zapytania 521 → 533 (tablica mieszająca). |
 | Wpływ na inne operacje | Natywnie wstawienie +2,5% i pobranie 10 000 wierszy +6,2% przy rozłącznych przedziałach, choć zmieniony kod w nich nie bierze udziału (w Node.js +1,8% i +0,8%, w rozrzucie); przypisuję to zmianie rozmieszczenia kodu i obciążeniu maszyny w czasie pomiaru. Moduł WebAssembly: 257 430 → 259 491 B po kompresji gzip (+2,0 KiB; kod tablicy mieszającej jest już w module od budowy indeksów). Wyniki wszystkich zapytań i stan tabeli zgodne w obu wersjach. |
 | Ograniczenia | DuckDB-Wasm i czysty JavaScript grupują nadal szybciej (3,6 ms i 1,7 ms w Benchmarku 1): pozostały koszt to obsługa agregatów przez ogólne akumulatory i przegląd drzewa wierszy (pętla ręczna z tablicą mieszającą 6,1–6,5 ms). |
+
+Status: potwierdzona.
+
+## 9. Magazyn plikowy z otwartym plikiem WAL
+
+| Element | Zawartość |
+|---|---|
+| Słabość | Trwałe zatwierdzenie jednego wiersza w magazynie plikowym Node.js (`FsStore`, serwer synchronizacji z katalogiem danych) trwało w Benchmarku 1 bez `fsync` 0,60 ms w Windows i 0,40 ms w Linuksie, wobec 10 µs w natywnym CLI (`FileStorage`); z `fsync` 1,34 ms i 2,91 ms wobec 0,58 ms i 2,15 ms. |
+| Hipoteza | `FsStore.appendWal` otwierał plik WAL w trybie dopisywania i zamykał go przy każdym dopisaniu, a CLI trzyma plik otwarty. Otwarcie i zamknięcie to dwie operacje wykonywane przez pulę wątków libuv (każda z przełączeniem wątku), a w Windows zamknięcie pliku po zapisie może dodatkowo uruchomić skanowanie pliku przez program antywirusowy. Synchronizacja dopisań używała już `datasync` (bez metadanych pliku), na co pozwala model awarii testów trwałości. |
+| Zmiana | `FsStore` (`bridge/stores/fs.js`) otwiera plik WAL do dopisywania przy pierwszym dopisaniu i trzyma uchwyt do checkpointu: przed obcięciem WAL uchwyt jest zamykany, a następne dopisanie otwiera plik ponownie; `close()` (wywoływane przez `FlatDB.close`) i `destroy()` zamykają go również. Błąd zapisu zamyka uchwyt, żeby następne dopisanie zaczęło od nowego. Kolejność utrwaleń checkpointu i model awarii się nie zmieniają. |
+| Pomiar | `bench/compare.js --targets node --kinds fsync` (obciążenie `node/fsync`: 100 zatwierdzeń jednego wiersza i 1000 zatwierdzeń z jednym oczekiwaniem na tabeli 100 000 wierszy, z `fsync` i bez, checkpoint, ponowne otwarcie, runda synchronizacji wobec serwera z katalogiem danych), przed: tag `po-2.15`, po: zmiana z commita „bridge: keep the WAL file of FsStore open between checkpoints” przed zatwierdzeniem, 10 uruchomień na wersję na przemian, 25.10.2026. Windows 11 (NTFS, obciążenie przed pomiarem 12,1%) oraz Linux: WSL 2 na tym samym laptopie, Ubuntu 24.04, ext4, Node.js 24.21.0, kod wczytywany z katalogu Windows, pliki bazy w `/tmp`. Dane: [data/optimization/09-fsstore-open-wal/](data/optimization/09-fsstore-open-wal/) (`windows/`, `linux/`). |
+| Wynik | Zatwierdzenie jednego wiersza: Windows z `fsync` 1,42 (1,40–1,42) ms → 0,72 (0,72–0,78) ms (−49%), bez `fsync` 595 (589–607) µs → 85,4 (82,8–87,3) µs (−86%); Linux z `fsync` 3,14 (3,10–3,17) ms → 2,83 (2,76–2,87) ms (−10%), bez `fsync` 432 (416–458) µs → 177 (174–188) µs (−59%). 1000 zatwierdzeń z jednym oczekiwaniem bez `fsync`: Windows 5,33 → 3,92 ms (−26%), Linux 4,81 → 4,44 ms (−8%). Przedziały ufności rozłączne we wszystkich wymienionych. Runda synchronizacji wobec serwera z katalogiem danych: Windows 720 → 693 µs, Linux 870 → 825 µs, w rozrzucie. W Windows zysk jest większy niż w Linuksie, co jest zgodne z udziałem kosztu zamknięcia pliku po zapisie. |
+| Wpływ na inne operacje | Ponowne otwarcie bazy z `fsync` w Windows 49,9 → 52,3 ms (+4,9%, przedziały rozłączne), w Linuksie bez zmiany (+0,4%); bez `fsync` w rozrzucie w obu systemach. Możliwa przyczyna to praca systemu po zamknięciu pliku WAL tuż przed ponownym otwarciem (wcześniej rozłożona na kolejne dopisania), czego nie sprawdzano. Moduł WebAssembly bez zmian. |
+| Ograniczenia | Zatwierdzenie bez `fsync` w `FsStore` (85–177 µs) jest nadal dłuższe niż w CLI (10 µs): pozostały koszt to obsługa obietnic i operacji asynchronicznych `node:fs` w ścieżce `flush`, której ta zmiana nie dotyczy. |
 
 Status: potwierdzona.

@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T04:19:48.968Z",
+  "options": {
+    "runs": 10,
+    "targets": "node",
+    "kinds": "fsync",
+    "engines": "flatsql",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.15",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\09-fsstore-open-wal\\windows"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.15",
+    "describe": "po-2.15",
+    "commit": "17d30dc113e57ee9de646afbc73f3b7591e6c3f1",
+    "subject": "core: group rows by one column through a hash table",
+    "codeTreeSha256": "f7c5142d9840c66ba3f8430b643ad7fef78f5f39f0bcc8c486bbab8b186a934b",
+    "module": {
+      "bytes": 690050,
+      "gzipBytes": 259478
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.15-dirty",
+    "commit": "17d30dc113e57ee9de646afbc73f3b7591e6c3f1",
+    "subject": "core: group rows by one column through a hash table",
+    "codeTreeSha256": "f89b3f39258ba21a1c9670f5a4a20b3d9fe423959c620baa9e6c08980e139903",
+    "module": {
+      "bytes": 690130,
+      "gzipBytes": 259491
+    }
+  },
+  "cpuLoadBefore": 0.12148942017037648,
+  "finished": "2026-10-25T04:20:27.228Z"
+}

@@ -2,7 +2,7 @@
 // performed on a simulated file system (support/crash-fs.js) and the platform
 // behaviour it relies on.
 
-import { test } from 'node:test';
+import { mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fsp from 'node:fs/promises';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -213,5 +213,39 @@ test('platform: a directory can be synced with the open flags FsStore uses', asy
     }
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('FsStore keeps the WAL open between checkpoints and closes it', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'flatsql-handle-'));
+  const opens = [];
+  const original = fsp.open;
+  const spy = mock.method(fsp, 'open', async (path, ...args) => {
+    if (String(path).endsWith('wal.fsql')) opens.push(args[0]);
+    return original.call(fsp, path, ...args);
+  });
+  try {
+    const db = await FlatDB.open({ store: new FsStore(dir), flush: 'manual' });
+    opens.length = 0; // opening a new directory creates the WAL file
+    db.exec('CREATE TABLE kv (id INT PRIMARY KEY, v TEXT)');
+    for (let i = 0; i < 50; i++) {
+      db.exec(`INSERT INTO kv VALUES (${i}, 'v${i}')`);
+      await db.flush();
+    }
+    assert.deepEqual(opens, ['a'], 'one handle for 50 appends');
+    await db.checkpoint();
+    for (let i = 50; i < 60; i++) {
+      db.exec(`INSERT INTO kv VALUES (${i}, 'v${i}')`);
+      await db.flush();
+    }
+    assert.deepEqual(opens, ['a', 'w', 'a'], 'closed for the truncation, opened again after it');
+    await db.close();
+    const again = await FlatDB.open({ store: new FsStore(dir) });
+    assert.equal(again.exec('SELECT COUNT(*) FROM kv').rows[0][0], 60);
+    await again.close();
+  } finally {
+    spy.mock.restore();
+    // Fails on Windows if a handle was left open.
+    await rm(dir, { recursive: true });
   }
 });
