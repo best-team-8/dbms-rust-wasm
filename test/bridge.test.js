@@ -181,3 +181,24 @@ test('reads do not look for WAL bytes, writes do', async () => {
   assert.equal(changes, 2);
   await db.close();
 });
+
+test('results of a prepared statement get their own column names and follow schema changes', () => {
+  const db = new Database(1);
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT)');
+  db.exec("INSERT INTO t VALUES (1, 'a')");
+  const st = db.prepare('SELECT * FROM t');
+  const first = db.run(st, []);
+  first.columns.push('changed by the application');
+  const second = db.run(st, []);
+  assert.deepEqual(second.columns, ['id', 'v'], 'the names are copied for every result');
+  assert.deepEqual(Object.keys(second), ['columns', 'rows', 'rowsAffected', 'rowsScanned', 'message']);
+  assert.equal(second.message, '');
+  db.exec('DROP TABLE t; CREATE TABLE t (k INT PRIMARY KEY, a TEXT, b TEXT)');
+  db.exec("INSERT INTO t VALUES (1, 'x', 'y')");
+  assert.deepEqual(db.run(st, []).columns, ['k', 'a', 'b'], 'names of the new definition');
+  const insert = db.prepare('INSERT INTO t VALUES (?, ?, ?)');
+  assert.equal(db.run(insert, [2, 'p', 'q']).message, 'INSERT 1');
+  insert.free();
+  st.free();
+  db.free();
+});

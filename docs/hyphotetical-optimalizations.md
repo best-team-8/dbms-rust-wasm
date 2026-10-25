@@ -8,7 +8,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 
 | Hipoteza | Stan |
 |---|---|
-| O1 | zadanie 2.13 |
+| O1 | zadanie 2.13, potwierdzona |
 | O2, O3 | część zadania 2.9 |
 | O4 | zadanie 2.14 |
 | O7 | zadanie 2.11 (outbox to około połowy czasu odtworzenia) |
@@ -26,6 +26,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 - Dowód: profil V8 (`analysis/profile.txt`) przypisuje dekodowaniu UTF-8 (`decodeUTF8`, `decodeText`, `decode`) około 24% próbek ścieżki „obiekty”. `result_to_js` w `crates/flatsql-wasm/src/lib.rs` przy każdym wyniku tworzy z UTF-8 pięć kluczy obiektu (`columns`, `rows`, `rowsAffected`, `rowsScanned`, `message`), wszystkie nazwy kolumn i tekst `message`, czyli przy odczycie jednego wiersza 11 łańcuchów niezależnych od danych.
 - Zmiana: klucze jako łańcuchy internowane po stronie JS (np. funkcja `intern` wasm-bindgen albo obiekt budowany w kodzie sklejającym), nazwy kolumn zapamiętane przy przygotowanej instrukcji i zwracane z JS, `message` tylko dla instrukcji zmieniających dane.
 - Pomiar: `point_lookup` i `materialize_10k` w grupie „pamięć”, profil z `analysis/profile.mjs`. Spodziewany wynik: ścieżka „obiekty” bliżej JSON (około 6–7 µs). To mniejszy krok niż binarny format z 2.4 i może go poprzedzić.
+- Wynik po zmianie: obiekt wyniku tworzony funkcją JavaScriptu z kluczami jako literałami i nazwy kolumn tworzone raz na plan skróciły odczyt po kluczu z wynikiem jako obiekty w Node.js z 8,20 do 3,04 µs, w przeglądarce z 8,99 do 3,95 µs, więcej niż spodziewano się, bo zniknęły też wywołania przez kod sklejający dla każdego klucza ([optimization-results.md §11](research/optimization-results.md#11-obiekt-wyniku-tworzony-w-javascripcie)).
 
 ### O2. Odczyty w `FlatDB` bez sprawdzania WAL
 

@@ -6,6 +6,9 @@
 //! directly from Rust (`exec`) or as a JSON string (`execJson`) – the two
 //! paths are compared in the benchmarks.
 
+use std::cell::RefCell;
+use std::sync::Arc;
+
 use flatsql_core as core;
 use flatsql_core::{QueryResult, Value};
 use js_sys::{Array, Object, Reflect, Uint8Array};
@@ -81,12 +84,38 @@ fn value_from_js(v: &JsValue) -> Result<Value, JsValue> {
     Err(js_sys::TypeError::new("unsupported parameter type (use null, boolean, number, bigint or string)").into())
 }
 
-fn result_to_js(r: &QueryResult) -> JsValue {
-    let obj = Object::new();
-    let columns = Array::new_with_length(r.columns.len() as u32);
-    for (i, c) in r.columns.iter().enumerate() {
-        columns.set(i as u32, JsValue::from_str(c));
-    }
+// The result object is created by JavaScript: its keys are literals of this
+// code, so they are not decoded from UTF-8 and set one by one for every
+// result, and every result object has the same shape. The column names of a
+// prepared statement are passed once and copied by JavaScript.
+#[wasm_bindgen(inline_js = "
+export function make_result(columns, copy, rows, affected, scanned, message) {
+  return {
+    columns: copy ? columns.slice() : columns,
+    rows,
+    rowsAffected: affected,
+    rowsScanned: scanned,
+    message: message === undefined ? '' : message,
+  };
+}")]
+extern "C" {
+    fn make_result(
+        columns: &JsValue,
+        copy: bool,
+        rows: &JsValue,
+        affected: f64,
+        scanned: f64,
+        message: &JsValue,
+    ) -> JsValue;
+}
+
+fn columns_to_js(columns: &[String]) -> JsValue {
+    columns.iter().map(|c| JsValue::from_str(c)).collect::<Array>().into()
+}
+
+/// `columns`: the names already in JavaScript (a prepared statement's), or
+/// `None` to create them.
+fn result_to_js(r: &QueryResult, columns: Option<&JsValue>) -> JsValue {
     let rows = Array::new_with_length(r.rows.len() as u32);
     for (i, row) in r.rows.iter().enumerate() {
         let arr = Array::new_with_length(row.len() as u32);
@@ -95,12 +124,13 @@ fn result_to_js(r: &QueryResult) -> JsValue {
         }
         rows.set(i as u32, arr.into());
     }
-    set(&obj, "columns", &columns);
-    set(&obj, "rows", &rows);
-    set(&obj, "rowsAffected", &JsValue::from_f64(r.rows_affected as f64));
-    set(&obj, "rowsScanned", &JsValue::from_f64(r.rows_scanned as f64));
-    set(&obj, "message", &JsValue::from_str(&r.message));
-    obj.into()
+    let message = if r.message.is_empty() { JsValue::UNDEFINED } else { JsValue::from_str(&r.message) };
+    let affected = r.rows_affected as f64;
+    let scanned = r.rows_scanned as f64;
+    match columns {
+        Some(c) => make_result(c, true, &rows, affected, scanned, &message),
+        None => make_result(&columns_to_js(&r.columns), false, &rows, affected, scanned, &message),
+    }
 }
 
 fn params_from_js(params: Option<Array>) -> Result<Vec<Value>, JsValue> {
@@ -114,6 +144,24 @@ fn params_from_js(params: Option<Array>) -> Result<Vec<Value>, JsValue> {
 #[wasm_bindgen]
 pub struct PreparedStatement {
     inner: core::Prepared,
+    /// Column names of the last result in JavaScript, with the names they
+    /// were made from (shared by every result of one compiled plan).
+    columns: RefCell<Option<(Arc<[String]>, JsValue)>>,
+}
+
+impl PreparedStatement {
+    /// The column names of `r` in JavaScript, created once per plan.
+    fn columns(&self, r: &QueryResult) -> JsValue {
+        let mut cached = self.columns.borrow_mut();
+        match &*cached {
+            Some((names, js)) if Arc::ptr_eq(names, &r.columns) => js.clone(),
+            _ => {
+                let js = columns_to_js(&r.columns);
+                *cached = Some((r.columns.clone(), js.clone()));
+                js
+            }
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -187,14 +235,14 @@ impl Database {
     /// `{ columns, rows, rowsAffected, rowsScanned, message }`.
     pub fn exec(&mut self, sql: &str) -> Result<JsValue, JsValue> {
         let r = self.inner.execute(sql).map_err(js_error)?;
-        Ok(result_to_js(&r))
+        Ok(result_to_js(&r, None))
     }
 
     /// Executes SQL and returns an array with the result of every statement.
     #[wasm_bindgen(js_name = execAll)]
     pub fn exec_all(&mut self, sql: &str) -> Result<Array, JsValue> {
         let results = self.inner.execute_all(sql).map_err(js_error)?;
-        Ok(results.iter().map(result_to_js).collect())
+        Ok(results.iter().map(|r| result_to_js(r, None)).collect())
     }
 
     /// Like `exec` but returns the result serialised as JSON.
@@ -204,14 +252,14 @@ impl Database {
     }
 
     pub fn prepare(&self, sql: &str) -> Result<PreparedStatement, JsValue> {
-        Ok(PreparedStatement { inner: self.inner.prepare(sql).map_err(js_error)? })
+        Ok(PreparedStatement { inner: self.inner.prepare(sql).map_err(js_error)?, columns: RefCell::new(None) })
     }
 
     /// Executes a prepared statement with positional parameters.
     pub fn run(&mut self, stmt: &PreparedStatement, params: Option<Array>) -> Result<JsValue, JsValue> {
         let params = params_from_js(params)?;
         let r = self.inner.execute_prepared(&stmt.inner, &params).map_err(js_error)?;
-        Ok(result_to_js(&r))
+        Ok(result_to_js(&r, Some(&stmt.columns(&r))))
     }
 
     /// Executes a prepared statement and returns only the number of affected

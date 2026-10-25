@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; tworzenie obiektu wyniku w ścieżce obiektowej i zalecenie JSON dla wyników jednowierszowych zastąpione przez [ADR-0045](0045-obiekt-wyniku-tworzony-w-js.md) |
 | Data | 2026-10-06 (`flatsql-wasm`, [architecture.md §7](../architecture.md)); kierunek doprecyzowany 2026-10-20 |
 | Rodzaj | architektura |
 | Powiązane | ADR-0005, ADR-0011; todo 2.3, 2.4 |

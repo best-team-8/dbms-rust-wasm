@@ -37,6 +37,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [3.4](#34-wyrażenia-skompilowane-a-interpreter) `compiled_expressions_give_the_interpreters_results` | Czy warunek i wyrażenie skompilowane dają ten sam wynik i ten sam błąd co interpreter? | zaliczony |
 | [3.5](#35-update-w-miejscu) `updates_in_place_keep_indexes_rollbacks_and_the_wal_consistent`, `one_clock_reading_per_statement_still_gives_every_row_its_own_stamp` | Czy UPDATE zmieniający wiersz w miejscu zostawia indeksy, wycofanie i WAL w stanie zgodnym z tabelą bez indeksów? | zaliczony |
 | [3.6](#36-grupowanie-przez-tablicę-mieszającą) `grouping_by_one_column_gives_the_groups_of_the_general_path`, `equal_values_hash_equally` | Czy grupowanie po jednej kolumnie przez tablicę mieszającą daje te same grupy co ścieżka ogólna? | zaliczony |
+| [3.7](#37-nazwy-kolumn-wyniku-instrukcji-przygotowanej) `results of a prepared statement get their own column names and follow schema changes` | Czy wynik instrukcji przygotowanej, której nazwy kolumn są tworzone w JavaScripcie raz na plan, ma własne nazwy i ten sam kształt co dotąd, także po zmianie schematu? | zaliczony |
 
 ## 1. Trwałość i odtwarzanie po awarii
 
@@ -299,3 +300,16 @@ Każda zmiana wysyłana między replikami ma znacznik z hybrydowego zegara logic
 | Wynik | Zaliczony, 900 par zapytań. 25.10.2026, środowisko z początku dokumentu, commit „core: group rows by one column through a hash table”. |
 | Wpływ na projekt | Funkcja skrótu wartości jest wspólna dla grupowania i budowy indeksów. |
 | Ograniczenia | Liczby całkowite powyżej 2^53, przy których porównanie liczby całkowitej z ułamkową traci dokładność, nie występują w danych; kolumna ma zawsze jeden typ wartości. |
+
+### 3.7 Nazwy kolumn wyniku instrukcji przygotowanej
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy wynik instrukcji przygotowanej, której nazwy kolumn moduł WebAssembly tworzy w JavaScripcie raz na skompilowany plan, ma własną tablicę nazw i ten sam kształt obiektu co dotąd, a po zmianie schematu nazwy nowej definicji? |
+| Uzasadnienie | Tablica nazw jest przechowywana przy instrukcji i używana przez kolejne wyniki. Gdyby wyniki dostawały tę samą tablicę, zmiana wyniku przez aplikację zmieniłaby nazwy w następnych wynikach; gdyby pamięć nazw nie śledziła planu, po zdefiniowaniu tabeli od nowa wynik miałby nazwy starej definicji. |
+| Model awarii i założenia | Błąd współdzielenia tablicy nazw albo jej unieważniania. Wyrocznią są nazwy kolumn z definicji tabeli i dotychczasowy kształt wyniku: klucze `columns`, `rows`, `rowsAffected`, `rowsScanned`, `message` w tej kolejności, pusty komunikat dla odczytu. |
+| Procedura | Plik `test/bridge.test.js`, test `results of a prepared statement get their own column names and follow schema changes`: `SELECT *` przygotowany raz; po dopisaniu nazwy do tablicy pierwszego wyniku drugi wynik ma nazwy z definicji; sprawdzenie kluczy i komunikatu; po `DROP TABLE` i utworzeniu tabeli z innymi kolumnami ta sama instrukcja zwraca nowe nazwy; przygotowany `INSERT` zwraca komunikat `INSERT 1`. Polecenie: `node --test test/bridge.test.js` (po `npm run build`). |
+| Kontrola negatywna | Z tablicą nazw przekazywaną do wyniku bez kopii test zawiódł na asercji „the names are copied for every result”. |
+| Wynik | Zaliczony. 25.10.2026, środowisko z początku dokumentu, commit „wasm: build the result object in JavaScript and keep column names per plan”. |
+| Wpływ na projekt | Brak zmian poza testowaną zmianą. |
+| Ograniczenia | Test nie obejmuje zmiany schematu przez synchronizację; wersja katalogu zmienia się wtedy tą samą funkcją co przy zmianie lokalnej (§3.3). |
