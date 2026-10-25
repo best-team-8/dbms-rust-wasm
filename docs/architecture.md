@@ -196,7 +196,7 @@ Konkatenacja paczek jest poprawną paczką – serwer przekazuje zapisane paczki
 
 `flatsql-wasm` udostępnia dwie ścieżki zwracania wyników, porównywane w badaniach:
 
-- `exec`/`run` – obiekty i tablice JS: wiersze budowane z Rust przez `js-sys`, obiekt wyniku tworzony jednym wywołaniem funkcji JavaScriptu dołączonej do modułu (klucze jako literały), nazwy kolumn instrukcji przygotowanej tworzone raz na plan i kopiowane do każdego wyniku,
+- `exec`/`run` – obiekty i tablice JS dekodowane z binarnego formatu wyniku: rdzeń koduje wiersze SELECT wprost z tabeli (`ResultEncoder`, `Database::execute_prepared_encoded`) do bufora w pamięci WASM, a funkcja JavaScriptu dołączona do modułu tworzy obiekt wyniku jednym wywołaniem (liczby czytane z bajtów, wszystkie teksty dekodowane jednym wywołaniem `TextDecoder`); nazwy kolumn instrukcji przygotowanej powstają raz na plan i są kopiowane do każdego wyniku,
 - `execJson`/`runJson` – wynik serializowany do JSON w Rust, parsowany przez `JSON.parse` (jedno przekazanie łańcucha).
 
 Dla zapisów masowych `execute` zwraca tylko liczbę zmienionych wierszy. Nazwy kolumn wyniku są wspólne dla wszystkich wyników jednej instrukcji przygotowanej, a komunikat (`message`) mają tylko instrukcje zmieniające dane lub schemat. `PreparedStatement.readOnly` pozwala mostowi pominąć sprawdzanie WAL po odczytach; `FlatDB` przechowuje ostatnio używane instrukcje `exec(sql)` i `query(sql, params)` według tekstu SQL (`statementCache`, domyślnie 64). Błędy są obiektami `Error` z polem `kind` (`parse`, `schema`, `constraint`, `type`, `eval`, `transaction`, `storage`, `unsupported`). Panika w Rust trafia do konsoli dzięki `console_error_panic_hook`.

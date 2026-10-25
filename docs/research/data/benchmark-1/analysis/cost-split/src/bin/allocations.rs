@@ -73,6 +73,18 @@ fn main() {
     count("prepare point lookup", || db.prepare("SELECT * FROM items WHERE id = ?").unwrap());
     count("full scan with filter", || db.execute_prepared(&scan, &[]).unwrap());
     count("GROUP BY (100 groups)", || db.execute_prepared(&group, &[]).unwrap());
+    #[cfg(core_encode)]
+    {
+        // The buffer is kept between results, as in the WebAssembly binding.
+        let many = db.prepare("SELECT * FROM items WHERE id < 10000").unwrap();
+        let mut out = Vec::new();
+        db.execute_prepared_encoded(&many, &[], &mut out).unwrap();
+        count("10 000 rows collected", || db.execute_prepared(&many, &[]).unwrap());
+        count("10 000 rows encoded from the table", || db.execute_prepared_encoded(&many, &[], &mut out).unwrap());
+        count("point lookup SELECT * encoded from the table", || {
+            db.execute_prepared_encoded(&star, &[Value::Int(4242)], &mut out).unwrap()
+        });
+    }
 
     let with = with_outbox(&db);
     let mut outboxed = Database::restore(Some(&with), &[], 1).unwrap();

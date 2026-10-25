@@ -202,3 +202,44 @@ test('results of a prepared statement get their own column names and follow sche
   st.free();
   db.free();
 });
+
+test('values of every type come through the binary result format unchanged', () => {
+  const db = new Database(1);
+  db.exec('CREATE TABLE v (id INT PRIMARY KEY, t TEXT, f FLOAT, b BOOL, i INT)');
+  const rows = [
+    [1, '', 0.5, true, 0],
+    // The first text of the result starts with U+FEFF, which a decoder
+    // could take for a byte order mark.
+    [2, '﻿zażółć gęślą jaźń', 0.25, false, -7],
+    [3, 'emoji 😀 and 𝄞 outside the basic plane', Number.NaN, null, 9007199254740991],
+    [4, null, Number.POSITIVE_INFINITY, true, null],
+    [5, 'a\u0000b"\\', Number.NEGATIVE_INFINITY, false, 1],
+  ];
+  const ins = db.prepare('INSERT INTO v VALUES (?, ?, ?, ?, ?)');
+  for (const r of rows) db.run(ins, r);
+  const st = db.prepare('SELECT * FROM v ORDER BY id');
+  for (const result of [db.run(st, []), db.exec('SELECT * FROM v ORDER BY id')]) {
+    assert.equal(result.rows.length, rows.length);
+    result.rows.forEach((got, i) => {
+      rows[i].forEach((want, j) => assert.ok(Object.is(got[j], want), `row ${i} column ${j}: ${got[j]} != ${want}`));
+    });
+    assert.deepEqual(result.columns, ['id', 't', 'f', 'b', 'i']);
+    assert.equal(result.rowsScanned, 5);
+  }
+  // A larger result compared with the JSON path.
+  db.exec('BEGIN');
+  for (let i = 10; i < 3000; i++) db.run(ins, [i, `name ${i} ł`, i / 7, i % 3 === 0, i % 11 === 0 ? null : i]);
+  db.exec('COMMIT');
+  const many = db.prepare('SELECT * FROM v WHERE id >= 10 ORDER BY id DESC');
+  assert.deepEqual(db.run(many, []).rows, JSON.parse(db.runJson(many, [])).rows);
+  const update = db.run(db.prepare('UPDATE v SET i = ? WHERE id < ?'), [3, 100]);
+  assert.deepEqual([update.rowsAffected, update.message, update.rows], [95, 'UPDATE 95', []]);
+  // execAll gives every result; a result larger than the kept buffer.
+  const all = db.execAll("SELECT t FROM v WHERE id = 2; SELECT COUNT(*) FROM v");
+  assert.deepEqual(all.map((r) => r.rows), [[[rows[1][1]]], [[2995]]]);
+  const long = 'ą'.repeat(700_000);
+  db.run(ins, [9000, long, 0, true, 0]);
+  assert.equal(db.run(db.prepare('SELECT t FROM v WHERE id = ?'), [9000]).rows[0][0], long);
+  assert.equal(db.exec('SELECT t FROM v WHERE id = 2').rows[0][0], rows[1][1]);
+  db.free();
+});

@@ -342,3 +342,58 @@ fn grouping_by_one_column_gives_the_groups_of_the_general_path() {
         }
     }
 }
+
+#[test]
+fn results_encoded_from_the_table_equal_the_encoded_query_result() {
+    // `execute_prepared_encoded` writes the rows of a SELECT straight from the
+    // table into the binary result format; the bytes must be the encoding of
+    // the result `execute_prepared` collects, on every path of the executor.
+    let templates = [
+        "SELECT * FROM t WHERE {w}",
+        "SELECT * FROM t WHERE {w} ORDER BY id DESC LIMIT 7",
+        "SELECT id, b, a + 1, b || '!', c * 2, NOT d FROM t WHERE {w} ORDER BY c, id LIMIT 20 OFFSET 3",
+        "SELECT DISTINCT b, d FROM t WHERE {w}",
+        "SELECT COUNT(*), SUM(a), MIN(b), MAX(c), AVG(a) FROM t WHERE {w}",
+        "SELECT b, COUNT(*), MAX(c) FROM t WHERE {w} GROUP BY b",
+        "SELECT a + 0, COUNT(*) FROM t WHERE {w} GROUP BY a + 0 ORDER BY 2 DESC LIMIT 4",
+    ];
+    for seed in 1..=3u64 {
+        let mut rng = Rng(seed.wrapping_mul(0x8CB9_2BA7_2F3D_8DD7) | 1);
+        let (_, mut db) = databases(&mut rng, 300);
+        let mut out = Vec::new();
+        for _ in 0..200 {
+            let w = filter(&mut rng);
+            for template in templates {
+                let p = db.prepare(&template.replace("{w}", &w)).unwrap();
+                let want = db.execute_prepared(&p, &[]).unwrap();
+                let names = db.execute_prepared_encoded(&p, &[], &mut out).unwrap();
+                let mut encoded = Vec::new();
+                want.encode(&mut encoded);
+                assert_eq!(out, encoded, "seed {seed}: {}", template.replace("{w}", &w));
+                assert_eq!(names, want.columns);
+            }
+        }
+    }
+    // Writes, statements without a compiled form and errors.
+    let mut db = Database::new(1);
+    let mut out = vec![1, 2, 3];
+    for (sql, params) in [
+        ("CREATE TABLE u (id INT PRIMARY KEY, s TEXT)", vec![]),
+        ("INSERT INTO u VALUES (?, ?)", vec![Value::Int(1), Value::Text("zażółć".into())]),
+        ("UPDATE u SET s = ? WHERE id = ?", vec![Value::Text("x".into()), Value::Int(1)]),
+        ("EXPLAIN SELECT * FROM u WHERE id = ?", vec![Value::Int(1)]),
+        ("SELECT * FROM u WHERE id = ?", vec![Value::Int(1)]),
+    ] {
+        let p = db.prepare(sql).unwrap();
+        db.execute("BEGIN").unwrap();
+        let want = db.execute_prepared(&p, &params).unwrap();
+        db.execute("ROLLBACK").unwrap();
+        db.execute_prepared_encoded(&p, &params, &mut out).unwrap();
+        let mut encoded = Vec::new();
+        want.encode(&mut encoded);
+        assert_eq!(out, encoded, "{sql}");
+    }
+    let p = db.prepare("SELECT * FROM u WHERE id = ?").unwrap();
+    let err = db.execute_prepared_encoded(&p, &[], &mut out).unwrap_err();
+    assert_eq!(err.to_string(), db.execute_prepared(&p, &[]).unwrap_err().to_string());
+}

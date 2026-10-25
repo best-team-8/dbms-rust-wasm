@@ -32,7 +32,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0016](0016-outbox-w-wal.md) | Outbox jako referencje do wierszy, odbudowywany z WAL | architektura | przyjęta; zdanie o zmianach schematu w pkt 1 zastąpione przez [ADR-0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md); moment prowadzenia outboxa wierszy i zapis w snapshocie zastąpione przez [ADR-0043](0043-outbox-po-wlaczeniu-synchronizacji.md) |
 | [0017](0017-protokol-push-pull-z-kursorem.md) | Protokół push/pull z kursorem i epoką | architektura | przyjęta; pkt 2 zastąpiony przez [ADR-0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) |
 | [0018](0018-atomowosc-wiersza-miedzy-replikami.md) | Między replikami atomowy jest wiersz | architektura | przyjęta |
-| [0019](0019-przekazywanie-wynikow-do-js.md) | Przekazywanie wyników do JS: JSON teraz, bufor binarny docelowo | architektura | przyjęta; tworzenie obiektu wyniku i zalecenie JSON dla wyników jednowierszowych zastąpione przez [ADR-0045](0045-obiekt-wyniku-tworzony-w-js.md) |
+| [0019](0019-przekazywanie-wynikow-do-js.md) | Przekazywanie wyników do JS: JSON teraz, bufor binarny docelowo | architektura | zastąpiona przez [ADR-0046](0046-binarny-format-wyniku.md) (wcześniej częściowo przez [ADR-0045](0045-obiekt-wyniku-tworzony-w-js.md)) |
 | [0020](0020-punkty-odniesienia-benchmarku.md) | Punkty odniesienia i metodyka benchmarku | proces | zastąpiona przez [ADR-0038](0038-metodyka-benchmarku-1.md) |
 | [0021](0021-rdzen-literatury.md) | Rdzeń literatury i kryteria doboru | proces | przyjęta; kryterium włączenia i skład rdzenia zastąpione przez [ADR-0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) |
 | [0022](0022-podzial-list-zadan.md) | Podział list zadań: optymalizacja i rozszerzenia | proces | zastąpiona przez [ADR-0029](0029-listy-zadan-wedlug-zakresu-pracy.md) |
@@ -58,7 +58,8 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0042](0042-wyrazenia-kompilowane-warianty-i-domkniecia.md) | Warunki i przypisania kompilowane przy kompilacji instrukcji: warianty typowane i domknięcia, interpreter jako rezerwa | architektura | przyjęta |
 | [0043](0043-outbox-po-wlaczeniu-synchronizacji.md) | Outbox wierszy prowadzony od włączenia synchronizacji, zwarty zapis w snapshocie | architektura | przyjęta |
 | [0044](0044-update-w-miejscu-jeden-odczyt-zegara.md) | UPDATE zmienia wiersz w miejscu, jeden odczyt zegara na instrukcję | architektura | przyjęta |
-| [0045](0045-obiekt-wyniku-tworzony-w-js.md) | Obiekt wyniku tworzony w kodzie JavaScriptu modułu, nazwy kolumn raz na plan | architektura | przyjęta |
+| [0045](0045-obiekt-wyniku-tworzony-w-js.md) | Obiekt wyniku tworzony w kodzie JavaScriptu modułu, nazwy kolumn raz na plan | architektura | przyjęta; pkt 4 (wiersze budowane przez `js-sys`) zastąpiony przez [ADR-0046](0046-binarny-format-wyniku.md) |
+| [0046](0046-binarny-format-wyniku.md) | Wynik w binarnym formacie wierszowym, kodowany wprost z tabeli i dekodowany w JS jednym wywołaniem | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

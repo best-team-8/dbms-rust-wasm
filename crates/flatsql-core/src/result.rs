@@ -1,5 +1,9 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
+use crate::error::Result;
+use crate::exec::RowSink;
+use crate::expr::{eval, BExpr, Cx};
 use crate::value::{write_json_string, Value};
 
 /// Result of a single statement.
@@ -126,6 +130,122 @@ impl QueryResult {
         let n = self.rows.len();
         out.push_str(&format!("({} row{})", n, if n == 1 { "" } else { "s" }));
         out
+    }
+}
+
+/// Writes a result in the binary result format, read by the WebAssembly
+/// binding's JavaScript in one pass (little-endian):
+///
+/// ```text
+///  0  u32  rows
+///  4  u32  values per row
+///  8  f64  rows affected
+/// 16  f64  rows scanned
+/// 24  u32  offset of the text area
+/// 28  u32  length of the message in UTF-16 units
+/// 32  values, row after row: tag [payload]
+///       0 NULL, 1 FALSE, 2 TRUE,
+///       3 number: f64 (INT as well, as JavaScript numbers are),
+///       4 text: u32 length in UTF-16 units; the characters are in the text area
+/// text area: UTF-8 of every text value in order, then the message
+/// ```
+///
+/// All texts are decoded at once and cut by their UTF-16 lengths, so a result
+/// needs one call to the text decoder instead of one per value.
+pub struct ResultEncoder<'a> {
+    out: &'a mut Vec<u8>,
+    text: Vec<u8>,
+    rows: usize,
+}
+
+const HEADER: usize = 32;
+
+fn utf16_len(s: &str) -> u32 {
+    if s.is_ascii() {
+        s.len() as u32
+    } else {
+        s.encode_utf16().count() as u32
+    }
+}
+
+impl<'a> ResultEncoder<'a> {
+    pub fn new(out: &'a mut Vec<u8>, columns: usize) -> Self {
+        out.clear();
+        out.resize(HEADER, 0);
+        out[4..8].copy_from_slice(&(columns as u32).to_le_bytes());
+        ResultEncoder { out, text: Vec::new(), rows: 0 }
+    }
+
+    fn value(&mut self, v: &Value) {
+        match v {
+            Value::Null => self.out.push(0),
+            Value::Bool(b) => self.out.push(1 + *b as u8),
+            Value::Int(i) => {
+                self.out.push(3);
+                self.out.extend_from_slice(&(*i as f64).to_le_bytes());
+            }
+            Value::Float(f) => {
+                self.out.push(3);
+                self.out.extend_from_slice(&f.to_le_bytes());
+            }
+            Value::Text(s) => {
+                self.out.push(4);
+                self.out.extend_from_slice(&utf16_len(s).to_le_bytes());
+                self.text.extend_from_slice(s.as_bytes());
+            }
+        }
+    }
+
+    fn row(&mut self, values: &[Value]) {
+        for v in values {
+            self.value(v);
+        }
+        self.rows += 1;
+    }
+
+    /// Completes the header and appends the text area.
+    pub fn finish(self, rows_affected: u64, rows_scanned: u64, message: &str) {
+        let ResultEncoder { out, mut text, rows } = self;
+        let text_at = out.len() as u32;
+        text.extend_from_slice(message.as_bytes());
+        out.extend_from_slice(&text);
+        out[0..4].copy_from_slice(&(rows as u32).to_le_bytes());
+        out[8..16].copy_from_slice(&(rows_affected as f64).to_le_bytes());
+        out[16..24].copy_from_slice(&(rows_scanned as f64).to_le_bytes());
+        out[24..28].copy_from_slice(&text_at.to_le_bytes());
+        out[28..32].copy_from_slice(&utf16_len(message).to_le_bytes());
+    }
+}
+
+impl RowSink for ResultEncoder<'_> {
+    fn project(&mut self, proj: &[BExpr], row: &[Value], cx: Cx) -> Result<()> {
+        for e in proj {
+            let v: Cow<Value> = eval(e, row, cx)?;
+            self.value(&v);
+        }
+        self.rows += 1;
+        Ok(())
+    }
+
+    fn computed(&mut self, rows: Vec<Vec<Value>>) {
+        for row in &rows {
+            self.row(row);
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.rows
+    }
+}
+
+impl QueryResult {
+    /// The result in the binary result format (see [`ResultEncoder`]).
+    pub fn encode(&self, out: &mut Vec<u8>) {
+        let mut e = ResultEncoder::new(out, self.columns.len());
+        for row in &self.rows {
+            e.row(row);
+        }
+        e.finish(self.rows_affected, self.rows_scanned, &self.message);
     }
 }
 

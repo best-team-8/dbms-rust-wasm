@@ -2,21 +2,22 @@
 //!
 //! The JavaScript side (see `bridge/`) owns persistence and networking; this
 //! module only exposes the engine: SQL execution, WAL/snapshot bytes and the
-//! sync primitives. Query results can be returned either as JS objects built
-//! directly from Rust (`exec`) or as a JSON string (`execJson`) – the two
-//! paths are compared in the benchmarks.
+//! sync primitives. Query results can be returned either as JS objects decoded
+//! from the binary result format (`exec`) or as a JSON string (`execJson`) –
+//! the two paths are compared in the benchmarks.
 
 use std::cell::RefCell;
 use std::sync::Arc;
 
 use flatsql_core as core;
-use flatsql_core::{QueryResult, Value};
+use flatsql_core::Value;
 use js_sys::{Array, Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
 pub fn start() {
     console_error_panic_hook::set_once();
+    set_memory(&wasm_bindgen::memory());
 }
 
 /// Engine version.
@@ -51,16 +52,6 @@ fn set(obj: &Object, key: &str, value: &JsValue) {
     let _ = Reflect::set(obj, &JsValue::from_str(key), value);
 }
 
-fn value_to_js(v: &Value) -> JsValue {
-    match v {
-        Value::Null => JsValue::NULL,
-        Value::Bool(b) => JsValue::from_bool(*b),
-        Value::Int(i) => JsValue::from_f64(*i as f64),
-        Value::Float(f) => JsValue::from_f64(*f),
-        Value::Text(s) => JsValue::from_str(s),
-    }
-}
-
 fn value_from_js(v: &JsValue) -> Result<Value, JsValue> {
     if v.is_null() || v.is_undefined() {
         return Ok(Value::Null);
@@ -84,53 +75,85 @@ fn value_from_js(v: &JsValue) -> Result<Value, JsValue> {
     Err(js_sys::TypeError::new("unsupported parameter type (use null, boolean, number, bigint or string)").into())
 }
 
-// The result object is created by JavaScript: its keys are literals of this
-// code, so they are not decoded from UTF-8 and set one by one for every
-// result, and every result object has the same shape. The column names of a
-// prepared statement are passed once and copied by JavaScript.
+// A result is written by the core in the binary result format
+// (`flatsql_core::result::ResultEncoder`) and turned into the result object by
+// JavaScript in one call: numbers are read straight from the bytes, every
+// text of the result is decoded from UTF-8 at once and cut by the UTF-16
+// lengths stored with the values, and the keys of the object are literals of
+// this code, so every result has the same shape. The column names of a
+// prepared statement are passed once and copied for every result. The views
+// of the module's memory are created again only when the memory has grown
+// (its buffer is then a new one). The decoder keeps a leading U+FEFF
+// (`ignoreBOM`), which is text, not a mark.
 #[wasm_bindgen(inline_js = "
-export function make_result(columns, copy, rows, affected, scanned, message) {
+const utf8 = new TextDecoder('utf-8', { ignoreBOM: true });
+let memory;
+let buffer;
+let bytes;
+let view;
+export function set_memory(m) {
+  memory = m;
+}
+export function decode_result(at, length, columns, copy) {
+  if (memory.buffer !== buffer) {
+    buffer = memory.buffer;
+    bytes = new Uint8Array(buffer);
+    view = new DataView(buffer);
+  }
+  const end = at + length;
+  const count = view.getUint32(at, true);
+  const width = view.getUint32(at + 4, true);
+  const textAt = at + view.getUint32(at + 24, true);
+  const messageLength = view.getUint32(at + 28, true);
+  const text = textAt < end ? utf8.decode(bytes.subarray(textAt, end)) : '';
+  const rows = new Array(count);
+  let p = at + 32;
+  let t = 0;
+  for (let i = 0; i < count; i++) {
+    const row = new Array(width);
+    for (let j = 0; j < width; j++) {
+      const tag = bytes[p++];
+      if (tag === 3) {
+        row[j] = view.getFloat64(p, true);
+        p += 8;
+      } else if (tag === 4) {
+        const n = view.getUint32(p, true);
+        p += 4;
+        row[j] = text.substring(t, t + n);
+        t += n;
+      } else {
+        row[j] = tag === 0 ? null : tag === 2;
+      }
+    }
+    rows[i] = row;
+  }
   return {
     columns: copy ? columns.slice() : columns,
     rows,
-    rowsAffected: affected,
-    rowsScanned: scanned,
-    message: message === undefined ? '' : message,
+    rowsAffected: view.getFloat64(at + 8, true),
+    rowsScanned: view.getFloat64(at + 16, true),
+    message: text.substring(t, t + messageLength),
   };
 }")]
 extern "C" {
-    fn make_result(
-        columns: &JsValue,
-        copy: bool,
-        rows: &JsValue,
-        affected: f64,
-        scanned: f64,
-        message: &JsValue,
-    ) -> JsValue;
+    fn set_memory(memory: &JsValue);
+    fn decode_result(at: u32, length: u32, columns: &JsValue, copy: bool) -> JsValue;
 }
 
 fn columns_to_js(columns: &[String]) -> JsValue {
     columns.iter().map(|c| JsValue::from_str(c)).collect::<Array>().into()
 }
 
-/// `columns`: the names already in JavaScript (a prepared statement's), or
-/// `None` to create them.
-fn result_to_js(r: &QueryResult, columns: Option<&JsValue>) -> JsValue {
-    let rows = Array::new_with_length(r.rows.len() as u32);
-    for (i, row) in r.rows.iter().enumerate() {
-        let arr = Array::new_with_length(row.len() as u32);
-        for (j, v) in row.iter().enumerate() {
-            arr.set(j as u32, value_to_js(v));
-        }
-        rows.set(i as u32, arr.into());
+/// A buffer larger than this is not kept for the next result.
+const KEEP_BUFFER: usize = 1 << 20;
+
+/// The result in `buf` (binary result format) as a JS object.
+fn decode(buf: &mut Vec<u8>, columns: &JsValue, copy: bool) -> JsValue {
+    let result = decode_result(buf.as_ptr() as u32, buf.len() as u32, columns, copy);
+    if buf.capacity() > KEEP_BUFFER {
+        *buf = Vec::new();
     }
-    let message = if r.message.is_empty() { JsValue::UNDEFINED } else { JsValue::from_str(&r.message) };
-    let affected = r.rows_affected as f64;
-    let scanned = r.rows_scanned as f64;
-    match columns {
-        Some(c) => make_result(c, true, &rows, affected, scanned, &message),
-        None => make_result(&columns_to_js(&r.columns), false, &rows, affected, scanned, &message),
-    }
+    result
 }
 
 fn params_from_js(params: Option<Array>) -> Result<Vec<Value>, JsValue> {
@@ -150,14 +173,14 @@ pub struct PreparedStatement {
 }
 
 impl PreparedStatement {
-    /// The column names of `r` in JavaScript, created once per plan.
-    fn columns(&self, r: &QueryResult) -> JsValue {
+    /// The column names `names` in JavaScript, created once per plan.
+    fn columns(&self, names: &Arc<[String]>) -> JsValue {
         let mut cached = self.columns.borrow_mut();
         match &*cached {
-            Some((names, js)) if Arc::ptr_eq(names, &r.columns) => js.clone(),
+            Some((known, js)) if Arc::ptr_eq(known, names) => js.clone(),
             _ => {
-                let js = columns_to_js(&r.columns);
-                *cached = Some((r.columns.clone(), js.clone()));
+                let js = columns_to_js(names);
+                *cached = Some((names.clone(), js.clone()));
                 js
             }
         }
@@ -209,6 +232,8 @@ impl OutboxBatch {
 #[wasm_bindgen]
 pub struct Database {
     inner: core::Database,
+    /// The last result of `exec`/`run` in the binary result format.
+    buf: Vec<u8>,
 }
 
 #[wasm_bindgen]
@@ -219,7 +244,7 @@ impl Database {
     pub fn new(node_id: Option<u32>) -> Database {
         let mut inner = core::Database::new(node_id.unwrap_or_else(random_node_id));
         inner.set_clock(now_ms);
-        Database { inner }
+        Database { inner, buf: Vec::new() }
     }
 
     /// Opens a database from a snapshot and/or WAL bytes (crash recovery).
@@ -228,21 +253,28 @@ impl Database {
         let mut inner =
             core::Database::restore(snapshot.as_deref(), wal.as_deref().unwrap_or(&[]), node).map_err(js_error)?;
         inner.set_clock(now_ms);
-        Ok(Database { inner })
+        Ok(Database { inner, buf: Vec::new() })
     }
 
     /// Executes SQL (one or more statements) and returns the last result as
     /// `{ columns, rows, rowsAffected, rowsScanned, message }`.
     pub fn exec(&mut self, sql: &str) -> Result<JsValue, JsValue> {
         let r = self.inner.execute(sql).map_err(js_error)?;
-        Ok(result_to_js(&r, None))
+        r.encode(&mut self.buf);
+        Ok(decode(&mut self.buf, &columns_to_js(&r.columns), false))
     }
 
     /// Executes SQL and returns an array with the result of every statement.
     #[wasm_bindgen(js_name = execAll)]
     pub fn exec_all(&mut self, sql: &str) -> Result<Array, JsValue> {
         let results = self.inner.execute_all(sql).map_err(js_error)?;
-        Ok(results.iter().map(|r| result_to_js(r, None)).collect())
+        Ok(results
+            .iter()
+            .map(|r| {
+                r.encode(&mut self.buf);
+                decode(&mut self.buf, &columns_to_js(&r.columns), false)
+            })
+            .collect())
     }
 
     /// Like `exec` but returns the result serialised as JSON.
@@ -258,8 +290,9 @@ impl Database {
     /// Executes a prepared statement with positional parameters.
     pub fn run(&mut self, stmt: &PreparedStatement, params: Option<Array>) -> Result<JsValue, JsValue> {
         let params = params_from_js(params)?;
-        let r = self.inner.execute_prepared(&stmt.inner, &params).map_err(js_error)?;
-        Ok(result_to_js(&r, Some(&stmt.columns(&r))))
+        let names = self.inner.execute_prepared_encoded(&stmt.inner, &params, &mut self.buf).map_err(js_error)?;
+        let columns = stmt.columns(&names);
+        Ok(decode(&mut self.buf, &columns, true))
     }
 
     /// Executes a prepared statement and returns only the number of affected

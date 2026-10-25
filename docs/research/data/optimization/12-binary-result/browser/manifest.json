@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T05:10:03.623Z",
+  "options": {
+    "runs": 10,
+    "targets": "browser",
+    "kinds": "workload",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.13",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\12-binary-result\\browser"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.13",
+    "describe": "po-2.13",
+    "commit": "2f9d97208f46d77c65753ff3589a2b92ee886449",
+    "subject": "wasm: build the result object in JavaScript and keep column names per plan",
+    "codeTreeSha256": "ebf5b7541160a845fb0c1da127d8ba26abd6816773a0896b8cedab8335e39060",
+    "module": {
+      "bytes": 690178,
+      "gzipBytes": 259727
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.13-dirty",
+    "commit": "2f9d97208f46d77c65753ff3589a2b92ee886449",
+    "subject": "wasm: build the result object in JavaScript and keep column names per plan",
+    "codeTreeSha256": "e2f08f82c4515a5ac3a74065233c6b4bc04c438428499c2924aab278eec419f9",
+    "module": {
+      "bytes": 695444,
+      "gzipBytes": 262194
+    }
+  },
+  "cpuLoadBefore": 0.08776471236196404,
+  "finished": "2026-10-25T05:13:30.704Z"
+}

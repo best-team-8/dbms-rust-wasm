@@ -1,0 +1,45 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm
+query: primary-key lookup
+
+variant | median of 7 rounds, µs per lookup | rounds
+call | 0.01 | 0.03 0.01 0.01 0.01 0.01 0.01 0.01
+execute | 1.19 | 1.20 1.15 1.16 1.38 1.19 1.27 1.16
+run | 1.79 | 1.79 1.74 1.99 1.97 1.97 1.75 1.73
+json | 2.34 | 2.34 2.34 2.26 2.48 2.34 2.43 2.27
+json+p | 3.93 | 3.68 3.72 4.00 4.22 3.93 4.30 3.70
+
+profile of `run` (1163 samples, includes loading the table)
+    8.5%  UTF-8 decoding
+   13.6%  glue code and transitions
+   47.5%  engine (WebAssembly)
+    2.7%  garbage collection
+    0.0%  JSON.parse
+    5.7%  measuring loop
+   22.0%  other
+  top functions:
+   10.7%  wasm-function[212] 002a7252
+    8.4%  decode_result inline0.js
+    6.5%  wasm-function[135] 002a7252
+    6.3%  decodeUTF8
+    4.5%  wasm-function[30] 002a7252
+    3.6%  get
+    3.4%  wasm-to-js
+    3.4%  set
+
+profile of `json+p` (1952 samples, includes loading the table)
+    7.3%  UTF-8 decoding
+    6.2%  glue code and transitions
+   47.7%  engine (WebAssembly)
+    1.7%  garbage collection
+    0.0%  JSON.parse
+   30.8%  measuring loop
+    6.3%  other
+  top functions:
+   27.4%  json+p boundary.mjs
+    8.2%  wasm-function[212] 002a7252
+    4.0%  wasm-function[117] 002a7252
+    2.9%  decodeUTF8
+    2.6%  set
+    2.6%  wasm-function[192] 002a7252
+    2.5%  wasm-function[49] 002a7252
+    2.4%  (anonymous) boundary.mjs

@@ -16,7 +16,7 @@ use std::sync::Arc;
 use crate::error::{Error, Result};
 use crate::exec;
 use crate::expr::missing_param;
-use crate::result::QueryResult;
+use crate::result::{QueryResult, ResultEncoder};
 use crate::sql::{self, Statement};
 use crate::storage::codec::Writer;
 use crate::storage::snapshot;
@@ -253,6 +253,41 @@ impl Database {
     }
 
     pub fn execute_prepared(&mut self, p: &Prepared, params: &[Value]) -> Result<QueryResult> {
+        if !self.compile_prepared(p, params)? {
+            return self.execute_statement(&p.stmt, params);
+        }
+        let compiled = p.compiled.borrow();
+        let (_, plan) = compiled.as_ref().expect("compiled above");
+        self.run_compiled(plan, params)
+    }
+
+    /// Like [`execute_prepared`](Self::execute_prepared) with the result
+    /// written to `out` in the binary result format
+    /// ([`ResultEncoder`](crate::result::ResultEncoder)). Rows of a SELECT are
+    /// encoded straight from the table, without a copy in a `QueryResult`.
+    /// Returns the column names of the result.
+    pub fn execute_prepared_encoded(
+        &mut self,
+        p: &Prepared,
+        params: &[Value],
+        out: &mut Vec<u8>,
+    ) -> Result<Arc<[String]>> {
+        if self.compile_prepared(p, params)? {
+            if let Some((_, exec::Compiled::Select(plan))) = &*p.compiled.borrow() {
+                let mut e = ResultEncoder::new(out, plan.names().len());
+                let scanned = exec::run_select_into(self, plan, params, &mut e)?;
+                e.finish(0, scanned, "");
+                return Ok(plan.names().clone());
+            }
+        }
+        let r = self.execute_prepared(p, params)?;
+        r.encode(out);
+        Ok(r.columns)
+    }
+
+    /// Checks the parameters of `p` and compiles it again if the catalog
+    /// changed since it was compiled; false if it has no compiled form.
+    fn compile_prepared(&self, p: &Prepared, params: &[Value]) -> Result<bool> {
         if params.len() != p.params {
             return Err(Error::Eval(format!("statement expects {} parameter(s), {} supplied", p.params, params.len())));
         }
@@ -260,12 +295,10 @@ impl Database {
         if !fresh {
             match exec::compile(self, &p.stmt)? {
                 Some(c) => *p.compiled.borrow_mut() = Some((self.catalog_version, c)),
-                None => return self.execute_statement(&p.stmt, params),
+                None => return Ok(false),
             }
         }
-        let compiled = p.compiled.borrow();
-        let (_, plan) = compiled.as_ref().expect("compiled above");
-        self.run_compiled(plan, params)
+        Ok(true)
     }
 
     pub fn execute_statement(&mut self, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {

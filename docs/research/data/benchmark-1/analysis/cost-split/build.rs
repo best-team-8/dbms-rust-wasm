@@ -17,6 +17,8 @@ const API: &[(&str, &str, &str)] = &[
     ("core_compile", "compile.rs", "pub fn predicate"),
     // The outbox is kept only once synchronisation is enabled.
     ("core_sync", "db.rs", "pub fn enable_sync"),
+    // Results written in the binary result format straight from the table.
+    ("core_encode", "db.rs", "pub fn execute_prepared_encoded"),
 ];
 
 fn main() {

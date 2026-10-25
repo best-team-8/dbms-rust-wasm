@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; pkt 4 (wiersze budowane przez `js-sys`) zastąpiony przez [ADR-0046](0046-binarny-format-wyniku.md), funkcja `make_result` zastąpiona przez dekoder wyniku |
 | Data | 2026-10-25 |
 | Rodzaj | architektura |
 | Powiązane | ADR-0019, ADR-0039, ADR-0041; zadanie todo 2.13 |

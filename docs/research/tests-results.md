@@ -38,6 +38,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [3.5](#35-update-w-miejscu) `updates_in_place_keep_indexes_rollbacks_and_the_wal_consistent`, `one_clock_reading_per_statement_still_gives_every_row_its_own_stamp` | Czy UPDATE zmieniający wiersz w miejscu zostawia indeksy, wycofanie i WAL w stanie zgodnym z tabelą bez indeksów? | zaliczony |
 | [3.6](#36-grupowanie-przez-tablicę-mieszającą) `grouping_by_one_column_gives_the_groups_of_the_general_path`, `equal_values_hash_equally` | Czy grupowanie po jednej kolumnie przez tablicę mieszającą daje te same grupy co ścieżka ogólna? | zaliczony |
 | [3.7](#37-nazwy-kolumn-wyniku-instrukcji-przygotowanej) `results of a prepared statement get their own column names and follow schema changes` | Czy wynik instrukcji przygotowanej, której nazwy kolumn są tworzone w JavaScripcie raz na plan, ma własne nazwy i ten sam kształt co dotąd, także po zmianie schematu? | zaliczony |
+| [3.8](#38-binarny-format-wyniku) `results_encoded_from_the_table_equal_the_encoded_query_result`, `values of every type come through the binary result format unchanged` | Czy wynik kodowany wprost z tabeli w binarnym formacie i dekodowany w JavaScripcie ma te same wartości co wynik zebrany w silniku? | zaliczony |
 
 ## 1. Trwałość i odtwarzanie po awarii
 
@@ -313,3 +314,16 @@ Każda zmiana wysyłana między replikami ma znacznik z hybrydowego zegara logic
 | Wynik | Zaliczony. 25.10.2026, środowisko z początku dokumentu, commit „wasm: build the result object in JavaScript and keep column names per plan”. |
 | Wpływ na projekt | Brak zmian poza testowaną zmianą. |
 | Ograniczenia | Test nie obejmuje zmiany schematu przez synchronizację; wersja katalogu zmienia się wtedy tą samą funkcją co przy zmianie lokalnej (§3.3). |
+
+### 3.8 Binarny format wyniku
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy wynik SELECT zakodowany wprost z wierszy tabeli w binarnym formacie wyniku ma te same bajty co zakodowany wynik zebrany przez wykonawcę i czy dekoder w JavaScripcie odtwarza każdą wartość bez zmian? |
+| Uzasadnienie | Koder zastępuje zbieranie wierszy na każdej ścieżce wykonawcy (agregaty, wiersze w kolejności indeksu z zatrzymaniem po `LIMIT`, sortowanie, `DISTINCT`, grupowanie), a dekoder tnie jeden zdekodowany tekst według długości zapisanych przez Rust. Błąd liczenia wierszy, długości tekstu w jednostkach UTF-16 albo dekoder usuwający znak U+FEFF z początku tekstu (domyślne zachowanie `TextDecoder`) przesunąłby albo uciął wartości. |
+| Model awarii i założenia | Niezgodność kodera ze zbieraniem wierszy albo dekodera z koderem. Wyrocznie: zakodowany wynik zebrany (`QueryResult::encode`) dla kodera, wartości wstawione do tabeli i ścieżka JSON dla dekodera. |
+| Procedura | Plik `crates/flatsql-core/tests/planner.rs`, test `results_encoded_from_the_table_equal_the_encoded_query_result`: 3 ziarna × 200 losowych warunków w siedmiu zapytaniach (wszystkie kolumny, `LIMIT` w kolejności klucza, wyrażenia z `ORDER BY`, `LIMIT` i `OFFSET`, `DISTINCT`, agregaty, grupowanie po kolumnie i po wyrażeniu); porównanie bajtów i nazw kolumn. Dalej `CREATE TABLE`, `INSERT`, `UPDATE`, `EXPLAIN`, odczyt i błąd brakującego parametru (ten sam komunikat). Plik `test/bridge.test.js`, test `values of every type come through the binary result format unchanged`: wartości każdego typu (pusty tekst, polskie znaki, emoji i znak spoza podstawowej płaszczyzny, tekst zaczynający się od U+FEFF jako pierwszy tekst wyniku, znak NUL, NaN, ±nieskończoność, NULL, 2^53−1) porównane `Object.is` przez `run` i `exec`; 2 990 wierszy porównanych ze ścieżką JSON; `UPDATE` z komunikatem; `execAll`; tekst 700 000 znaków (wynik większy od zachowywanego bufora) i następny wynik. Polecenia: `cargo test -p flatsql-core --test planner encoded`, `node --test test/bridge.test.js`. |
+| Kontrola negatywna | Z koderem, który zwracał liczbę przyjętych wierszy równą 0, test Rust zawiódł (zapytanie z `LIMIT 7` w kolejności klucza dało wszystkie wiersze). Z dekoderem utworzonym bez `ignoreBOM` test JavaScriptu zawiódł na pierwszym tekście wyniku (U+FEFF usunięty, kolejne teksty przesunięte o znak). |
+| Wynik | Zaliczony, 4 200 par wyników w teście Rust. 25.10.2026, środowisko z początku dokumentu, commit „core/wasm: encode results straight from the table in a binary format decoded by JavaScript”. |
+| Wpływ na projekt | Kontrola negatywna dekodera wykazała, że domyślny `TextDecoder` usuwa U+FEFF z początku strumienia; dekoder ma `ignoreBOM`. |
+| Ograniczenia | Test JavaScriptu działa w Node.js; przeglądarka używa tego samego dekodera, a pomiar w Edge zwrócił te same sumy kontrolne wyników. |

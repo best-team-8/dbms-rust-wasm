@@ -48,7 +48,61 @@ pub(crate) fn compile(db: &Database, stmt: &Statement) -> Result<Option<Compiled
 }
 
 pub(crate) fn run_select(db: &Database, p: &SelectPlan, params: &[Value]) -> Result<QueryResult> {
-    execute_select(&bind_select(db, p, params)?)
+    let run = bind_select(db, p, params)?;
+    let mut rows = Collect(Vec::new());
+    let scanned = execute_select(&run, &mut rows)?;
+    Ok(QueryResult {
+        columns: p.names.clone(),
+        rows: rows.0,
+        rows_affected: 0,
+        rows_scanned: scanned,
+        message: String::new(),
+    })
+}
+
+/// Runs a compiled SELECT with its rows written to `sink`; returns the
+/// number of rows the access path visited.
+pub(crate) fn run_select_into(db: &Database, p: &SelectPlan, params: &[Value], sink: &mut dyn RowSink) -> Result<u64> {
+    execute_select(&bind_select(db, p, params)?, sink)
+}
+
+impl SelectPlan {
+    pub(crate) fn names(&self) -> &Arc<[String]> {
+        &self.names
+    }
+}
+
+/// Receives the rows of a SELECT: collected as vectors of values for a
+/// `QueryResult`, or encoded straight from the table rows into the binary
+/// result format, without a copy of every value.
+pub(crate) trait RowSink {
+    /// A row projected from `row` (a table row, or the first row of a group).
+    fn project(&mut self, proj: &[BExpr], row: &[Value], cx: Cx) -> Result<()>;
+    /// Rows computed already (aggregates, sorted or distinct rows).
+    fn computed(&mut self, rows: Vec<Vec<Value>>);
+    /// Rows received so far.
+    fn len(&self) -> usize;
+}
+
+struct Collect(Vec<Vec<Value>>);
+
+impl RowSink for Collect {
+    fn project(&mut self, proj: &[BExpr], row: &[Value], cx: Cx) -> Result<()> {
+        self.0.push(project(proj, row, cx)?);
+        Ok(())
+    }
+
+    fn computed(&mut self, rows: Vec<Vec<Value>>) {
+        if self.0.is_empty() {
+            self.0 = rows;
+        } else {
+            self.0.extend(rows);
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 /// Runs a compiled INSERT, UPDATE or DELETE (inside a transaction).
@@ -401,7 +455,7 @@ impl<'a> Residual<'a> {
     }
 }
 
-fn execute_select(r: &Run) -> Result<QueryResult> {
+fn execute_select(r: &Run, sink: &mut dyn RowSink) -> Result<u64> {
     let p = r.p;
     let empty_row: Vec<Value> = Vec::new();
     let filter = Residual::new(&p.preds, r.skip, r.params);
@@ -409,7 +463,7 @@ fn execute_select(r: &Run) -> Result<QueryResult> {
     let mut scanned: u64 = 0;
     let need = r.limit.map(|l| l.saturating_add(r.offset));
 
-    let rows: Vec<Vec<Value>> = if p.aggregate {
+    if p.aggregate {
         let null_row = vec![Value::Null; r.table.map_or(0, |t| t.schema.columns.len())];
         // Group keys borrow column values from the table where possible; a key
         // is only copied when a new group is created.
@@ -503,10 +557,9 @@ fn execute_select(r: &Run) -> Result<QueryResult> {
         if !p.order.is_empty() {
             sort_window(&mut out, &p.order, need);
         }
-        window(out.into_iter().map(|(_, _, v)| v).collect(), r.offset, r.limit)
+        sink.computed(window(out.into_iter().map(|(_, _, v)| v).collect(), r.offset, r.limit));
     } else if r.presorted && !p.distinct {
         // Streaming: stop as soon as LIMIT is satisfied.
-        let mut out = Vec::new();
         let mut skipped = 0;
         if r.limit != Some(0) {
             match r.table {
@@ -520,20 +573,19 @@ fn execute_select(r: &Run) -> Result<QueryResult> {
                             skipped += 1;
                             continue;
                         }
-                        out.push(project(&p.proj, &entry.values, cx)?);
-                        if Some(out.len()) == r.limit {
+                        sink.project(&p.proj, &entry.values, cx)?;
+                        if Some(sink.len()) == r.limit {
                             break;
                         }
                     }
                 }
                 None => {
                     if filter.matches(&empty_row)? && r.offset == 0 {
-                        out.push(project(&p.proj, &empty_row, cx)?);
+                        sink.project(&p.proj, &empty_row, cx)?;
                     }
                 }
             }
         }
-        out
     } else if !p.distinct {
         // Sort candidate rows by reference, project only the final window.
         let mut cands: Vec<(Vec<Value>, usize, &[Value])> = Vec::new();
@@ -587,10 +639,9 @@ fn execute_select(r: &Run) -> Result<QueryResult> {
         if r.table.is_none() {
             scanned = 0;
         }
-        window(cands, r.offset, r.limit)
-            .into_iter()
-            .map(|(_, _, row)| project(&p.proj, row, cx))
-            .collect::<Result<Vec<_>>>()?
+        for (_, _, row) in window(cands, r.offset, r.limit) {
+            sink.project(&p.proj, row, cx)?;
+        }
     } else {
         // DISTINCT: project first, de-duplicate, then sort.
         let mut seen = BTreeSet::new();
@@ -615,16 +666,9 @@ fn execute_select(r: &Run) -> Result<QueryResult> {
         if !p.order.is_empty() {
             sort_window(&mut out, &p.order, need);
         }
-        window(out.into_iter().map(|(_, _, v)| v).collect(), r.offset, r.limit)
-    };
-
-    Ok(QueryResult {
-        columns: p.names.clone(),
-        rows,
-        rows_affected: 0,
-        rows_scanned: if r.table.is_some() { scanned } else { 0 },
-        message: String::new(),
-    })
+        sink.computed(window(out.into_iter().map(|(_, _, v)| v).collect(), r.offset, r.limit));
+    }
+    Ok(if r.table.is_some() { scanned } else { 0 })
 }
 
 fn explain_select(r: &Run) -> Vec<String> {

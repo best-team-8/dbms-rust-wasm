@@ -1,0 +1,45 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm
+query: primary-key lookup
+
+variant | median of 7 rounds, µs per lookup | rounds
+call | 0.01 | 0.03 0.01 0.01 0.01 0.01 0.01 0.01
+execute | 1.16 | 1.20 1.14 1.15 1.17 1.18 1.13 1.16
+run | 2.33 | 2.35 2.26 2.33 2.32 2.34 2.35 2.31
+json | 2.33 | 2.34 2.39 2.33 2.33 2.34 2.33 2.31
+json+p | 3.75 | 3.66 3.80 3.65 3.75 3.87 3.75 3.71
+
+profile of `run` (1378 samples, includes loading the table)
+   16.4%  UTF-8 decoding
+   14.2%  glue code and transitions
+   52.0%  engine (WebAssembly)
+    2.4%  garbage collection
+    0.0%  JSON.parse
+    4.4%  measuring loop
+   10.7%  other
+  top functions:
+   12.6%  wasm-function[208] 002a214a
+    6.6%  decodeUTF8
+    5.8%  wasm-to-js
+    5.4%  decode encoding
+    4.6%  wasm-function[277] 002a214a
+    4.4%  decodeText flatsql.js
+    3.6%  wasm-function[262] 002a214a
+    3.5%  wasm-function[188] 002a214a
+
+profile of `json+p` (1978 samples, includes loading the table)
+    7.1%  UTF-8 decoding
+    7.0%  glue code and transitions
+   48.4%  engine (WebAssembly)
+    1.8%  garbage collection
+    0.0%  JSON.parse
+   29.3%  measuring loop
+    6.4%  other
+  top functions:
+   25.9%  json+p boundary.mjs
+    9.0%  wasm-function[208] 002a214a
+    4.4%  wasm-function[116] 002a214a
+    3.9%  wasm-function[277] 002a214a
+    3.6%  decodeUTF8
+    3.5%  wasm-function[48] 002a214a
+    2.5%  set
+    2.5%  wasm-function[188] 002a214a

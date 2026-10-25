@@ -3,6 +3,9 @@
 //!
 //! - point lookup: whole prepared statement vs. its parts (binding and access
 //!   path choice, tree lookup, row copy, column names and message),
+//! - a result in the binary result format of the WebAssembly binding: the
+//!   collected result encoded vs. rows encoded straight from the table, for a
+//!   point lookup and for 10 000 rows (core with the encoder),
 //! - COUNT(*) by the secondary index vs. reading only the index, a key range
 //!   with SUM vs. the same range walked by hand with and without the WHERE
 //!   clause, and the time to prepare each statement of the workload,
@@ -130,6 +133,43 @@ fn main() {
         };
         let names = per_op_ns(t0, LOOKUPS);
         println!("  round {round}: {whole:.0} | {id_only:.0} | {planning:.0} | {lookup:.0} | {copy:.0} | {names:.0}");
+    }
+
+    #[cfg(core_encode)]
+    {
+        let many = db.prepare("SELECT * FROM items WHERE id < 10000").unwrap();
+        let mut out = Vec::new();
+        println!("binary result, ns per lookup (collected + encoded | encoded from the table), ms per 10 000 rows (collected | collected + encoded | encoded from the table)");
+        for round in 1..=ROUNDS {
+            let t0 = Instant::now();
+            for &k in &keys {
+                db.execute_prepared(&star, &[Value::Int(k)]).unwrap().encode(&mut out);
+                black_box(&out);
+            }
+            let collected = per_op_ns(t0, LOOKUPS);
+            let t0 = Instant::now();
+            for &k in &keys {
+                black_box(db.execute_prepared_encoded(&star, &[Value::Int(k)], &mut out).unwrap());
+            }
+            let direct = per_op_ns(t0, LOOKUPS);
+            let t0 = Instant::now();
+            for _ in 0..20 {
+                black_box(db.execute_prepared(&many, &[]).unwrap());
+            }
+            let many_collected = ms(t0) / 20.0;
+            let t0 = Instant::now();
+            for _ in 0..20 {
+                db.execute_prepared(&many, &[]).unwrap().encode(&mut out);
+                black_box(&out);
+            }
+            let many_encoded = ms(t0) / 20.0;
+            let t0 = Instant::now();
+            for _ in 0..20 {
+                black_box(db.execute_prepared_encoded(&many, &[], &mut out).unwrap());
+            }
+            let many_direct = ms(t0) / 20.0;
+            println!("  round {round}: {collected:.0} | {direct:.0} | {many_collected:.2} | {many_encoded:.2} | {many_direct:.2}");
+        }
     }
 
     // COUNT(*) by the secondary index: the engine vs. reading only the index.
