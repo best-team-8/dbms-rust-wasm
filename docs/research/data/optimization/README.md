@@ -4,7 +4,7 @@ Surowe wyniki pomiarów każdej optymalizacji opisanej w [optimization-results.m
 
 | Ścieżka | Zawartość |
 |---|---|
-| `manifest.json` | obie wersje (opis `git describe`, commit, temat commita; wersja niezatwierdzona w chwili pomiaru ma skrót SHA-256 swojej różnicy względem HEAD w polu `codeDiffSha256`, równy skrótowi tej samej różnicy w późniejszym commicie), obciążenie procesora przed pomiarem, rozmiar modułu WebAssembly (bajty i gzip -9) |
+| `manifest.json` | obie wersje (opis `git describe`, commit, temat commita oraz `codeTreeSha256`: skrót SHA-256 listy plików `crates/`, `bridge/` i `server/` z ich skrótami git, który identyfikuje mierzony kod także przed zatwierdzeniem i jest równy skrótowi drzewa późniejszego commita: `node bench/code-tree.js <tag>`), obciążenie procesora przed pomiarem, rozmiar modułu WebAssembly (bajty i gzip -9) |
 | `before/`, `after/` | wyniki `bench/run.js` dla wersji przed zmianą i po niej: `raw/<środowisko>/<rodzaj>/<silnik>/NN.json` (jeden plik na proces), `manifest.json` runnera |
 | `compare.md` | tabela: mediana z kwartylami przed i po, zmiana mediany, czy 95% przedziały ufności średnich są rozłączne; zgodność sum kontrolnych wyników obu wersji |
 | `cost-split-*.txt`, `allocations-*.txt` | natywne rozbicie kosztów i liczba alokacji tych samych operacji w obu wersjach (program z [benchmark-1/analysis/cost-split](../benchmark-1/analysis/cost-split/)) |

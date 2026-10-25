@@ -9,12 +9,13 @@
 //! 4. secondary index range scan,
 //! 5. full table scan.
 //!
-//! The complete WHERE clause is still evaluated on every candidate row, so
-//! the access path only has to return a superset of the matching rows.
-//! [`choose_covered`] also tells whether the access path guarantees the whole
-//! clause, so a query that needs nothing but the number of matching rows can
-//! count them without reading a row.
+//! The access path returns a superset of the matching rows. [`choose_terms`]
+//! also tells which conjuncts of the WHERE clause every returned row
+//! satisfies: the executor evaluates only the others, and a query that needs
+//! nothing but the number of matching rows counts them without reading a row
+//! when the access path guarantees the whole clause.
 
+use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::ops::Bound;
 
@@ -88,11 +89,36 @@ impl Access {
 
 /// Picks the access path for a (bound) WHERE clause.
 pub fn choose(table: &Table, filter: Option<&BExpr>) -> Result<Access> {
-    Ok(choose_covered(table, filter)?.0)
+    let terms = filter.map(BExpr::conjuncts).unwrap_or_default();
+    Ok(choose_terms(table, &terms)?.0)
 }
 
 /// Picks the access path and tells whether it guarantees the whole WHERE
-/// clause: every row it returns satisfies the clause.
+/// clause (see [`choose_terms`]).
+pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, bool)> {
+    let terms = filter.map(BExpr::conjuncts).unwrap_or_default();
+    let (access, absorbed) = choose_terms(table, &terms)?;
+    Ok((access, covers_all(absorbed, terms.len())))
+}
+
+/// Mask of the first `n` conjuncts.
+fn all_terms(n: usize) -> u64 {
+    if n >= 64 {
+        u64::MAX
+    } else {
+        (1 << n) - 1
+    }
+}
+
+/// Whether `absorbed` contains every one of `n` conjuncts (only the first 64
+/// can be absorbed).
+pub fn covers_all(absorbed: u64, n: usize) -> bool {
+    n <= 64 && absorbed == all_terms(n)
+}
+
+/// Picks the access path for a WHERE clause given as its top-level `AND`
+/// terms and returns the conjuncts that every row of the path satisfies
+/// (bit `i` set: conjunct `i`), so they need not be evaluated again.
 ///
 /// A conjunct `col = lit` or `col IN (lit, ...)` that drives a lookup is
 /// guaranteed, and so is every range conjunct on the column of a range scan,
@@ -101,23 +127,30 @@ pub fn choose(table: &Table, filter: Option<&BExpr>) -> Result<Access> {
 /// orders values of one type the way the comparison operators do, so a
 /// returned row compares the same way as in the evaluator. A range scan of a
 /// secondary index without a lower bound starts after NULL, which the index
-/// stores but which never satisfies a comparison.
-pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, bool)> {
-    let Some(filter) = filter else { return Ok((Access::FullScan, true)) };
-    if let BExpr::Lit(v) = filter {
-        return Ok((if truth(v)? == Some(true) { Access::FullScan } else { Access::Empty }, true));
-    }
+/// stores but which never satisfies a comparison. A literal TRUE is
+/// guaranteed as well; when the access path is `Empty` nothing is evaluated.
+pub fn choose_terms<T: Borrow<BExpr>>(table: &Table, terms: &[T]) -> Result<(Access, u64)> {
+    let empty = Ok((Access::Empty, all_terms(terms.len())));
+    let bit = |pos: usize| if pos < 64 { 1u64 << pos } else { 0 };
 
-    // Each candidate remembers the positions of the conjuncts it guarantees.
+    // Each candidate remembers the conjuncts it guarantees.
     let mut eq: Vec<(usize, Value, usize)> = Vec::new();
     let mut ins: Vec<(usize, Vec<Value>, usize)> = Vec::new();
     let mut lower: BTreeMap<usize, Bound<Value>> = BTreeMap::new();
     let mut upper: BTreeMap<usize, Bound<Value>> = BTreeMap::new();
-    let mut ranged: BTreeMap<usize, usize> = BTreeMap::new();
+    let mut ranged: BTreeMap<usize, u64> = BTreeMap::new();
+    let mut always: u64 = 0;
 
-    let terms = filter.conjuncts();
-    for (pos, term) in terms.iter().copied().enumerate() {
+    for (pos, term) in terms.iter().map(Borrow::borrow).enumerate() {
         match term {
+            BExpr::Lit(v) => match truth(v) {
+                Ok(Some(true)) => always |= bit(pos),
+                Ok(_) => return empty,
+                // A WHERE clause that is only a non-boolean literal is an
+                // error; next to other terms it is reported by the evaluator.
+                Err(e) if terms.len() == 1 => return Err(e),
+                Err(_) => {}
+            },
             BExpr::Bin(op, l, r) if op.is_comparison() && *op != BinaryOp::NotEq => {
                 let (col, v, op) = match (&**l, &**r) {
                     (BExpr::Col(c), BExpr::Lit(v)) => (*c, v, *op),
@@ -125,7 +158,7 @@ pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, 
                     _ => continue,
                 };
                 if v.is_null() {
-                    return Ok((Access::Empty, true));
+                    return empty;
                 }
                 let Some(v) = key_for(table, col, v)? else { continue };
                 match op {
@@ -139,17 +172,17 @@ pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, 
                     BinaryOp::GtEq => tighten(&mut lower, col, Bound::Included(v), true),
                     _ => continue,
                 }
-                *ranged.entry(col).or_default() += 1;
+                *ranged.entry(col).or_default() |= bit(pos);
             }
             BExpr::Between(x, lo, hi, false) => {
                 let (BExpr::Col(c), BExpr::Lit(a), BExpr::Lit(b)) = (&**x, &**lo, &**hi) else { continue };
                 if a.is_null() || b.is_null() {
-                    return Ok((Access::Empty, true));
+                    return empty;
                 }
                 if let (Some(a), Some(b)) = (key_for(table, *c, a)?, key_for(table, *c, b)?) {
                     tighten(&mut lower, *c, Bound::Included(a), true);
                     tighten(&mut upper, *c, Bound::Included(b), false);
-                    *ranged.entry(*c).or_default() += 1;
+                    *ranged.entry(*c).or_default() |= bit(pos);
                 }
             }
             BExpr::InList(x, list, false) => {
@@ -170,7 +203,7 @@ pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, 
                     continue;
                 }
                 if values.is_empty() {
-                    return Ok((Access::Empty, true));
+                    return empty;
                 }
                 values.sort();
                 values.dedup();
@@ -180,23 +213,21 @@ pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, 
         }
     }
 
-    // The access path guarantees the clause when it absorbed every conjunct.
-    let all = terms.len();
     let pk = table.schema.pk;
-    if let Some((_, v, _)) = eq.iter().find(|(c, ..)| *c == pk) {
-        return Ok((Access::PkPoint(v.clone()), all == 1));
+    if let Some((_, v, pos)) = eq.iter().find(|(c, ..)| *c == pk) {
+        return Ok((Access::PkPoint(v.clone()), always | bit(*pos)));
     }
-    if let Some((_, vs, _)) = ins.iter().find(|(c, ..)| *c == pk) {
-        return Ok((Access::PkMulti(vs.clone()), all == 1));
+    if let Some((_, vs, pos)) = ins.iter().find(|(c, ..)| *c == pk) {
+        return Ok((Access::PkMulti(vs.clone()), always | bit(*pos)));
     }
-    for (c, v, _) in &eq {
+    for (c, v, pos) in &eq {
         if let Some(i) = table.index_on(*c) {
-            return Ok((Access::IndexPoint(i, v.clone()), all == 1));
+            return Ok((Access::IndexPoint(i, v.clone()), always | bit(*pos)));
         }
     }
-    for (c, vs, _) in &ins {
+    for (c, vs, pos) in &ins {
         if let Some(i) = table.index_on(*c) {
-            return Ok((Access::IndexMulti(i, vs.clone()), all == 1));
+            return Ok((Access::IndexMulti(i, vs.clone()), always | bit(*pos)));
         }
     }
     let bounds = |c: usize| {
@@ -207,24 +238,24 @@ pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, 
     if lower.contains_key(&pk) || upper.contains_key(&pk) {
         let (lo, hi) = bounds(pk);
         if range_empty(&lo, &hi) {
-            return Ok((Access::Empty, true));
+            return empty;
         }
-        return Ok((Access::PkRange(lo, hi), all == ranged[&pk]));
+        return Ok((Access::PkRange(lo, hi), always | ranged[&pk]));
     }
     for c in lower.keys().chain(upper.keys()) {
         if let Some(i) = table.index_on(*c) {
             let (lo, hi) = bounds(*c);
             if range_empty(&lo, &hi) {
-                return Ok((Access::Empty, true));
+                return empty;
             }
             let lo = match lo {
                 Bound::Unbounded => Bound::Excluded(Value::Null),
                 lo => lo,
             };
-            return Ok((Access::IndexRange(i, lo, hi), all == ranged[c]));
+            return Ok((Access::IndexRange(i, lo, hi), always | ranged[c]));
         }
     }
-    Ok((Access::FullScan, false))
+    Ok((Access::FullScan, always))
 }
 
 /// Number of rows an access path returns, counted without reading them: a

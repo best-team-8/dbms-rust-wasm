@@ -173,3 +173,19 @@ fn count_by_index_reads_no_rows() {
         assert!(run(&mut indexed, sql).rows_scanned > 0, "{sql}");
     }
 }
+
+#[test]
+fn only_conjuncts_the_access_path_does_not_guarantee_are_evaluated() {
+    let mut rng = Rng(11);
+    let (_, mut db) = databases(&mut rng, 50);
+    let plan = |db: &mut Database, w: &str| -> Vec<String> {
+        let r = run(db, &format!("EXPLAIN SELECT * FROM t WHERE {w}"));
+        r.rows.iter().map(|row| row[0].to_string().trim().to_string()).filter(|l| l.starts_with("FILTER")).collect()
+    };
+    assert_eq!(plan(&mut db, "id = 4"), Vec::<String>::new());
+    assert_eq!(plan(&mut db, "id BETWEEN 2 AND 9 AND id < 7"), Vec::<String>::new());
+    assert_eq!(plan(&mut db, "b IN ('k1', 'k2')"), Vec::<String>::new());
+    assert_eq!(plan(&mut db, "b = 'k3' AND a > 2"), vec!["FILTER:    a > 2"]);
+    assert_eq!(plan(&mut db, "id BETWEEN 2 AND 9 AND c > 1.5 AND d"), vec!["FILTER:    (c > 1.5) AND d"]);
+    assert_eq!(plan(&mut db, "a + 1 > 3"), vec!["FILTER:    (a + 1) > 3"]);
+}

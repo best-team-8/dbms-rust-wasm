@@ -83,6 +83,22 @@ impl BExpr {
         walk(self, &mut out);
         out
     }
+
+    /// Like [`conjuncts`](Self::conjuncts), taking the terms out of the tree.
+    pub fn into_conjuncts(self) -> Vec<BExpr> {
+        let mut out = Vec::new();
+        fn walk(e: BExpr, out: &mut Vec<BExpr>) {
+            match e {
+                BExpr::Bin(BinaryOp::And, l, r) => {
+                    walk(*l, out);
+                    walk(*r, out);
+                }
+                other => out.push(other),
+            }
+        }
+        walk(self, &mut out);
+        out
+    }
 }
 
 /// Resolves names of an AST expression against a table schema.
@@ -434,6 +450,26 @@ pub fn matches(filter: Option<&BExpr>, row: &[Value]) -> Result<bool> {
         None => Ok(true),
         Some(f) => Ok(eval_pred(f, row, &[])? == Some(true)),
     }
+}
+
+/// Evaluates a WHERE clause given as its conjuncts, except those in `skip`
+/// (bit `i`: conjunct `i`), which the access path guarantees. The terms are
+/// evaluated in order like `AND`: the first FALSE decides, and a NULL term
+/// makes the row not qualify.
+#[inline]
+pub fn matches_terms(terms: &[BExpr], skip: u64, row: &[Value]) -> Result<bool> {
+    let mut all = true;
+    for (i, term) in terms.iter().enumerate() {
+        if i < 64 && skip >> i & 1 == 1 {
+            continue;
+        }
+        match eval_pred(term, row, &[])? {
+            Some(true) => {}
+            Some(false) => return Ok(false),
+            None => all = false,
+        }
+    }
+    Ok(all)
 }
 
 /// Ordering of two non-NULL values for comparison operators.

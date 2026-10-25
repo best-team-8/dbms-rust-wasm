@@ -3,8 +3,9 @@
 //!
 //! - point lookup: whole prepared statement vs. its parts (binding and access
 //!   path choice, tree lookup, row copy, column names and message),
-//! - COUNT(*) by the secondary index vs. reading only the index, and the time
-//!   to prepare each statement of the workload,
+//! - COUNT(*) by the secondary index vs. reading only the index, a key range
+//!   with SUM vs. the same range walked by hand with and without the WHERE
+//!   clause, and the time to prepare each statement of the workload,
 //! - full scan and GROUP BY: engine vs. a hand-written loop over the same tree,
 //! - snapshot, restore and UPDATE with the outbox of 100 000 local inserts and
 //!   with an empty outbox (all entries acknowledged).
@@ -17,7 +18,7 @@ use std::hint::black_box;
 use std::time::Instant;
 
 use cost_split::{load, row, Lcg, ROWS};
-use flatsql_core::expr::Binder;
+use flatsql_core::expr::{eval_pred, Binder};
 use flatsql_core::plan;
 use flatsql_core::sql::{parse_one, Statement};
 use flatsql_core::table::Table;
@@ -121,6 +122,47 @@ fn main() {
         }
         let filtered = per_op_ns(t0, cats.len());
         println!("  round {round}: {engine:.0} | {set_len:.0} | {rows:.0} | {filtered:.0}");
+    }
+
+    // Key range with SUM: the engine vs. the same range walked by hand, with
+    // and without the WHERE clause evaluated again on every row.
+    let range = db.prepare("SELECT SUM(price) FROM items WHERE id BETWEEN ? AND ?").unwrap();
+    let Statement::Select(sel) = parse_one("SELECT SUM(price) FROM items WHERE id BETWEEN ? AND ?").unwrap() else {
+        unreachable!()
+    };
+    let between = sel.selection.unwrap();
+    let starts: Vec<i64> = (0..2000).map(|_| rng.below(ROWS as u64 - 1000) as i64).collect();
+    let sum = |e: &flatsql_core::table::RowEntry| match e.values[2] {
+        Value::Float(p) => p,
+        _ => 0.0,
+    };
+    println!("key range (1000 rows) + SUM, ns per call (engine | range walk + SUM | + WHERE evaluated on each row)");
+    for round in 1..=ROUNDS {
+        let t0 = Instant::now();
+        for &a in &starts {
+            black_box(db.execute_prepared(&range, &[Value::Int(a), Value::Int(a + 999)]).unwrap());
+        }
+        let engine = per_op_ns(t0, starts.len());
+        let t0 = Instant::now();
+        for &a in &starts {
+            let s: f64 = t.rows.range(Value::Int(a)..=Value::Int(a + 999)).map(|(_, e)| sum(e)).sum();
+            black_box(s);
+        }
+        let walk = per_op_ns(t0, starts.len());
+        let t0 = Instant::now();
+        for &a in &starts {
+            let params = [Value::Int(a), Value::Int(a + 999)];
+            let filter = Binder::new(Some(&schema), &params).bind(&between, "WHERE").unwrap();
+            let s: f64 = t
+                .rows
+                .range(Value::Int(a)..=Value::Int(a + 999))
+                .filter(|(_, e)| eval_pred(&filter, &e.values, &[]).unwrap() == Some(true))
+                .map(|(_, e)| sum(e))
+                .sum();
+            black_box(s);
+        }
+        let filtered = per_op_ns(t0, starts.len());
+        println!("  round {round}: {engine:.0} | {walk:.0} | {filtered:.0}");
     }
 
     // Preparing the statements of the workload (work done once per statement).

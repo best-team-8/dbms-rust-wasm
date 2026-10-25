@@ -19,7 +19,8 @@
     "module": {
       "bytes": 578926,
       "gzipBytes": 219575
-    }
+    },
+    "codeTreeSha256": "46c52d7b8ed60244168408d1410adbb2bcee73dd5397e29ec94d32d5216781f9"
   },
   "after": {
     "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
@@ -30,7 +31,7 @@
       "bytes": 586227,
       "gzipBytes": 221642
     },
-    "codeDiffSha256": "7df1c19511257fe5dc580dc1a713f9d3dbc50691e89964c6a5272b6be5814162"
+    "codeTreeSha256": "921504289978a9110009ed22eb428959b0b13d79c24ea2206f6e29e6017d54a3"
   },
   "cpuLoadBefore": 0.11818556701030927,
   "finished": "2026-10-25T01:04:03.103Z"

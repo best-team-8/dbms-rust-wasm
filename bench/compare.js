@@ -18,7 +18,6 @@
 //                             whether the change is shown; equal results
 
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { cpus } from 'node:os';
@@ -26,6 +25,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
+import { codeTree } from './code-tree.js';
 import { summarize } from './stats.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -210,16 +210,9 @@ function gitInfo(root) {
     return r.status === 0 ? r.stdout.trim() : null;
   };
   const info = { root, describe: sh(['describe', '--tags', '--always', '--dirty']), commit: sh(['rev-parse', 'HEAD']), subject: sh(['log', '-1', '--format=%s']) };
-  // An uncommitted version (the change being measured before its commit) is
-  // identified by the hash of its diff against HEAD; the same diff between
-  // HEAD and the later commit gives the same hash.
-  if (info.describe?.endsWith('-dirty')) {
-    const diff = spawnSync('git', ['diff', 'HEAD', '--', 'crates', 'bridge', 'server'], { cwd: root });
-    info.codeDiffSha256 = createHash('sha256').update(diff.stdout).digest('hex');
-  }
+  info.codeTreeSha256 = codeTree(root);
   return info;
 }
-
 
 const o = parseArgs(process.argv.slice(2));
 await mkdir(o.out, { recursive: true });

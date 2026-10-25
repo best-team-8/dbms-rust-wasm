@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::db::{catalog_key, Database};
 use crate::error::{Error, Result};
-use crate::expr::{describe, eval, eval_pred, matches, AggAcc, AggFunc, AggSpec, BExpr, Binder};
+use crate::expr::{describe, eval, eval_pred, matches_terms, AggAcc, AggFunc, AggSpec, BExpr, Binder};
 use crate::plan::{self, Access};
 use crate::result::QueryResult;
 use crate::sql::{CreateTable, Delete, Expr, Insert, OnConflict, Select, SelectItem, Statement, Update};
@@ -45,7 +45,11 @@ pub(crate) fn run_write(db: &mut Database, stmt: &Statement, params: &[Value]) -
 
 struct SelectPlan<'a> {
     table: Option<&'a Table>,
-    filter: Option<BExpr>,
+    /// Conjuncts of the WHERE clause.
+    filter: Vec<BExpr>,
+    /// Conjuncts the access path guarantees (bit `i`: conjunct `i`); they are
+    /// not evaluated again.
+    skip: u64,
     access: Access,
     aggregate: bool,
     aggs: Vec<AggSpec>,
@@ -106,8 +110,8 @@ fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<Sel
     let binder = Binder::new(schema, params);
 
     let filter = match &s.selection {
-        Some(e) => Some(binder.bind(e, "WHERE")?),
-        None => None,
+        Some(e) => binder.bind(e, "WHERE")?.into_conjuncts(),
+        None => Vec::new(),
     };
 
     let aggregate = !s.group_by.is_empty()
@@ -172,10 +176,11 @@ fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<Sel
         order.push((b, item.desc));
     }
 
-    let (access, covered) = match table {
-        Some(t) => plan::choose_covered(t, filter.as_ref())?,
-        None => (Access::FullScan, false),
+    let (access, skip) = match table {
+        Some(t) => plan::choose_terms(t, &filter)?,
+        None => (Access::FullScan, 0),
     };
+    let covered = table.is_some() && plan::covers_all(skip, filter.len());
     // SELECT COUNT(*) FROM t WHERE <guaranteed by the access path>: nothing
     // but the number of rows is needed, and an index stores it.
     let count_only = aggregate
@@ -196,6 +201,7 @@ fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<Sel
     Ok(SelectPlan {
         table,
         filter,
+        skip,
         access,
         aggregate,
         aggs,
@@ -262,8 +268,32 @@ fn window<T>(rows: Vec<T>, offset: usize, limit: Option<usize>) -> Vec<T> {
     rows.into_iter().skip(offset).take(limit.unwrap_or(usize::MAX)).collect()
 }
 
+/// The conjuncts of a WHERE clause the access path does not guarantee.
+struct Residual<'a> {
+    terms: &'a [BExpr],
+    skip: u64,
+    /// Some conjunct has to be evaluated. Without one every row qualifies and
+    /// the check is one predictable branch per row, not a call.
+    any: bool,
+}
+
+impl<'a> Residual<'a> {
+    fn new(terms: &'a [BExpr], skip: u64) -> Self {
+        Residual { terms, skip, any: !plan::covers_all(skip, terms.len()) }
+    }
+
+    #[inline(always)]
+    fn matches(&self, row: &[Value]) -> Result<bool> {
+        if !self.any {
+            return Ok(true);
+        }
+        matches_terms(self.terms, self.skip, row)
+    }
+}
+
 fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
     let empty_row: Vec<Value> = Vec::new();
+    let filter = Residual::new(&p.filter, p.skip);
     let mut scanned: u64 = 0;
     let need = p.limit.map(|l| l.saturating_add(p.offset));
 
@@ -281,7 +311,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
             Some(t) => {
                 for entry in plan::scan(t, &p.access, false) {
                     scanned += 1;
-                    if !matches(p.filter.as_ref(), &entry.values)? {
+                    if !filter.matches(&entry.values)? {
                         continue;
                     }
                     key.clear();
@@ -302,7 +332,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
                 }
             }
             None => {
-                if matches(p.filter.as_ref(), &empty_row)? {
+                if filter.matches(&empty_row)? {
                     groups.insert(Vec::new(), (&empty_row[..], p.aggs.iter().map(AggAcc::new).collect()));
                 }
             }
@@ -343,7 +373,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
                 Some(t) => {
                     for entry in plan::scan(t, &p.access, p.reverse) {
                         scanned += 1;
-                        if !matches(p.filter.as_ref(), &entry.values)? {
+                        if !filter.matches(&entry.values)? {
                             continue;
                         }
                         if skipped < p.offset {
@@ -357,7 +387,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
                     }
                 }
                 None => {
-                    if matches(p.filter.as_ref(), &empty_row)? && p.offset == 0 {
+                    if filter.matches(&empty_row)? && p.offset == 0 {
                         out.push(project(&p.proj, &empty_row, &[])?);
                     }
                 }
@@ -382,7 +412,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
                     if k == 0 {
                         break;
                     }
-                    if !matches(p.filter.as_ref(), row)? {
+                    if !filter.matches(row)? {
                         continue;
                     }
                     key.clear();
@@ -401,7 +431,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
             _ => {
                 for (i, row) in rows.enumerate() {
                     scanned += 1;
-                    if !matches(p.filter.as_ref(), row)? {
+                    if !filter.matches(row)? {
                         continue;
                     }
                     let keys = p
@@ -431,7 +461,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
         };
         for (i, row) in rows.enumerate() {
             scanned += 1;
-            if !matches(p.filter.as_ref(), row)? {
+            if !filter.matches(row)? {
                 continue;
             }
             let values = project(&p.proj, row, &[])?;
@@ -469,8 +499,8 @@ fn explain_select(p: &SelectPlan) -> Vec<String> {
         }
         None => lines.push("SELECT (no table)".into()),
     }
-    if let Some(f) = &p.filter {
-        lines.push(format!("  FILTER:    {}", d(f)));
+    if let Some(f) = residual_text(&p.filter, p.skip, schema) {
+        lines.push(format!("  FILTER:    {f}"));
     }
     if p.aggregate {
         let groups = if p.group.is_empty() {
@@ -511,20 +541,42 @@ fn explain_select(p: &SelectPlan) -> Vec<String> {
     lines
 }
 
+/// EXPLAIN text of the conjuncts the access path does not guarantee.
+fn residual_text(terms: &[BExpr], skip: u64, schema: Option<&TableSchema>) -> Option<String> {
+    let rest: Vec<&BExpr> =
+        terms.iter().enumerate().filter(|(i, _)| *i >= 64 || skip >> i & 1 == 0).map(|(_, t)| t).collect();
+    let text = |t: &BExpr| describe(t, schema, &[]);
+    match rest.as_slice() {
+        [] => None,
+        [one] => Some(text(one)),
+        many => Some(
+            many.iter()
+                .map(|t| match t {
+                    BExpr::Bin(..) | BExpr::Between(..) | BExpr::InList(..) | BExpr::Like { .. } | BExpr::IsNull(..) => {
+                        format!("({})", text(t))
+                    }
+                    _ => text(t),
+                })
+                .collect::<Vec<_>>()
+                .join(" AND "),
+        ),
+    }
+}
+
 fn explain(db: &Database, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
     let lines = match stmt {
         Statement::Select(s) => explain_select(&plan_select(db, s, params)?),
         Statement::Update(Update { table, selection, .. }) | Statement::Delete(Delete { table, selection }) => {
             let t = db.table(table)?;
             let filter = match selection {
-                Some(e) => Some(Binder::new(Some(&t.schema), params).bind(e, "WHERE")?),
-                None => None,
+                Some(e) => Binder::new(Some(&t.schema), params).bind(e, "WHERE")?.into_conjuncts(),
+                None => Vec::new(),
             };
-            let access = plan::choose(t, filter.as_ref())?;
+            let (access, skip) = plan::choose_terms(t, &filter)?;
             let verb = if matches!(stmt, Statement::Update(_)) { "UPDATE" } else { "DELETE FROM" };
             let mut lines = vec![format!("{verb} {}", t.name()), format!("  ACCESS:    {}", access.describe(t))];
-            if let Some(f) = &filter {
-                lines.push(format!("  FILTER:    {}", plan::describe_filter(Some(t), f)));
+            if let Some(f) = residual_text(&filter, skip, Some(&t.schema)) {
+                lines.push(format!("  FILTER:    {f}"));
             }
             lines
         }
@@ -769,16 +821,17 @@ fn update(db: &mut Database, u: &Update, params: &[Value]) -> Result<QueryResult
         assigns.push((i, binder.bind(e, "SET")?));
     }
     let filter = match &u.selection {
-        Some(e) => Some(binder.bind(e, "WHERE")?),
-        None => None,
+        Some(e) => binder.bind(e, "WHERE")?.into_conjuncts(),
+        None => Vec::new(),
     };
-    let access = plan::choose(t, filter.as_ref())?;
+    let (access, skip) = plan::choose_terms(t, &filter)?;
+    let residual = Residual::new(&filter, skip);
     let pk = schema.pk;
     let mut targets = Vec::new();
     let mut scanned = 0;
     for entry in plan::scan(t, &access, false) {
         scanned += 1;
-        if !matches(filter.as_ref(), &entry.values)? {
+        if !residual.matches(&entry.values)? {
             continue;
         }
         let mut new = entry.values.clone();
@@ -811,16 +864,17 @@ fn delete(db: &mut Database, d: &Delete, params: &[Value]) -> Result<QueryResult
     let tkey = catalog_key(&d.table);
     let t = db.table(&d.table)?;
     let filter = match &d.selection {
-        Some(e) => Some(Binder::new(Some(&t.schema), params).bind(e, "WHERE")?),
-        None => None,
+        Some(e) => Binder::new(Some(&t.schema), params).bind(e, "WHERE")?.into_conjuncts(),
+        None => Vec::new(),
     };
-    let access = plan::choose(t, filter.as_ref())?;
+    let (access, skip) = plan::choose_terms(t, &filter)?;
+    let residual = Residual::new(&filter, skip);
     let pk = t.schema.pk;
     let mut keys = Vec::new();
     let mut scanned = 0;
     for entry in plan::scan(t, &access, false) {
         scanned += 1;
-        if matches(filter.as_ref(), &entry.values)? {
+        if residual.matches(&entry.values)? {
             keys.push(entry.values[pk].clone());
         }
     }
