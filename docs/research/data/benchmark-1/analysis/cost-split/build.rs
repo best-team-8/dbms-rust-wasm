@@ -19,6 +19,8 @@ const API: &[(&str, &str, &str)] = &[
     ("core_sync", "db.rs", "pub fn enable_sync"),
     // Results written in the binary result format straight from the table.
     ("core_encode", "db.rs", "pub fn execute_prepared_encoded"),
+    // One prepared write executed for many sets of parameters in one call.
+    ("core_many", "db.rs", "pub fn execute_many"),
 ];
 
 fn main() {

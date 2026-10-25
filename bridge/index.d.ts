@@ -210,6 +210,12 @@ export class FlatDB extends EventTarget {
   runJson(statement: PreparedStatement, params?: SqlValue[]): string;
   /** Executes a prepared write and returns the number of affected rows. */
   execute(statement: PreparedStatement, params?: SqlValue[]): number;
+  /**
+   * Executes a prepared INSERT, UPDATE or DELETE once for every array of
+   * parameters, as one statement (all rows or none); returns the number of
+   * affected rows. The parameters cross into WebAssembly in one buffer.
+   */
+  executeMany(statement: PreparedStatement, rows: SqlValue[][]): number;
   inTransaction(): boolean;
   tableNames(): string[];
   stats(): DbStats;

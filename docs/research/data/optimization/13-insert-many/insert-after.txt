@@ -1,0 +1,48 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm
+100000 rows per round
+
+variant | median of 7 rounds, ms | rounds
+rows | 2.3 | 10.1 6.8 7.0 2.0 2.0 2.0 2.3
+select | 142.0 | 142.0 145.3 143.8 147.5 139.3 140.8 138.5
+execute | 266.6 | 266.1 268.7 266.6 262.1 276.3 271.1 265.8
+many | 124.6 | 135.3 123.0 126.0 126.0 123.1 124.6 121.6
+
+profile of `execute` (1167 samples, 5 rounds with table setup)
+    0.0%  text encoding
+    0.0%  UTF-8 decoding
+   19.5%  glue code and transitions
+   67.5%  engine (WebAssembly)
+    2.1%  garbage collection
+    4.4%  rows and measuring loop
+    6.5%  other
+  top functions:
+    8.8%  wasm-function[217] 002ac72e
+    5.1%  wasm-to-js
+    5.0%  wasm-function[209] 002ac72e
+    4.5%  wasm-function[260] 002ac72e
+    4.5%  wasm-function[144] 002ac72e
+    3.9%  wasm-function[53] 002ac72e
+    3.5%  getDataViewMemory0 flatsql.js
+    3.4%  __wbg_now_aa4ccb83129e9e55 flatsql.js
+    2.8%  wasm-function[34] 002ac72e
+    2.7%  __wbg___wbindgen_string_get_0380ccaa2f57f0d9 flatsql.js
+
+profile of `many` (657 samples, 5 rounds with table setup)
+    0.0%  text encoding
+    0.0%  UTF-8 decoding
+    0.9%  glue code and transitions
+   79.3%  engine (WebAssembly)
+    3.8%  garbage collection
+    5.3%  rows and measuring loop
+   10.7%  other
+  top functions:
+   12.0%  wasm-function[217] 002ac72e
+    7.3%  wasm-function[144] 002ac72e
+    7.2%  wasm-function[209] 002ac72e
+    5.2%  wasm-function[571] 002ac72e
+    5.0%  wasm-function[206] 002ac72e
+    3.8%  (garbage collector)
+    3.7%  wasm-function[204] 002ac72e
+    3.7%  wasm-function[34] 002ac72e
+    3.5%  encode_rows inline1.js
+    3.3%  wasm-function[102] 002ac72e

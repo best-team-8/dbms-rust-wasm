@@ -1,0 +1,27 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm\bench\versions\po-2.4
+100000 rows per round
+
+variant | median of 7 rounds, ms | rounds
+rows | 1.9 | 8.3 1.9 1.9 2.5 1.9 1.9 2.5
+select | 136.8 | 143.1 139.9 137.8 133.8 133.7 136.6 136.8
+execute | 261.6 | 263.5 263.4 260.8 260.1 261.6 261.6 293.6
+
+profile of `execute` (1158 samples, 5 rounds with table setup)
+    0.1%  text encoding
+    0.0%  UTF-8 decoding
+   20.9%  glue code and transitions
+   65.7%  engine (WebAssembly)
+    2.0%  garbage collection
+    4.3%  rows and measuring loop
+    7.0%  other
+  top functions:
+    8.0%  wasm-function[212] 002a7112
+    5.4%  wasm-function[255] 002a7112
+    4.6%  getDataViewMemory0 flatsql.js
+    4.3%  wasm-function[140] 002a7112
+    4.2%  wasm-to-js
+    4.1%  wasm-function[170] 002a7112
+    3.9%  wasm-function[204] 002a7112
+    3.9%  __wbg___wbindgen_string_get_0380ccaa2f57f0d9 flatsql.js
+    3.5%  wasm-function[49] 002a7112
+    3.3%  wasm-function[201] 002a7112

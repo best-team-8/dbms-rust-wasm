@@ -11,7 +11,9 @@
 //!   clause, and the time to prepare each statement of the workload,
 //! - full scan and GROUP BY: engine vs. a hand-written loop over the same tree,
 //! - snapshot, restore and UPDATE with the outbox of 100 000 local inserts and
-//!   with an empty outbox (all entries acknowledged).
+//!   with an empty outbox (all entries acknowledged),
+//! - 100 000 inserts in one transaction: a prepared statement executed for
+//!   each row vs. executed for all rows in one call (core with that call).
 //!
 //! One process, 3 rounds; an orientation measurement, not a Benchmark 1 run.
 //!
@@ -499,5 +501,45 @@ fn main() {
         println!(
             "  round {round}: snapshot {snap_with:.1} / {snap_without:.1} | restore {restore_with:.1} / {restore_without:.1} | index rebuild {index:.1} | UPDATE {update_with:.1} / {update_without:.1} (its WHERE alone {filter:.1})"
         );
+    }
+
+    #[cfg(core_many)]
+    {
+        println!("100 000 inserts in one transaction, ms (a statement for each row | one call for all rows)");
+        let fresh = || {
+            let mut db = Database::new(1);
+            db.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, category TEXT, price FLOAT, qty INT, name TEXT)").unwrap();
+            db.execute("CREATE INDEX items_category ON items (category)").unwrap();
+            db
+        };
+        let sql = "INSERT INTO items VALUES (?, ?, ?, ?, ?)";
+        for round in 1..=ROUNDS {
+            let mut db = fresh();
+            let ins = db.prepare(sql).unwrap();
+            let t0 = Instant::now();
+            db.execute("BEGIN").unwrap();
+            for i in 0..ROWS {
+                black_box(db.execute_prepared(&ins, &row(i)).unwrap());
+            }
+            db.execute("COMMIT").unwrap();
+            let each = ms(t0);
+            let mut db = fresh();
+            let ins = db.prepare(sql).unwrap();
+            let t0 = Instant::now();
+            db.execute("BEGIN").unwrap();
+            let mut next = 0;
+            db.execute_many(&ins, |params| {
+                if next == ROWS {
+                    return Ok(false);
+                }
+                params.extend(row(next));
+                next += 1;
+                Ok(true)
+            })
+            .unwrap();
+            db.execute("COMMIT").unwrap();
+            let many = ms(t0);
+            println!("  round {round}: {each:.1} | {many:.1}");
+        }
     }
 }

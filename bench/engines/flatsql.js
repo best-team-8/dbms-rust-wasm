@@ -3,9 +3,11 @@
 // adapter measures the `prototyp` tag and later versions.
 //
 // Only API present in the `prototyp` version is used (Database: exec, prepare,
-// run, runJson, execute, takeWal, snapshot, restore; FlatDB with IndexedDbStore).
+// run, runJson, execute, takeWal, snapshot, restore; FlatDB with IndexedDbStore),
+// except `insert_many`, which uses Database.executeMany where the measured
+// version has it and the loop of the insert phase otherwise.
 
-import { INDEX, INSERT, SCHEMA, VERIFY_SQL, makeRow } from '../suite.js';
+import { INDEX, INSERT, MANY_INDEX, MANY_INSERT, MANY_SCHEMA, MANY_VERIFY_SQL, SCHEMA, VERIFY_SQL, makeRow } from '../suite.js';
 
 /**
  * In-memory Database (group "memory"). `json: true` returns results as a JSON
@@ -33,6 +35,28 @@ export async function create(env, { json = false, store = null, durability = 'de
       // WAL bytes are produced exactly as in production; without a store
       // nobody writes them, so drop them here.
       db.takeWal();
+    },
+    loadMany(rows) {
+      db.exec(MANY_SCHEMA);
+      db.exec(MANY_INDEX);
+      const st = db.prepare(MANY_INSERT);
+      db.exec('BEGIN');
+      let method = 'execute';
+      if (typeof db.executeMany === 'function') {
+        const all = new Array(rows);
+        for (let i = 0; i < rows; i++) all[i] = makeRow(i);
+        db.executeMany(st, all);
+        method = 'executeMany';
+      } else {
+        for (let i = 0; i < rows; i++) db.execute(st, makeRow(i));
+      }
+      db.exec('COMMIT');
+      st.free();
+      db.takeWal();
+      return method;
+    },
+    verifyMany() {
+      return db.exec(MANY_VERIFY_SQL).rows[0];
     },
     prepare(op) {
       return db.prepare(op.sql);

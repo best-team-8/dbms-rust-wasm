@@ -243,3 +243,75 @@ test('values of every type come through the binary result format unchanged', () 
   assert.equal(db.exec('SELECT t FROM v WHERE id = 2').rows[0][0], rows[1][1]);
   db.free();
 });
+
+test('executeMany writes the rows of every parameter array as one statement', () => {
+  const schema = 'CREATE TABLE m (id INT PRIMARY KEY, t TEXT, f FLOAT, b BOOL, i INT)';
+  const sql = 'INSERT INTO m VALUES (?, ?, ?, ?, ?)';
+  const db = new Database(1);
+  const ref = new Database(1);
+  db.exec(schema);
+  ref.exec(schema);
+  const ins = db.prepare(sql);
+  // Enough rows for several chunks of encoded parameters, with every type.
+  const rows = [];
+  for (let i = 0; i < 6000; i++) {
+    const t = i % 9 === 0 ? null : `wiersz ${i} żółć 😀 ${'x'.repeat(i % 60)}`;
+    rows.push([i, t, i % 13 === 0 ? Number.NaN : i / 3, i % 2 === 0, i % 11 === 0 ? undefined : BigInt(i) * 3n]);
+  }
+  rows.push([6000, 'lone \uD800 surrogate', Number.POSITIVE_INFINITY, false, -5]);
+  rows.push([6001, 'x'.repeat(100_000), 2 ** 53, true, 9007199254740991n]);
+  assert.equal(db.executeMany(ins, rows), rows.length);
+  const one = ref.prepare(sql);
+  for (const r of rows) ref.execute(one, r);
+  assert.deepEqual(db.exec('SELECT * FROM m ORDER BY id').rows, ref.exec('SELECT * FROM m ORDER BY id').rows);
+
+  // Errors are those of execute, and none of the rows is written.
+  const count = () => db.exec('SELECT COUNT(*) FROM m').rows[0][0];
+  const n = count();
+  const thrown = (f) => {
+    try {
+      f();
+    } catch (e) {
+      return e;
+    }
+    assert.fail('no error');
+  };
+  const sameError = (bad) => {
+    const many = thrown(() => db.executeMany(ins, [[9000, 'a', 1, true, 1], bad]));
+    const single = thrown(() => db.execute(ins, bad));
+    assert.equal(String(many), String(single));
+    assert.equal(many?.kind, single?.kind);
+    assert.equal(many?.constructor, single?.constructor);
+  };
+  sameError([9001, {}, 1, true, 1]);
+  sameError([9001, 'a', 1, true, 2n ** 64n]);
+  sameError([1, 'duplicate', 1, true, 1]);
+  sameError([9001, 'a', 1, true]);
+  assert.throws(() => db.executeMany(ins, 'not rows'), TypeError);
+  assert.throws(() => db.executeMany(ins, [[9002, 'a', 1, true, 1], 'not a row']), TypeError);
+  assert.throws(() => db.executeMany(db.prepare('SELECT * FROM m'), [[]]), (e) => e.kind === 'unsupported');
+  assert.equal(count(), n);
+
+  assert.equal(db.executeMany(db.prepare('UPDATE m SET t = ? WHERE id = ?'), [['a', 1], ['b', 2], ['c', 99999]]), 2);
+  assert.equal(db.executeMany(db.prepare('DELETE FROM m WHERE id = ?'), [[1], [2]]), 2);
+  assert.equal(db.executeMany(ins, []), 0);
+  assert.equal(count(), n - 2);
+  db.free();
+  ref.free();
+});
+
+test('FlatDB.executeMany is a write: its WAL is stored and survives a reopen', async () => {
+  const store = new MemoryStore();
+  const db = await FlatDB.open({ store, flush: 'manual' });
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT)');
+  let changes = 0;
+  db.addEventListener('change', () => changes++);
+  const rows = Array.from({ length: 1000 }, (_, i) => [i, `v${i}`]);
+  assert.equal(db.executeMany(db.prepare('INSERT INTO t VALUES (?, ?)'), rows), 1000);
+  assert.equal(changes, 1);
+  await db.flush();
+  await db.close();
+  const again = await FlatDB.open({ store });
+  assert.deepEqual(again.query('SELECT COUNT(*) AS n, MAX(v) AS v FROM t')[0], { n: 1000, v: 'v999' });
+  await again.close();
+});

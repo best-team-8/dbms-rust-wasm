@@ -5,9 +5,14 @@
 //
 // WORKLOAD names this version of the workload. Results measured with a
 // different WORKLOAD are not comparable, and the runner refuses to mix them
-// (the native benchmark reports its own WORKLOAD).
+// (the native benchmark reports its own WORKLOAD). COMPATIBLE_WORKLOADS are
+// earlier versions whose operations this one keeps unchanged, so their
+// results compare operation by operation: benchmark-2 adds `insert_many` at
+// the end of benchmark-1, a native benchmark built from an older version
+// reports benchmark-1.
 
-export const WORKLOAD = 'benchmark-1';
+export const WORKLOAD = 'benchmark-2';
+export const COMPATIBLE_WORKLOADS = ['benchmark-1'];
 export const DEFAULT_ROWS = 100_000;
 
 // INTEGER PRIMARY KEY makes the column an alias of SQLite's rowid (its fastest
@@ -15,6 +20,14 @@ export const DEFAULT_ROWS = 100_000;
 export const SCHEMA = 'CREATE TABLE items (id INTEGER PRIMARY KEY, category TEXT, price FLOAT, qty INT, name TEXT)';
 export const INDEX = 'CREATE INDEX items_category ON items (category)';
 export const INSERT = 'INSERT INTO items VALUES (?, ?, ?, ?, ?)';
+
+// `insert_many`: the rows of the insert phase once more, into a second table
+// of the same definition, all of them in one transaction and where the
+// engine has one, in one call (Flat-SQL: executeMany).
+export const MANY_SCHEMA = SCHEMA.replace('items', 'items_many');
+export const MANY_INDEX = INDEX.replace(/items/g, 'items_many');
+export const MANY_INSERT = INSERT.replace('items', 'items_many');
+export const MANY_VERIFY_SQL = 'SELECT COUNT(*), SUM(qty), SUM(price) FROM items_many';
 export const COLUMNS = ['id', 'category', 'price', 'qty', 'name'];
 
 export function makeRow(i) {
@@ -294,6 +307,16 @@ export async function runWorkload(engine, { rows = DEFAULT_ROWS, capMs = 20_000,
     ms = now() - t;
     ops.restore = { n: 1, meanUs: ms * 1000 };
     state.afterRestore = await verify(engine, call);
+  }
+
+  if (engine.loadMany) {
+    onProgress(`${engine.id}: insert ${rows} rows in one call`);
+    await yieldToEventLoop();
+    t = now();
+    const method = await call(engine.loadMany(rows));
+    ms = now() - t;
+    ops.insert_many = { n: 1, meanUs: ms * 1000, rowsPerSec: rows / (ms / 1000), method };
+    state.afterInsertMany = (await call(engine.verifyMany())).map(canon);
   }
 
   if (durable) await runDurable(engine, { ops, state, call, now, onProgress });

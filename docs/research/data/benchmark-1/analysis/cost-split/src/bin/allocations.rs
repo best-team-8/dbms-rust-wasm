@@ -102,4 +102,22 @@ fn main() {
     count("UPDATE 10%", || db.execute("UPDATE items SET qty = qty + 1 WHERE id % 10 = 0").unwrap());
     count("insert 1000 rows, benchmark database", || insert_rows(&mut db));
     count("insert 1000 rows, outbox kept", || insert_rows(&mut outboxed));
+    #[cfg(core_many)]
+    count("insert 1000 rows in one call, benchmark database", || {
+        let first = db.row_count("items").unwrap() as i64 + 2_000_000;
+        let ins = db.prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?)").unwrap();
+        db.execute("BEGIN").unwrap();
+        let mut next = first;
+        db.execute_many(&ins, |params| {
+            if next == first + 1000 {
+                return Ok(false);
+            }
+            params.extend(row(next));
+            next += 1;
+            Ok(true)
+        })
+        .unwrap();
+        db.execute("COMMIT").unwrap();
+        db.take_wal();
+    });
 }

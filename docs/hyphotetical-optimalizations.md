@@ -10,7 +10,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 |---|---|
 | O1 | zadanie 2.13, potwierdzona |
 | O2, O3 | część zadania 2.9 |
-| O4 | zadanie 2.14 |
+| O4 | zadanie 2.14, potwierdzona |
 | O7 | zadanie 2.11 (outbox to około połowy czasu odtworzenia) |
 | O9 | budowa indeksów: zadanie 2.12; outbox: 2.11; dekodowanie wierszy: 2.7 |
 | O10 | zadanie 2.16 |
@@ -48,6 +48,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 - Dowód: narzut WASM jest bliski zeru w operacjach liczonych w całości w silniku (pełny skan 0,98×, top-k 0,95×), więc różnica pochodzi z 100 000 przejść przez granicę z pięcioma parametrami, w tym dwoma łańcuchami kodowanymi do UTF-8 przy każdym wierszu.
 - Zmiana: `executeMany(statement, rows)` albo wsad kolumnowy (tablice typowane dla liczb, jeden bufor dla tekstów); 2.4 obejmuje typowane parametry pojedynczego wywołania, nie wsad.
 - Pomiar: `insert` w Node.js i przeglądarce wobec natywnego.
+- Wynik po zmianie: `executeMany` z parametrami kodowanymi w JavaScripcie do jednego bufora skróciło wstawienie 100 000 wierszy w Node.js z 283 do 160 ms, w przeglądarce z 273 do 151 ms, przy 145 ms natywnie; wsad kolumnowy odrzucony ([optimization-results.md §13](research/optimization-results.md#13-wstawianie-wielu-wierszy-jednym-wywołaniem)).
 
 ### O5. Grupowanie wywołań w trybie Worker
 

@@ -60,6 +60,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0044](0044-update-w-miejscu-jeden-odczyt-zegara.md) | UPDATE zmienia wiersz w miejscu, jeden odczyt zegara na instrukcję | architektura | przyjęta |
 | [0045](0045-obiekt-wyniku-tworzony-w-js.md) | Obiekt wyniku tworzony w kodzie JavaScriptu modułu, nazwy kolumn raz na plan | architektura | przyjęta; pkt 4 (wiersze budowane przez `js-sys`) zastąpiony przez [ADR-0046](0046-binarny-format-wyniku.md) |
 | [0046](0046-binarny-format-wyniku.md) | Wynik w binarnym formacie wierszowym, kodowany wprost z tabeli i dekodowany w JS jednym wywołaniem | architektura | przyjęta |
+| [0047](0047-wiele-zestawow-parametrow-jednym-wywolaniem.md) | Instrukcja zapisu dla wielu zestawów parametrów jednym wywołaniem, obciążenie benchmark-2 | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

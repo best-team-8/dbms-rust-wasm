@@ -190,6 +190,13 @@ pub struct Database {
     recovery: Option<RecoveryReport>,
 }
 
+fn check_params(p: &Prepared, params: &[Value]) -> Result<()> {
+    if params.len() != p.params {
+        return Err(Error::Eval(format!("statement expects {} parameter(s), {} supplied", p.params, params.len())));
+    }
+    Ok(())
+}
+
 impl Database {
     /// Creates an empty database. `node_id` identifies this replica in sync
     /// stamps and should be random and unique per device.
@@ -253,7 +260,7 @@ impl Database {
     }
 
     pub fn execute_prepared(&mut self, p: &Prepared, params: &[Value]) -> Result<QueryResult> {
-        if !self.compile_prepared(p, params)? {
+        if !self.compile_prepared(p, Some(params))? {
             return self.execute_statement(&p.stmt, params);
         }
         let compiled = p.compiled.borrow();
@@ -272,7 +279,7 @@ impl Database {
         params: &[Value],
         out: &mut Vec<u8>,
     ) -> Result<Arc<[String]>> {
-        if self.compile_prepared(p, params)? {
+        if self.compile_prepared(p, Some(params))? {
             if let Some((_, exec::Compiled::Select(plan))) = &*p.compiled.borrow() {
                 let mut e = ResultEncoder::new(out, plan.names().len());
                 let scanned = exec::run_select_into(self, plan, params, &mut e)?;
@@ -285,11 +292,44 @@ impl Database {
         Ok(r.columns)
     }
 
-    /// Checks the parameters of `p` and compiles it again if the catalog
-    /// changed since it was compiled; false if it has no compiled form.
-    fn compile_prepared(&self, p: &Prepared, params: &[Value]) -> Result<bool> {
-        if params.len() != p.params {
-            return Err(Error::Eval(format!("statement expects {} parameter(s), {} supplied", p.params, params.len())));
+    /// Executes the prepared INSERT, UPDATE or DELETE `p` once for every set
+    /// of parameters that `next` writes into the vector it gets (cleared
+    /// before every call); `next` returns false when there are no more. All
+    /// executions are one statement: they are applied together or not at all,
+    /// and their rows get stamps from one reading of the clock. Returns the
+    /// number of affected rows.
+    pub fn execute_many(&mut self, p: &Prepared, mut next: impl FnMut(&mut Vec<Value>) -> Result<bool>) -> Result<u64> {
+        let compiled = self.compile_prepared(p, None)?;
+        if !compiled || !matches!(&*p.compiled.borrow(), Some((_, c)) if c.writes()) {
+            return Err(Error::Unsupported(
+                "executing a statement for many sets of parameters needs a prepared INSERT, UPDATE or DELETE".into(),
+            ));
+        }
+        let plan = p.compiled.borrow();
+        let (_, plan) = plan.as_ref().expect("compiled above");
+        let r = self.in_statement(|db| {
+            let now = db.wall_ms();
+            let mut params = Vec::with_capacity(p.params);
+            let mut affected = 0;
+            loop {
+                params.clear();
+                if !next(&mut params)? {
+                    break;
+                }
+                check_params(p, &params)?;
+                affected += exec::write_counts(db, plan, &params, now)?.0;
+            }
+            Ok(QueryResult { rows_affected: affected, ..Default::default() })
+        })?;
+        Ok(r.rows_affected)
+    }
+
+    /// Checks the parameters of `p` (when given) and compiles it again if
+    /// the catalog changed since it was compiled; false if it has no compiled
+    /// form.
+    fn compile_prepared(&self, p: &Prepared, params: Option<&[Value]>) -> Result<bool> {
+        if let Some(params) = params {
+            check_params(p, params)?;
         }
         let fresh = matches!(&*p.compiled.borrow(), Some((version, _)) if *version == self.catalog_version);
         if !fresh {

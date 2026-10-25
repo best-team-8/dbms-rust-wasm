@@ -212,6 +212,17 @@ export class FlatDB extends EventTarget {
     return n;
   }
 
+  /**
+   * Executes a prepared INSERT, UPDATE or DELETE once for every array of
+   * parameters in `rows`, as one statement (all rows or none); returns the
+   * number of affected rows.
+   */
+  executeMany(statement, rows) {
+    const n = this.#db.executeMany(statement, rows);
+    this.#afterWrite();
+    return n;
+  }
+
   runJson(statement, params = []) {
     const r = this.#db.runJson(statement, params);
     if (!this.#readOnly.has(statement)) this.#afterWrite();

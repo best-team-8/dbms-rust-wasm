@@ -52,6 +52,16 @@ fn set(obj: &Object, key: &str, value: &JsValue) {
     let _ = Reflect::set(obj, &JsValue::from_str(key), value);
 }
 
+/// A JavaScript number as a value: INT when it is a whole number JavaScript
+/// represents exactly, FLOAT otherwise.
+fn number(f: f64) -> Value {
+    if f.fract() == 0.0 && f.abs() <= 9_007_199_254_740_991.0 {
+        Value::Int(f as i64)
+    } else {
+        Value::Float(f)
+    }
+}
+
 fn value_from_js(v: &JsValue) -> Result<Value, JsValue> {
     if v.is_null() || v.is_undefined() {
         return Ok(Value::Null);
@@ -60,10 +70,7 @@ fn value_from_js(v: &JsValue) -> Result<Value, JsValue> {
         return Ok(Value::Bool(b));
     }
     if let Some(f) = v.as_f64() {
-        if f.fract() == 0.0 && f.abs() <= 9_007_199_254_740_991.0 {
-            return Ok(Value::Int(f as i64));
-        }
-        return Ok(Value::Float(f));
+        return Ok(number(f));
     }
     if let Some(s) = v.as_string() {
         return Ok(Value::Text(s));
@@ -160,6 +167,124 @@ fn params_from_js(params: Option<Array>) -> Result<Vec<Value>, JsValue> {
     match params {
         None => Ok(Vec::new()),
         Some(arr) => arr.iter().map(|v| value_from_js(&v)).collect(),
+    }
+}
+
+// Parameters of many rows are written by JavaScript into one buffer in the
+// binary parameter format and read by Rust, so a row costs no calls across
+// the boundary. A row: u32 number of values, then every value as a tag and
+// data (0 NULL, 1 FALSE, 2 TRUE, 3 number: f64, 4 text: u32 length in bytes
+// and UTF-8, 5 BigInt: i64), all little-endian. The rows are encoded in
+// chunks of about 64 KiB, each requested when the previous one is used up,
+// so a large batch does not need a buffer of its size. Values are checked as
+// `value_from_js` checks them, with the same errors.
+#[wasm_bindgen(inline_js = "
+const utf8 = new TextEncoder();
+let out = new Uint8Array(1 << 16);
+let view = new DataView(out.buffer);
+function reserve(p, n) {
+  if (p + n <= out.length) return;
+  let size = out.length * 2;
+  while (size < p + n) size *= 2;
+  const bigger = new Uint8Array(size);
+  bigger.set(out.subarray(0, p));
+  out = bigger;
+  view = new DataView(out.buffer);
+}
+export function encode_rows(rows, start) {
+  if (!Array.isArray(rows)) throw new TypeError('rows must be an array of parameter arrays');
+  let p = 0;
+  for (let i = start; i < rows.length && p < 1 << 16; i++) {
+    const row = rows[i];
+    if (!Array.isArray(row)) throw new TypeError('rows must be an array of parameter arrays');
+    reserve(p, 4);
+    view.setUint32(p, row.length, true);
+    p += 4;
+    for (let j = 0; j < row.length; j++) {
+      const v = row[j];
+      if (v === null || v === undefined) {
+        reserve(p, 1);
+        out[p++] = 0;
+      } else if (typeof v === 'boolean') {
+        reserve(p, 1);
+        out[p++] = v ? 2 : 1;
+      } else if (typeof v === 'number') {
+        reserve(p, 9);
+        out[p] = 3;
+        view.setFloat64(p + 1, v, true);
+        p += 9;
+      } else if (typeof v === 'string') {
+        reserve(p, 5 + 3 * v.length);
+        out[p] = 4;
+        let k = 0;
+        for (; k < v.length; k++) {
+          const c = v.charCodeAt(k);
+          if (c > 0x7f) break;
+          out[p + 5 + k] = c;
+        }
+        const n = k === v.length ? k : k + utf8.encodeInto(v.slice(k), out.subarray(p + 5 + k)).written;
+        view.setUint32(p + 1, n, true);
+        p += 5 + n;
+      } else if (typeof v === 'bigint') {
+        if (BigInt.asIntN(64, v) !== v) throw 'BigInt parameter out of i64 range';
+        reserve(p, 9);
+        out[p] = 5;
+        view.setBigInt64(p + 1, v, true);
+        p += 9;
+      } else {
+        throw new TypeError('unsupported parameter type (use null, boolean, number, bigint or string)');
+      }
+    }
+  }
+  const bytes = out.subarray(0, p);
+  if (out.length > 1 << 20) {
+    out = new Uint8Array(1 << 16);
+    view = new DataView(out.buffer);
+  }
+  return bytes;
+}")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    fn encode_rows(rows: &JsValue, start: u32) -> Result<Uint8Array, JsValue>;
+}
+
+/// A chunk of rows in the binary parameter format, read row by row.
+#[derive(Default)]
+struct ParamChunk {
+    bytes: Vec<u8>,
+    at: usize,
+}
+
+impl ParamChunk {
+    fn take<const N: usize>(&mut self) -> [u8; N] {
+        let b = self.bytes[self.at..self.at + N].try_into().expect("N bytes");
+        self.at += N;
+        b
+    }
+
+    fn done(&self) -> bool {
+        self.at == self.bytes.len()
+    }
+
+    /// Appends the values of the next row to `out`.
+    fn row(&mut self, out: &mut Vec<Value>) {
+        let n = u32::from_le_bytes(self.take());
+        for _ in 0..n {
+            let [tag] = self.take();
+            out.push(match tag {
+                0 => Value::Null,
+                1 => Value::Bool(false),
+                2 => Value::Bool(true),
+                3 => number(f64::from_le_bytes(self.take())),
+                4 => {
+                    let len = u32::from_le_bytes(self.take()) as usize;
+                    let text = String::from_utf8_lossy(&self.bytes[self.at..self.at + len]).into_owned();
+                    self.at += len;
+                    Value::Text(text)
+                }
+                _ => Value::Int(i64::from_le_bytes(self.take())),
+            });
+        }
     }
 }
 
@@ -301,6 +426,44 @@ impl Database {
         let params = params_from_js(params)?;
         let r = self.inner.execute_prepared(&stmt.inner, &params).map_err(js_error)?;
         Ok(r.rows_affected as f64)
+    }
+
+    /// Executes a prepared INSERT, UPDATE or DELETE once for every array of
+    /// parameters in `rows`, as one statement: all rows are applied or none.
+    /// Returns the number of affected rows. The parameters cross into
+    /// WebAssembly in one buffer, so this is the fast way to write many rows.
+    #[wasm_bindgen(js_name = executeMany)]
+    pub fn execute_many(&mut self, stmt: &PreparedStatement, rows: &JsValue) -> Result<f64, JsValue> {
+        let mut chunk = ParamChunk::default();
+        let mut next_row = 0;
+        let mut thrown = None;
+        let r = self.inner.execute_many(&stmt.inner, |params| {
+            if chunk.done() {
+                match encode_rows(rows, next_row) {
+                    Ok(bytes) => {
+                        chunk.bytes.resize(bytes.length() as usize, 0);
+                        bytes.copy_to(&mut chunk.bytes);
+                        chunk.at = 0;
+                    }
+                    Err(e) => {
+                        // Ends the statement (it is rolled back); the
+                        // JavaScript error is what the caller gets.
+                        thrown = Some(e);
+                        return Err(core::Error::Eval(String::new()));
+                    }
+                }
+                if chunk.done() {
+                    return Ok(false);
+                }
+            }
+            chunk.row(params);
+            next_row += 1;
+            Ok(true)
+        });
+        match thrown {
+            Some(e) => Err(e),
+            None => r.map(|n| n as f64).map_err(js_error),
+        }
     }
 
     #[wasm_bindgen(js_name = runJson)]

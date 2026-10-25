@@ -107,11 +107,32 @@ impl RowSink for Collect {
 
 /// Runs a compiled INSERT, UPDATE or DELETE (inside a transaction).
 pub(crate) fn run_compiled_write(db: &mut Database, c: &Compiled, params: &[Value]) -> Result<QueryResult> {
+    let now = db.wall_ms();
+    let (affected, scanned) = write_counts(db, c, params, now)?;
+    let tag = match c {
+        Compiled::Insert(_) => "INSERT",
+        Compiled::Update(_) => "UPDATE",
+        _ => "DELETE",
+    };
+    Ok(QueryResult::with_affected(tag, affected, scanned))
+}
+
+/// Runs a compiled INSERT, UPDATE or DELETE whose rows get stamps with the
+/// wall clock time `now`; returns the rows affected and the rows the access
+/// path visited.
+pub(crate) fn write_counts(db: &mut Database, c: &Compiled, params: &[Value], now: u64) -> Result<(u64, u64)> {
     match c {
-        Compiled::Insert(p) => insert(db, p, params),
-        Compiled::Update(p) => update(db, p, params),
-        Compiled::Delete(p) => delete(db, p, params),
+        Compiled::Insert(p) => Ok((insert(db, p, params, now)?, 0)),
+        Compiled::Update(p) => update(db, p, params, now),
+        Compiled::Delete(p) => delete(db, p, params, now),
         Compiled::Select(_) => unreachable!("SELECT does not write"),
+    }
+}
+
+impl Compiled {
+    /// Whether this is an INSERT, UPDATE or DELETE.
+    pub(crate) fn writes(&self) -> bool {
+        !matches!(self, Compiled::Select(_))
     }
 }
 
@@ -989,10 +1010,9 @@ fn compile_insert(db: &Database, ins: &Insert) -> Result<InsertPlan> {
     Ok(InsertPlan { table: t.key.clone(), schema, rows, on_conflict: ins.on_conflict })
 }
 
-fn insert(db: &mut Database, p: &InsertPlan, params: &[Value]) -> Result<QueryResult> {
+fn insert(db: &mut Database, p: &InsertPlan, params: &[Value], now: u64) -> Result<u64> {
     let schema = &p.schema;
     let mut affected = 0;
-    let now = db.wall_ms();
     for row in &p.rows {
         let mut values = vec![Value::Null; schema.columns.len()];
         for (pos, source) in row {
@@ -1020,7 +1040,7 @@ fn insert(db: &mut Database, p: &InsertPlan, params: &[Value]) -> Result<QueryRe
         db.write_put(&p.table, values, stamp, true)?;
         affected += 1;
     }
-    Ok(QueryResult::with_affected("INSERT", affected, 0))
+    Ok(affected)
 }
 
 /// A compiled UPDATE.
@@ -1055,9 +1075,9 @@ fn compile_update(db: &Database, u: &Update) -> Result<UpdatePlan> {
     Ok(UpdatePlan { table: t.key.clone(), schema: schema.clone(), assigns, filter, preds, access })
 }
 
-fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryResult> {
+fn update(db: &mut Database, p: &UpdatePlan, params: &[Value], now: u64) -> Result<(u64, u64)> {
     if p.assigns.iter().any(|(c, _)| *c == p.schema.pk) {
-        return update_key(db, p, params);
+        return update_key(db, p, params, now);
     }
     let t = table_of(db, &p.table)?;
     let schema = &p.schema;
@@ -1084,17 +1104,16 @@ fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryRe
         targets.push((entry.values[pk].clone(), changes));
     }
     let affected = targets.len() as u64;
-    let now = db.wall_ms();
     for (key, changes) in targets {
         let stamp = db.new_stamp_at(now);
         db.write_update(&p.table, key, changes, stamp)?;
     }
-    Ok(QueryResult::with_affected("UPDATE", affected, scanned))
+    Ok((affected, scanned))
 }
 
 /// UPDATE that assigns the primary key: a row whose key changes is deleted
 /// and written again under the new key.
-fn update_key(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryResult> {
+fn update_key(db: &mut Database, p: &UpdatePlan, params: &[Value], now: u64) -> Result<(u64, u64)> {
     let t = table_of(db, &p.table)?;
     let schema = &p.schema;
     let (access, skip) = p.access.resolve(t, &p.filter, params)?;
@@ -1114,7 +1133,6 @@ fn update_key(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<Que
         targets.push((entry.values[pk].clone(), schema.check_row(new)?));
     }
     let affected = targets.len() as u64;
-    let now = db.wall_ms();
     for (old_key, new) in targets {
         if new[pk] != old_key {
             if table_of(db, &p.table)?.rows.contains_key(&new[pk]) {
@@ -1130,7 +1148,7 @@ fn update_key(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<Que
         let stamp = db.new_stamp_at(now);
         db.write_put(&p.table, new, stamp, true)?;
     }
-    Ok(QueryResult::with_affected("UPDATE", affected, scanned))
+    Ok((affected, scanned))
 }
 
 /// A compiled DELETE.
@@ -1153,7 +1171,7 @@ fn compile_delete(db: &Database, d: &Delete) -> Result<DeletePlan> {
     Ok(DeletePlan { table: t.key.clone(), filter, preds, access })
 }
 
-fn delete(db: &mut Database, p: &DeletePlan, params: &[Value]) -> Result<QueryResult> {
+fn delete(db: &mut Database, p: &DeletePlan, params: &[Value], now: u64) -> Result<(u64, u64)> {
     let t = table_of(db, &p.table)?;
     let (access, skip) = p.access.resolve(t, &p.filter, params)?;
     let residual = Residual::new(&p.preds, skip, params);
@@ -1167,10 +1185,9 @@ fn delete(db: &mut Database, p: &DeletePlan, params: &[Value]) -> Result<QueryRe
         }
     }
     let affected = keys.len() as u64;
-    let now = db.wall_ms();
     for key in keys {
         let stamp = db.new_stamp_at(now);
         db.write_delete(&p.table, key, stamp, true)?;
     }
-    Ok(QueryResult::with_affected("DELETE", affected, scanned))
+    Ok((affected, scanned))
 }
