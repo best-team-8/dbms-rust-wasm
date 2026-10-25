@@ -209,7 +209,9 @@ pub fn write_json_string(s: &str, out: &mut String) {
     out.push('"');
 }
 
-fn cmp_f64(a: f64, b: f64) -> Ordering {
+/// Order of two floats used by `Value`: NaN after every number and equal to itself.
+#[inline]
+pub(crate) fn cmp_f64(a: f64, b: f64) -> Ordering {
     match a.partial_cmp(&b) {
         Some(o) => o,
         // NaN sorts after every number and equal to itself.

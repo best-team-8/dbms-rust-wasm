@@ -12,9 +12,10 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use crate::compile::{self, Pred, ValueExpr};
 use crate::db::{catalog_key, Database};
 use crate::error::{Error, Result};
-use crate::expr::{describe, eval, eval_pred, matches_terms, AggAcc, AggFunc, AggSpec, BExpr, Binder, Cx};
+use crate::expr::{describe, eval, eval_pred, AggAcc, AggFunc, AggSpec, BExpr, Binder, Cx};
 use crate::plan::{self, Access, AccessPlan};
 use crate::result::QueryResult;
 use crate::sql::{CreateTable, Delete, Expr, Insert, OnConflict, Select, SelectItem, Statement, Update};
@@ -95,8 +96,9 @@ fn table_of<'a>(db: &'a Database, key: &str) -> Result<&'a Table> {
 pub(crate) struct SelectPlan {
     /// Catalog key of the table (`None` without FROM).
     table: Option<Arc<str>>,
-    /// Conjuncts of the WHERE clause.
+    /// Conjuncts of the WHERE clause, and each of them compiled.
     filter: Vec<BExpr>,
+    preds: Vec<Pred>,
     access: Option<AccessPlan>,
     aggregate: bool,
     aggs: Vec<AggSpec>,
@@ -178,6 +180,8 @@ fn compile_select(db: &Database, s: &Select) -> Result<SelectPlan> {
         Some(e) => binder.bind(e, "WHERE")?.into_conjuncts(),
         None => Vec::new(),
     };
+    let no_columns = TableSchema { name: String::new(), columns: Vec::new(), pk: 0 };
+    let preds = filter.iter().map(|e| compile::predicate(e, schema.unwrap_or(&no_columns))).collect();
 
     let aggregate = !s.group_by.is_empty()
         || s.having.is_some()
@@ -262,6 +266,7 @@ fn compile_select(db: &Database, s: &Select) -> Result<SelectPlan> {
     Ok(SelectPlan {
         table: table.map(|t| t.key.clone()),
         filter,
+        preds,
         access,
         aggregate,
         aggs,
@@ -356,7 +361,7 @@ fn window<T>(rows: Vec<T>, offset: usize, limit: Option<usize>) -> Vec<T> {
 
 /// The conjuncts of a WHERE clause the access path does not guarantee.
 struct Residual<'a> {
-    terms: &'a [BExpr],
+    preds: &'a [Pred],
     skip: u64,
     params: &'a [Value],
     /// Some conjunct has to be evaluated. Without one every row qualifies and
@@ -365,8 +370,8 @@ struct Residual<'a> {
 }
 
 impl<'a> Residual<'a> {
-    fn new(terms: &'a [BExpr], skip: u64, params: &'a [Value]) -> Self {
-        Residual { terms, skip, params, any: !plan::covers_all(skip, terms.len()) }
+    fn new(preds: &'a [Pred], skip: u64, params: &'a [Value]) -> Self {
+        Residual { preds, skip, params, any: !plan::covers_all(skip, preds.len()) }
     }
 
     #[inline(always)]
@@ -374,14 +379,31 @@ impl<'a> Residual<'a> {
         if !self.any {
             return Ok(true);
         }
-        matches_terms(self.terms, self.skip, row, self.params)
+        self.test(row)
+    }
+
+    /// The conjuncts in order, like `AND`: the first FALSE decides, and a
+    /// NULL conjunct makes the row not qualify.
+    fn test(&self, row: &[Value]) -> Result<bool> {
+        let mut all = true;
+        for (i, pred) in self.preds.iter().enumerate() {
+            if i < 64 && self.skip >> i & 1 == 1 {
+                continue;
+            }
+            match pred.test(row, self.params)? {
+                Some(true) => {}
+                Some(false) => return Ok(false),
+                None => all = false,
+            }
+        }
+        Ok(all)
     }
 }
 
 fn execute_select(r: &Run) -> Result<QueryResult> {
     let p = r.p;
     let empty_row: Vec<Value> = Vec::new();
-    let filter = Residual::new(&p.filter, r.skip, r.params);
+    let filter = Residual::new(&p.preds, r.skip, r.params);
     let cx = Cx::params(r.params);
     let mut scanned: u64 = 0;
     let need = r.limit.map(|l| l.saturating_add(r.offset));
@@ -658,7 +680,7 @@ fn explain(db: &Database, stmt: &Statement, params: &[Value]) -> Result<QueryRes
     let lines = match compile(db, stmt)? {
         Some(Compiled::Select(p)) => explain_select(&bind_select(db, &p, params)?),
         Some(Compiled::Update(UpdatePlan { table, filter, access, .. }))
-        | Some(Compiled::Delete(DeletePlan { table, filter, access })) => {
+        | Some(Compiled::Delete(DeletePlan { table, filter, access, .. })) => {
             let t = table_of(db, &table)?;
             let (access, skip) = access.resolve(t, &filter, params)?;
             let verb = if matches!(stmt, Statement::Update(_)) { "UPDATE" } else { "DELETE FROM" };
@@ -930,8 +952,9 @@ fn insert(db: &mut Database, p: &InsertPlan, params: &[Value]) -> Result<QueryRe
 pub(crate) struct UpdatePlan {
     table: Arc<str>,
     schema: Arc<TableSchema>,
-    assigns: Vec<(usize, BExpr)>,
+    assigns: Vec<(usize, ValueExpr)>,
     filter: Vec<BExpr>,
+    preds: Vec<Pred>,
     access: AccessPlan,
 }
 
@@ -939,28 +962,28 @@ fn compile_update(db: &Database, u: &Update) -> Result<UpdatePlan> {
     let t = db.table(&u.table)?;
     let schema = &t.schema;
     let binder = Binder::deferred(Some(schema));
-    let mut assigns: Vec<(usize, BExpr)> = Vec::with_capacity(u.assignments.len());
+    let mut assigns: Vec<(usize, ValueExpr)> = Vec::with_capacity(u.assignments.len());
     for (col, e) in &u.assignments {
         let i = schema.require_column(col)?;
         if assigns.iter().any(|(j, _)| *j == i) {
             return Err(Error::Schema(format!("column '{col}' assigned more than once")));
         }
-        assigns.push((i, binder.bind(e, "SET")?));
+        assigns.push((i, compile::value(&binder.bind(e, "SET")?, schema)));
     }
     let filter = match &u.selection {
         Some(e) => binder.bind(e, "WHERE")?.into_conjuncts(),
         None => Vec::new(),
     };
+    let preds = filter.iter().map(|e| compile::predicate(e, schema)).collect();
     let access = AccessPlan::new(t, &filter)?;
-    Ok(UpdatePlan { table: t.key.clone(), schema: schema.clone(), assigns, filter, access })
+    Ok(UpdatePlan { table: t.key.clone(), schema: schema.clone(), assigns, filter, preds, access })
 }
 
 fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryResult> {
     let t = table_of(db, &p.table)?;
     let schema = &p.schema;
     let (access, skip) = p.access.resolve(t, &p.filter, params)?;
-    let residual = Residual::new(&p.filter, skip, params);
-    let cx = Cx::params(params);
+    let residual = Residual::new(&p.preds, skip, params);
     let pk = schema.pk;
     let mut targets = Vec::new();
     let mut scanned = 0;
@@ -971,7 +994,7 @@ fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryRe
         }
         let mut new = entry.values.clone();
         for (c, e) in &p.assigns {
-            new[*c] = eval(e, &entry.values, cx)?.into_owned();
+            new[*c] = e.eval(&entry.values, params)?;
         }
         targets.push((entry.values[pk].clone(), schema.check_row(new)?));
     }
@@ -999,6 +1022,7 @@ fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryRe
 pub(crate) struct DeletePlan {
     table: Arc<str>,
     filter: Vec<BExpr>,
+    preds: Vec<Pred>,
     access: AccessPlan,
 }
 
@@ -1008,14 +1032,15 @@ fn compile_delete(db: &Database, d: &Delete) -> Result<DeletePlan> {
         Some(e) => Binder::deferred(Some(&t.schema)).bind(e, "WHERE")?.into_conjuncts(),
         None => Vec::new(),
     };
+    let preds = filter.iter().map(|e| compile::predicate(e, &t.schema)).collect();
     let access = AccessPlan::new(t, &filter)?;
-    Ok(DeletePlan { table: t.key.clone(), filter, access })
+    Ok(DeletePlan { table: t.key.clone(), filter, preds, access })
 }
 
 fn delete(db: &mut Database, p: &DeletePlan, params: &[Value]) -> Result<QueryResult> {
     let t = table_of(db, &p.table)?;
     let (access, skip) = p.access.resolve(t, &p.filter, params)?;
-    let residual = Residual::new(&p.filter, skip, params);
+    let residual = Residual::new(&p.preds, skip, params);
     let pk = t.schema.pk;
     let mut keys = Vec::new();
     let mut scanned = 0;

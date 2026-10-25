@@ -13,6 +13,8 @@ const API: &[(&str, &str, &str)] = &[
     ("core_cx", "expr.rs", "pub struct Cx"),
     // Prepared statements keep a compiled access path.
     ("core_access_plan", "plan.rs", "pub struct AccessPlan"),
+    // Expressions compiled into closures.
+    ("core_compile", "compile.rs", "pub fn predicate"),
 ];
 
 fn main() {

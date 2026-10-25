@@ -55,6 +55,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) | Zadania optymalizacji z rozbicia kosztów silnika jako wymagane | proces | przyjęta |
 | [0040](0040-warunek-gwarantowany-przez-sciezke-dostepu.md) | Planer zwraca koniunkty gwarantowane przez ścieżkę dostępu | architektura | przyjęta |
 | [0041](0041-plan-w-instrukcji-przygotowanej.md) | Plan zapamiętany w instrukcji przygotowanej, pamięć instrukcji w moście | architektura | przyjęta |
+| [0042](0042-wyrazenia-kompilowane-warianty-i-domkniecia.md) | Warunki i przypisania kompilowane przy kompilacji instrukcji: warianty typowane i domknięcia, interpreter jako rezerwa | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

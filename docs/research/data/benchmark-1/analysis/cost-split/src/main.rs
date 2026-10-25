@@ -278,6 +278,28 @@ fn main() {
         let grouped = ms(t0) / 20.0;
         println!("  round {round}: {engine:.2} | {hand:.2} | {walk:.2} | {grouped:.2}");
     }
+    // The same loop by hand with the WHERE clause compiled into closures:
+    // what the closures cost without the executor around them.
+    #[cfg(core_compile)]
+    {
+        let Statement::Select(sel) = parse_one("SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10").unwrap() else {
+            unreachable!()
+        };
+        let terms = Binder::deferred(Some(&schema)).bind(&sel.selection.unwrap(), "WHERE").unwrap().into_conjuncts();
+        let preds: Vec<_> = terms.iter().map(|e| flatsql_core::compile::predicate(e, &schema)).collect();
+        println!("full scan, ms (hand loop calling the compiled conjuncts)");
+        for round in 1..=ROUNDS {
+            let t0 = Instant::now();
+            for _ in 0..20 {
+                let mut n = 0u64;
+                for e in t.rows.values() {
+                    n += preds.iter().all(|p| p.test(&e.values, &[]).unwrap() == Some(true)) as u64;
+                }
+                black_box(n);
+            }
+            println!("  round {round}: {:.2}", ms(t0) / 20.0);
+        }
+    }
 
     let with = db.snapshot().unwrap();
     let mut acked = Database::restore(Some(&with), &[], 1).unwrap();
