@@ -41,6 +41,7 @@ Rozmiar modułu WebAssembly (gzip -9) obu wersji zapisuje się w manifeście pom
 | [7. Hurtowa budowa indeksów](#7-hurtowa-budowa-indeksów) | S5 | budowa indeksu 21–22 → 10,6–11,1 ms, odtworzenie natywnie 53,9 → 46,2 ms | potwierdzona |
 | [8. Grupowanie przez tablicę mieszającą](#8-grupowanie-przez-tablicę-mieszającą) | S9 | `GROUP BY` (100 grup) natywnie 16,7 → 11,0 ms, Node.js 19,2 → 11,7 ms | potwierdzona |
 | [9. Magazyn plikowy z otwartym plikiem WAL](#9-magazyn-plikowy-z-otwartym-plikiem-wal) | S11 | zatwierdzenie w `FsStore` bez `fsync`: Windows 595 → 85 µs, Linux 432 → 177 µs; z `fsync`: 1,42 → 0,72 ms i 3,14 → 2,83 ms | potwierdzona |
+| [10. Profil granicy JS↔WASM](#10-profil-granicy-jswasm) | S3 | pomiar: z 7,58 µs odczytu po kluczu (obiekty) 1,18 µs to wykonanie z parametrami, 6,4 µs zamiana wyniku na obiekty JS | pomiar |
 
 ## 1. Liczenie wierszy po indeksie bez ich czytania
 
@@ -167,3 +168,17 @@ Status: potwierdzona.
 | Ograniczenia | Zatwierdzenie bez `fsync` w `FsStore` (85–177 µs) jest nadal dłuższe niż w CLI (10 µs): pozostały koszt to obsługa obietnic i operacji asynchronicznych `node:fs` w ścieżce `flush`, której ta zmiana nie dotyczy. |
 
 Status: potwierdzona.
+
+## 10. Profil granicy JS↔WASM
+
+| Element | Zawartość |
+|---|---|
+| Słabość | Odczyt po kluczu trwał w Benchmarku 1 9,15 µs w przeglądarce z wynikiem jako obiekty JS i 5,59 µs z wynikiem jako JSON, wobec 2,38 µs natywnie; po wcześniejszych optymalizacjach silnik potrzebuje natywnie 1,2–1,3 µs, a w Node.js odczyt z obiektami trwał 8,1–8,7 µs. |
+| Hipoteza | Pierwszy profil V8 z Benchmarku 1 przypisał ścieżce obiektowej około 24% próbek dekodowaniu UTF-8 i około 19% kodowi sklejającemu i przejściom WASM→JS, ale nie rozdzielał czasu na przekazanie parametrów, wykonanie, budowę wyniku i dekodowanie. |
+| Zmiana | Bez zmiany kodu: pomiar (skrypt `boundary.mjs`). Odczyt po kluczu wykonany w wariantach, które kończą się w różnych miejscach drogi przez granicę: wywołanie eksportu bez argumentów (`walPending`), wykonanie z parametrem, które zwraca do JavaScriptu tylko liczbę (`execute`: przekazanie parametru, wykonanie w silniku, wynik zbudowany w Rust), wynik jako obiekty JS (`run`), wynik jako tekst JSON bez parsowania (`runJson`) i z parsowaniem; różnice wariantów dają koszt kolejnych odcinków. Do tego profil próbkujący V8 obu ścieżek z próbkami pogrupowanymi w dekodowanie UTF-8, kod sklejający z przejściami, funkcje WebAssembly silnika, odśmiecanie i pętlę pomiaru. Recenzowanych pomiarów tej granicy dla silników baz danych nie znaleziono, więc pomiar jest wkładem własnym pracy. |
+| Pomiar | `node docs/research/data/optimization/10-boundary-profile/boundary.mjs <wersja>`: 200 000 odczytów po kluczu na tabeli 100 000 wierszy, 7 rund na przemian w kolejności, mediana rund; Node.js 24.21.0, 25.10.2026; wersja po optymalizacjach 1–9 (tag `po-2.16`) i prototyp (tag `prototyp`). Dane: [data/optimization/10-boundary-profile/](data/optimization/10-boundary-profile/). |
+| Wynik | Wersja po optymalizacjach 1–9: wykonanie z parametrem bez budowy wyniku w JavaScripcie 1,18 µs, czyli tyle co cały odczyt natywnie, więc przekazanie parametru i samo przejście przez granicę są pomijalne (wywołanie eksportu bez argumentów: 0,01 µs). Wynik jako obiekty 7,58 µs: zamiana wyniku na obiekty JS to 6,4 µs, 85% czasu odczytu. Wynik jako JSON 3,86 µs: serializacja z przekazaniem tekstu 1,24 µs, `JSON.parse` 1,44 µs. Profil ścieżki obiektowej: dekodowanie UTF-8 32% próbek, kod sklejający i przejścia 32%, silnik 28%, odśmiecanie 1,3%; w ścieżce JSON silnik 48%, dekodowanie 7%, a `JSON.parse` jest liczony razem z pętlą pomiaru (32%), bo funkcje wbudowane V8 nie mają osobnych ramek. Prototyp: wykonanie 2,00 µs, obiekty 8,34 µs, JSON 4,75 µs; optymalizacje silnika skróciły więc odczyt o tyle, o ile skróciły wykonanie (0,8 µs), a koszt zamiany wyniku pozostał ten sam (6,3–6,4 µs). |
+| Wpływ na inne operacje | Brak (pomiar). Wynik wyznacza kolejność dalszych zmian: przy wyniku jednowierszowym koszt leży w budowie obiektów i łańcuchów JS (stałe łańcuchy wyniku, wartości tekstowe, wywołania przez kod sklejający dla każdej wartości), a nie w silniku ani w przekazaniu parametrów. |
+| Ograniczenia | Pomiar w Node.js; przeglądarka używa tego samego silnika V8, ale innego kodu wczytywania modułu. Profil obejmuje też wczytanie tabeli (około 5% próbek). Warianty mierzą odcinki przez różnicę, więc zakładają, że koszty się sumują. |
+
+Status: pomiar bez zmiany kodu; hipoteza, że odczyt po kluczu w WebAssembly kosztuje głównie przez zamianę wyniku na obiekty JS, potwierdzona.

@@ -1,0 +1,44 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm\bench\versions\prototyp
+
+variant | median of 7 rounds, µs per lookup | rounds
+call | 0.01 | 0.03 0.01 0.01 0.01 0.01 0.01 0.01
+execute | 2.00 | 2.01 1.96 1.97 2.00 1.98 2.21 2.03
+run | 8.34 | 8.26 8.29 8.52 8.34 8.48 8.60 8.31
+json | 3.27 | 3.31 3.36 3.19 3.21 3.33 3.23 3.27
+json+p | 4.75 | 4.70 4.90 4.70 4.79 4.82 4.75 4.70
+
+profile of `run` (4156 samples, includes loading the table)
+   28.2%  UTF-8 decoding
+   28.7%  glue code and transitions
+   36.3%  engine (WebAssembly)
+    1.5%  garbage collection
+    0.0%  JSON.parse
+    1.7%  measuring loop
+    3.7%  other
+  top functions:
+   17.4%  (anonymous) flatsql.js
+   12.0%  decodeUTF8
+    8.2%  decodeText flatsql.js
+    7.9%  decode encoding
+    6.5%  wasm-to-js
+    5.2%  wasm-function[136] 002355ba
+    3.7%  wasm-function[180] 002355ba
+    3.3%  wasm-function[42] 002355ba
+
+profile of `json+p` (2490 samples, includes loading the table)
+    5.5%  UTF-8 decoding
+    5.5%  glue code and transitions
+   55.1%  engine (WebAssembly)
+    2.2%  garbage collection
+    0.0%  JSON.parse
+   26.5%  measuring loop
+    5.2%  other
+  top functions:
+   24.1%  json+p boundary.mjs
+    6.5%  wasm-function[180] 002355ba
+    6.1%  wasm-function[42] 002355ba
+    4.3%  wasm-function[104] 002355ba
+    3.3%  wasm-function[41] 002355ba
+    2.9%  wasm-function[39] 002355ba
+    2.3%  decodeUTF8
+    2.2%  wasm-function[153] 002355ba
