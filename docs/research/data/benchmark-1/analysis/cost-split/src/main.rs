@@ -301,6 +301,47 @@ fn main() {
         }
     }
 
+    // Parts of the work an UPDATE of 10% of the rows did per changed row
+    // before rows were changed in place, measured on the table outside the
+    // database: copy of the row with validation, writing it back with the
+    // secondary index and without it, a key lookup, a clock reading.
+    let targets: Vec<i64> = (0..ROWS).filter(|i| i % 10 == 0).collect();
+    let mut bare = Table::new(schema.clone(), Stamp::default());
+    bare.rows = t.rows.clone();
+    let mut clock = flatsql_core::sync::Hlc::new(flatsql_core::sync::system_now_ms);
+    println!("UPDATE parts, ms for 10 000 rows (row copy + validation | write back with index | without index | key lookup | clock reading)");
+    for round in 1..=ROUNDS {
+        let t0 = Instant::now();
+        let mut new_rows = Vec::with_capacity(targets.len());
+        for &k in &targets {
+            let mut v = t.rows[&Value::Int(k)].values.clone();
+            v[3] = Value::Int(1);
+            new_rows.push(schema.check_row(v).unwrap());
+        }
+        let copy = ms(t0);
+        let t0 = Instant::now();
+        for v in new_rows.clone() {
+            black_box(t.put(v, Stamp::default()));
+        }
+        let with_index = ms(t0);
+        let t0 = Instant::now();
+        for v in new_rows {
+            black_box(bare.put(v, Stamp::default()));
+        }
+        let without_index = ms(t0);
+        let t0 = Instant::now();
+        for &k in &targets {
+            black_box(t.rows.get(&Value::Int(k)).map(|e| e.stamp));
+        }
+        let lookup = ms(t0);
+        let t0 = Instant::now();
+        for _ in &targets {
+            black_box(clock.tick());
+        }
+        let ticks = ms(t0);
+        println!("  round {round}: {copy:.2} | {with_index:.2} | {without_index:.2} | {lookup:.2} | {ticks:.2}");
+    }
+
     let with = with_outbox(&db);
     let mut acked = Database::restore(Some(&with), &[], 1).unwrap();
     let upto = acked.stats().next_seq;

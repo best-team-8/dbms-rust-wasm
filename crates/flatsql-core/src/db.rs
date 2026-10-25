@@ -120,6 +120,13 @@ enum Undo {
         prev: Option<RowEntry>,
         prev_tomb: Option<Stamp>,
     },
+    /// Restores the columns and the stamp of a row changed in place.
+    Update {
+        table: Arc<str>,
+        key: Value,
+        cols: Vec<(usize, Value)>,
+        prev_stamp: Stamp,
+    },
     CreateTable(String),
     DropTable(Box<Table>),
     CreateIndex {
@@ -433,6 +440,15 @@ impl Database {
         Stamp { time: self.clock.tick(), node: self.node_id }
     }
 
+    /// Current wall clock, read once per statement for [`new_stamp_at`](Self::new_stamp_at).
+    pub(crate) fn wall_ms(&self) -> u64 {
+        self.clock.wall_ms()
+    }
+
+    pub(crate) fn new_stamp_at(&mut self, now_ms: u64) -> Stamp {
+        Stamp { time: self.clock.tick_at(now_ms), node: self.node_id }
+    }
+
     fn next_seq_for(&mut self, local: bool) -> u64 {
         if local {
             let s = self.next_seq;
@@ -461,6 +477,47 @@ impl Database {
             txn.outbox.push((seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() }));
         }
         txn.undo.push(Undo::Row { table: t.key.clone(), key, prev, prev_tomb });
+        Ok(())
+    }
+
+    /// Changes columns of an existing row in place (a local UPDATE that keeps
+    /// the key): one lookup, only the changed columns are swapped and kept
+    /// for undo, and only indexes whose column value changed are updated. The
+    /// WAL gets the whole new row, as from [`write_put`](Self::write_put).
+    pub(crate) fn write_update(
+        &mut self,
+        tkey: &str,
+        key: Value,
+        changes: Vec<(usize, Value)>,
+        stamp: Stamp,
+    ) -> Result<()> {
+        let seq = self.next_seq_for(true);
+        let Database { tables, txn, sync, .. } = self;
+        let txn = txn.as_mut().expect("write outside of a transaction");
+        let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
+        let Table { schema, key: table_key, rows, indexes, .. } = t;
+        let row = rows.get_mut(&key).ok_or_else(|| Error::Storage(format!("row {} disappeared", key.to_sql())))?;
+        let mut cols = Vec::with_capacity(changes.len());
+        for (c, new) in changes {
+            for idx in indexes.iter_mut().filter(|i| i.column == c) {
+                if row.values[c] != new {
+                    idx.remove(&row.values[c], &key);
+                    idx.insert(&new, &key);
+                }
+            }
+            cols.push((c, std::mem::replace(&mut row.values[c], new)));
+        }
+        let prev_stamp = std::mem::replace(&mut row.stamp, stamp);
+        let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
+        w.u8(OP_CHANGE);
+        w.var(seq);
+        encode_put(&mut w, stamp, &schema.name, &row.values);
+        txn.ops = w.buf;
+        txn.op_count += 1;
+        if *sync {
+            txn.outbox.push((seq, OutboxItem::Row { table: table_key.clone(), key: key.clone() }));
+        }
+        txn.undo.push(Undo::Update { table: table_key.clone(), key, cols, prev_stamp });
         Ok(())
     }
 
@@ -1053,6 +1110,23 @@ fn apply_undo(tables: &mut BTreeMap<String, Table>, undo: Undo) {
                     t.restore_row(p);
                 }
                 t.set_tombstone(&key, prev_tomb);
+            }
+        }
+        Undo::Update { table, key, cols, prev_stamp } => {
+            if let Some(t) = tables.get_mut(&*table) {
+                let Table { rows, indexes, .. } = t;
+                if let Some(row) = rows.get_mut(&key) {
+                    for (c, old) in cols {
+                        for idx in indexes.iter_mut().filter(|i| i.column == c) {
+                            if row.values[c] != old {
+                                idx.remove(&row.values[c], &key);
+                                idx.insert(&old, &key);
+                            }
+                        }
+                        row.values[c] = old;
+                    }
+                    row.stamp = prev_stamp;
+                }
             }
         }
         Undo::CreateTable(key) => {

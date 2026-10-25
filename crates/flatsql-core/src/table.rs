@@ -49,17 +49,23 @@ impl TableSchema {
             )));
         }
         let mut out = Vec::with_capacity(values.len());
-        for (v, col) in values.into_iter().zip(&self.columns) {
-            let v = v.coerce(col.data_type).map_err(|e| match e {
-                Error::Type(m) => Error::Type(format!("column '{}': {m}", col.name)),
-                other => other,
-            })?;
-            if v.is_null() && col.not_null {
-                return Err(Error::Constraint(format!("NOT NULL constraint failed: {}.{}", self.name, col.name)));
-            }
-            out.push(v);
+        for (i, v) in values.into_iter().enumerate() {
+            out.push(self.check_value(i, v)?);
         }
         Ok(out)
+    }
+
+    /// Validates and coerces the value of column `col`.
+    pub fn check_value(&self, col: usize, v: Value) -> Result<Value> {
+        let column = &self.columns[col];
+        let v = v.coerce(column.data_type).map_err(|e| match e {
+            Error::Type(m) => Error::Type(format!("column '{}': {m}", column.name)),
+            other => other,
+        })?;
+        if v.is_null() && column.not_null {
+            return Err(Error::Constraint(format!("NOT NULL constraint failed: {}.{}", self.name, column.name)));
+        }
+        Ok(v)
     }
 }
 
@@ -117,7 +123,7 @@ pub struct Index {
 }
 
 impl Index {
-    fn insert(&mut self, value: &Value, key: &Value) {
+    pub(crate) fn insert(&mut self, value: &Value, key: &Value) {
         // Look up first so an existing value does not get cloned again.
         match self.map.get_mut(value) {
             Some(keys) => {
@@ -129,7 +135,7 @@ impl Index {
         }
     }
 
-    fn remove(&mut self, value: &Value, key: &Value) {
+    pub(crate) fn remove(&mut self, value: &Value, key: &Value) {
         if let Some(set) = self.map.get_mut(value) {
             set.remove(key);
             if set.is_empty() {

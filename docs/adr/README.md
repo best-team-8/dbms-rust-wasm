@@ -57,6 +57,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0041](0041-plan-w-instrukcji-przygotowanej.md) | Plan zapamiętany w instrukcji przygotowanej, pamięć instrukcji w moście | architektura | przyjęta |
 | [0042](0042-wyrazenia-kompilowane-warianty-i-domkniecia.md) | Warunki i przypisania kompilowane przy kompilacji instrukcji: warianty typowane i domknięcia, interpreter jako rezerwa | architektura | przyjęta |
 | [0043](0043-outbox-po-wlaczeniu-synchronizacji.md) | Outbox wierszy prowadzony od włączenia synchronizacji, zwarty zapis w snapshocie | architektura | przyjęta |
+| [0044](0044-update-w-miejscu-jeden-odczyt-zegara.md) | UPDATE zmienia wiersz w miejscu, jeden odczyt zegara na instrukcję | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T03:45:40.835Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.11",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\06-update-in-place"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.11",
+    "describe": "po-2.11",
+    "commit": "f6d99adcd15ff9d46912b8712dd52ecdab6c269b",
+    "subject": "core: keep the outbox only once synchronisation is enabled, compact outbox in snapshots",
+    "codeTreeSha256": "d83f7a37e60efa5020cf1b9ffb526eb47656f36c6122ff727dd951f11161aa34",
+    "module": {
+      "bytes": 643472,
+      "gzipBytes": 242780
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.11-dirty",
+    "commit": "f6d99adcd15ff9d46912b8712dd52ecdab6c269b",
+    "subject": "core: keep the outbox only once synchronisation is enabled, compact outbox in snapshots",
+    "codeTreeSha256": "c1b0b9b744b312a8b6e49ea36f1c9f2c0c096194354c864288cf77dbac167f64",
+    "module": {
+      "bytes": 655948,
+      "gzipBytes": 247941
+    }
+  },
+  "cpuLoadBefore": 0.12142010529507428,
+  "finished": "2026-10-25T03:49:35.193Z"
+}

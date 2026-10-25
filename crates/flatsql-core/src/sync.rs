@@ -63,7 +63,14 @@ impl Hlc {
     }
 
     pub fn tick(&mut self) -> u64 {
-        let physical = (self.now_ms)().saturating_mul(1 << 16);
+        self.tick_at((self.now_ms)())
+    }
+
+    /// Like [`tick`](Self::tick) with a wall clock reading taken earlier: a
+    /// statement reads the clock once and stamps all its rows with it, each
+    /// stamp still greater than the previous one.
+    pub fn tick_at(&mut self, now_ms: u64) -> u64 {
+        let physical = now_ms.saturating_mul(1 << 16);
         self.last = physical.max(self.last + 1);
         self.last
     }

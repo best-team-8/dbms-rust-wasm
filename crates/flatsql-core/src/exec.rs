@@ -917,6 +917,7 @@ fn compile_insert(db: &Database, ins: &Insert) -> Result<InsertPlan> {
 fn insert(db: &mut Database, p: &InsertPlan, params: &[Value]) -> Result<QueryResult> {
     let schema = &p.schema;
     let mut affected = 0;
+    let now = db.wall_ms();
     for row in &p.rows {
         let mut values = vec![Value::Null; schema.columns.len()];
         for (pos, source) in row {
@@ -940,7 +941,7 @@ fn insert(db: &mut Database, p: &InsertPlan, params: &[Value]) -> Result<QueryRe
                 OnConflict::Replace => {}
             }
         }
-        let stamp = db.new_stamp();
+        let stamp = db.new_stamp_at(now);
         db.write_put(&p.table, values, stamp, true)?;
         affected += 1;
     }
@@ -980,6 +981,45 @@ fn compile_update(db: &Database, u: &Update) -> Result<UpdatePlan> {
 }
 
 fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryResult> {
+    if p.assigns.iter().any(|(c, _)| *c == p.schema.pk) {
+        return update_key(db, p, params);
+    }
+    let t = table_of(db, &p.table)?;
+    let schema = &p.schema;
+    let (access, skip) = p.access.resolve(t, &p.filter, params)?;
+    let residual = Residual::new(&p.preds, skip, params);
+    let pk = schema.pk;
+    // Only the assigned columns of each row: evaluated in the order of SET,
+    // validated in the order of the columns (as a whole row would be).
+    let mut targets = Vec::new();
+    let mut scanned = 0;
+    for entry in plan::scan(t, &access, false) {
+        scanned += 1;
+        if !residual.matches(&entry.values)? {
+            continue;
+        }
+        let mut changes = Vec::with_capacity(p.assigns.len());
+        for (c, e) in &p.assigns {
+            changes.push((*c, e.eval(&entry.values, params)?));
+        }
+        changes.sort_unstable_by_key(|(c, _)| *c);
+        for (c, v) in &mut changes {
+            *v = schema.check_value(*c, std::mem::replace(v, Value::Null))?;
+        }
+        targets.push((entry.values[pk].clone(), changes));
+    }
+    let affected = targets.len() as u64;
+    let now = db.wall_ms();
+    for (key, changes) in targets {
+        let stamp = db.new_stamp_at(now);
+        db.write_update(&p.table, key, changes, stamp)?;
+    }
+    Ok(QueryResult::with_affected("UPDATE", affected, scanned))
+}
+
+/// UPDATE that assigns the primary key: a row whose key changes is deleted
+/// and written again under the new key.
+fn update_key(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryResult> {
     let t = table_of(db, &p.table)?;
     let schema = &p.schema;
     let (access, skip) = p.access.resolve(t, &p.filter, params)?;
@@ -999,6 +1039,7 @@ fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryRe
         targets.push((entry.values[pk].clone(), schema.check_row(new)?));
     }
     let affected = targets.len() as u64;
+    let now = db.wall_ms();
     for (old_key, new) in targets {
         if new[pk] != old_key {
             if table_of(db, &p.table)?.rows.contains_key(&new[pk]) {
@@ -1008,10 +1049,10 @@ fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryRe
                     schema.name
                 )));
             }
-            let stamp = db.new_stamp();
+            let stamp = db.new_stamp_at(now);
             db.write_delete(&p.table, old_key, stamp, true)?;
         }
-        let stamp = db.new_stamp();
+        let stamp = db.new_stamp_at(now);
         db.write_put(&p.table, new, stamp, true)?;
     }
     Ok(QueryResult::with_affected("UPDATE", affected, scanned))
@@ -1051,8 +1092,9 @@ fn delete(db: &mut Database, p: &DeletePlan, params: &[Value]) -> Result<QueryRe
         }
     }
     let affected = keys.len() as u64;
+    let now = db.wall_ms();
     for key in keys {
-        let stamp = db.new_stamp();
+        let stamp = db.new_stamp_at(now);
         db.write_delete(&p.table, key, stamp, true)?;
     }
     Ok(QueryResult::with_affected("DELETE", affected, scanned))
