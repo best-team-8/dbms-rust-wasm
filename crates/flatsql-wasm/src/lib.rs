@@ -279,6 +279,7 @@ impl Database {
         set(&obj, "ackedSeq", &JsValue::from_f64(s.acked_seq as f64));
         set(&obj, "clockMs", &JsValue::from_f64((s.clock >> 16) as f64));
         set(&obj, "inTransaction", &JsValue::from_bool(s.in_transaction));
+        set(&obj, "sync", &JsValue::from_bool(s.sync));
         obj.into()
     }
 
@@ -304,6 +305,18 @@ impl Database {
     #[wasm_bindgen(js_name = outboxLength)]
     pub fn outbox_length(&self) -> usize {
         self.inner.outbox_len()
+    }
+
+    /// Starts keeping local row changes in the outbox; every existing row
+    /// becomes a pending change. Returns whether synchronisation was off.
+    #[wasm_bindgen(js_name = enableSync)]
+    pub fn enable_sync(&mut self) -> Result<bool, JsValue> {
+        self.inner.enable_sync().map_err(js_error)
+    }
+
+    #[wasm_bindgen(getter, js_name = syncEnabled)]
+    pub fn sync_enabled(&self) -> bool {
+        self.inner.sync_enabled()
     }
 
     /// Encodes up to `max` pending local changes for the sync server.

@@ -320,6 +320,21 @@ export class FlatDB extends EventTarget {
     return this.#db.outboxLength();
   }
 
+  /**
+   * Starts keeping local changes for synchronisation (SyncClient does it);
+   * until then the outbox holds only schema changes. Every existing row
+   * becomes a pending change. Returns whether synchronisation was off.
+   */
+  enableSync() {
+    const changed = this.#db.enableSync();
+    this.#afterWrite();
+    return changed;
+  }
+
+  get syncEnabled() {
+    return this.#db.syncEnabled;
+  }
+
   exportOutbox(max) {
     return this.#db.exportOutbox(max);
   }

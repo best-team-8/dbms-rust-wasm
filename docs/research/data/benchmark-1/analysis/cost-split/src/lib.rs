@@ -26,6 +26,20 @@ impl Lcg {
     }
 }
 
+/// Snapshot of `db` with every row pending in the outbox: the state of the
+/// benchmark database before the outbox was kept only with synchronisation
+/// (`core_sync`: synchronisation is enabled on a copy to get it).
+pub fn with_outbox(db: &Database) -> Vec<u8> {
+    #[cfg(core_sync)]
+    {
+        let mut copy = Database::restore(Some(&db.snapshot().unwrap()), &[], 1).unwrap();
+        copy.enable_sync().unwrap();
+        copy.snapshot().unwrap()
+    }
+    #[cfg(not(core_sync))]
+    db.snapshot().unwrap()
+}
+
 /// The table of Benchmark 1 with `ROWS` rows inserted in one transaction.
 pub fn load() -> Database {
     let mut db = Database::new(1);

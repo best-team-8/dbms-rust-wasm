@@ -84,6 +84,8 @@ export async function createServer(options = {}) {
   const { port = 8080, host = '127.0.0.1', dataDir = null, latency = 0, quiet = false } = options;
   const store = dataDir ? new FsStore(dataDir) : new MemoryStore();
   const db = await FlatDB.open({ store, nodeId: 1, checkpointBytes: 8 << 20 });
+  // Writes made through /api/query are published through the outbox.
+  db.enableSync();
 
   // Changes accepted by the server, in arrival order. Each entry is an
   // already encoded batch, so a pull is a plain concatenation.

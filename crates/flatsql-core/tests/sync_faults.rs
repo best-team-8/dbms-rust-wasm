@@ -77,6 +77,7 @@ impl Device {
     fn new(node: u32, clock: fn() -> u64) -> Self {
         let mut db = Database::new(node);
         db.set_clock(clock);
+        db.enable_sync().unwrap();
         Device {
             node,
             clock,

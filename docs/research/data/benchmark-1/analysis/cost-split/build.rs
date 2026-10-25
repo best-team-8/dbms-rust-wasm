@@ -15,6 +15,8 @@ const API: &[(&str, &str, &str)] = &[
     ("core_access_plan", "plan.rs", "pub struct AccessPlan"),
     // Expressions compiled into closures.
     ("core_compile", "compile.rs", "pub fn predicate"),
+    // The outbox is kept only once synchronisation is enabled.
+    ("core_sync", "db.rs", "pub fn enable_sync"),
 ];
 
 fn main() {

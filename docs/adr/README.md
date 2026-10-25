@@ -29,7 +29,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0013](0013-watek-glowny-domyslnie-worker-jako-opcja.md) | Wątek główny jako tryb domyślny, Worker jako opcja | architektura | przyjęta |
 | [0014](0014-system-typow.md) | System typów: cztery typy, koercja bezstratna, porządek całkowity | architektura | przyjęta |
 | [0015](0015-hlc-i-lww-per-wiersz.md) | Synchronizacja: zegar HLC i LWW per wiersz z tombstone'ami | architektura | przyjęta |
-| [0016](0016-outbox-w-wal.md) | Outbox jako referencje do wierszy, odbudowywany z WAL | architektura | przyjęta; zdanie o zmianach schematu w pkt 1 zastąpione przez [ADR-0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) |
+| [0016](0016-outbox-w-wal.md) | Outbox jako referencje do wierszy, odbudowywany z WAL | architektura | przyjęta; zdanie o zmianach schematu w pkt 1 zastąpione przez [ADR-0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md); moment prowadzenia outboxa wierszy i zapis w snapshocie zastąpione przez [ADR-0043](0043-outbox-po-wlaczeniu-synchronizacji.md) |
 | [0017](0017-protokol-push-pull-z-kursorem.md) | Protokół push/pull z kursorem i epoką | architektura | przyjęta; pkt 2 zastąpiony przez [ADR-0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) |
 | [0018](0018-atomowosc-wiersza-miedzy-replikami.md) | Między replikami atomowy jest wiersz | architektura | przyjęta |
 | [0019](0019-przekazywanie-wynikow-do-js.md) | Przekazywanie wyników do JS: JSON teraz, bufor binarny docelowo | architektura | przyjęta |
@@ -56,6 +56,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0040](0040-warunek-gwarantowany-przez-sciezke-dostepu.md) | Planer zwraca koniunkty gwarantowane przez ścieżkę dostępu | architektura | przyjęta |
 | [0041](0041-plan-w-instrukcji-przygotowanej.md) | Plan zapamiętany w instrukcji przygotowanej, pamięć instrukcji w moście | architektura | przyjęta |
 | [0042](0042-wyrazenia-kompilowane-warianty-i-domkniecia.md) | Warunki i przypisania kompilowane przy kompilacji instrukcji: warianty typowane i domknięcia, interpreter jako rezerwa | architektura | przyjęta |
+| [0043](0043-outbox-po-wlaczeniu-synchronizacji.md) | Outbox wierszy prowadzony od włączenia synchronizacji, zwarty zapis w snapshocie | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

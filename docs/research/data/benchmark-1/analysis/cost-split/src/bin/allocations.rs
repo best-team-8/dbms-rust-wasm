@@ -8,7 +8,7 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
-use cost_split::load;
+use cost_split::{load, row, with_outbox};
 use flatsql_core::{Database, Value};
 
 struct Counting;
@@ -45,6 +45,18 @@ fn count<T>(name: &str, f: impl FnOnce() -> T) {
     println!("{name}: {} allocations, {} bytes", ALLOCS.load(Relaxed) - a, BYTES.load(Relaxed) - b);
 }
 
+/// 1000 new rows in one transaction.
+fn insert_rows(db: &mut Database) {
+    let first = db.row_count("items").unwrap() as i64 + 1_000_000;
+    let ins = db.prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?)").unwrap();
+    db.execute("BEGIN").unwrap();
+    for i in first..first + 1000 {
+        db.execute_prepared(&ins, &row(i)).unwrap();
+    }
+    db.execute("COMMIT").unwrap();
+    db.take_wal();
+}
+
 fn main() {
     let mut db = load();
     let star = db.prepare("SELECT * FROM items WHERE id = ?").unwrap();
@@ -62,14 +74,20 @@ fn main() {
     count("full scan with filter", || db.execute_prepared(&scan, &[]).unwrap());
     count("GROUP BY (100 groups)", || db.execute_prepared(&group, &[]).unwrap());
 
-    let with = db.snapshot().unwrap();
+    let with = with_outbox(&db);
+    let mut outboxed = Database::restore(Some(&with), &[], 1).unwrap();
     let mut acked = Database::restore(Some(&with), &[], 1).unwrap();
     let upto = acked.stats().next_seq;
     acked.ack_outbox(upto);
     let without = acked.snapshot().unwrap();
-    count("snapshot with outbox", || db.snapshot().unwrap());
+    let created = db.snapshot().unwrap();
+    count("snapshot, benchmark database", || db.snapshot().unwrap());
+    count("restore, benchmark database", || Database::restore(Some(&created), &[], 1).unwrap());
+    count("snapshot with outbox", || outboxed.snapshot().unwrap());
     count("snapshot without outbox", || acked.snapshot().unwrap());
     count("restore with outbox", || Database::restore(Some(&with), &[], 1).unwrap());
     count("restore without outbox", || Database::restore(Some(&without), &[], 1).unwrap());
     count("UPDATE 10%", || db.execute("UPDATE items SET qty = qty + 1 WHERE id % 10 = 0").unwrap());
+    count("insert 1000 rows, benchmark database", || insert_rows(&mut db));
+    count("insert 1000 rows, outbox kept", || insert_rows(&mut outboxed));
 }

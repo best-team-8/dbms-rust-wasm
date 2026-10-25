@@ -130,6 +130,7 @@ Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, 
 
 ### 5.2 Outbox
 
+- Outbox wierszy jest prowadzony od włączenia synchronizacji (`enableSync`, robi to `SyncClient` i serwer synchronizacji); krok jest zapisany w WAL i w snapshocie. Do tego czasu outbox przyjmuje tylko zmiany schematu, a włączenie oznacza każdy wiersz i tombstone jako oczekujący, czyli pierwsza wysyłka zawiera cały stan – to samo, co zawierałby outbox prowadzony od początku ([ADR-0043](adr/0043-outbox-po-wlaczeniu-synchronizacji.md)). Baza bez synchronizacji nie płaci za outbox w zapisie, snapshocie, odtworzeniu ani pamięci.
 - Lokalna zmiana wiersza zapisuje w outboksie tylko **referencję** `(tabela, klucz) → seq`. Przy eksporcie odczytywany jest bieżący stan wiersza (albo tombstone), więc 100 kolejnych `UPDATE` tego samego wiersza wysyła jedną zmianę.
 - Zmiany schematu (`CREATE/DROP TABLE/INDEX`) są przechowywane w całości.
 - Każda lokalna operacja w WAL niesie swój numer `seq`; potwierdzenie serwera zapisywane jest w WAL jako `Ack(seq)`. Outbox jest więc odbudowywany przy odtwarzaniu i **przetrwa zamknięcie aplikacji w trybie offline**, a potwierdzone zmiany nie są wysyłane ponownie.
@@ -165,8 +166,9 @@ Wspólny kodek: liczby całkowite jako LEB128 (ze znakiem w kodowaniu zig-zag), 
 +-----------+-----------+---------------------------------------------+
 | len u32LE | crc u32LE | payload: lsn, op_count, op₁, op₂, …         |
 +-----------+-----------+---------------------------------------------+
-op = 0x10 seq change      (zmiana; seq > 0 → lokalna, w outboksie)
+op = 0x10 seq change      (zmiana; seq > 0 → lokalna, w outboksie, jeśli dotyczy schematu albo synchronizacja jest włączona)
    | 0x20 upto            (potwierdzenie outboksu)
+   | 0x30 seq             (włączenie synchronizacji: wiersze i tombstone'y oczekujące, numerowane od seq)
 change = tag stamp body   (1 CREATE TABLE, 2 DROP TABLE, 3 CREATE INDEX,
                            4 DROP INDEX, 5 PUT tabela wartości, 6 DELETE tabela klucz)
 ```
@@ -174,11 +176,13 @@ change = tag stamp body   (1 CREATE TABLE, 2 DROP TABLE, 3 CREATE INDEX,
 **Snapshot**
 
 ```text
-"FLATSQL1" format node_id clock lsn next_seq acked_seq
+"FLATSQL1" format(2) node_id clock lsn next_seq acked_seq flagi (bit 0: synchronizacja włączona)
 tabele: schemat, stamp utworzenia, indeksy (nazwa, kolumna), wiersze (stamp + wartości), tombstone'y
-outbox: seq, rodzaj (1 = wiersz: tabela + klucz, 2 = zmiana schematu)
+outbox: zmiany schematu (seq, zmiana); wiersze pogrupowane po tabeli (nazwa, pary seq + klucz)
 crc32 (u32 LE)
 ```
+
+Format 1 (bez flag, outbox jako lista `seq, rodzaj, tabela + klucz` z nazwą tabeli w każdym wpisie) jest nadal czytany; baza w formacie 1 ma synchronizację włączoną.
 
 **Paczka zmian (synchronizacja)**
 

@@ -352,7 +352,8 @@ pub(crate) enum OutboxItem {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Outbox {
     pub(crate) by_seq: BTreeMap<u64, OutboxItem>,
-    row_seq: BTreeMap<(Arc<str>, Value), u64>,
+    /// Pending rows of each table (by catalog key): key -> seq of the entry.
+    rows: BTreeMap<Arc<str>, BTreeMap<Value, u64>>,
 }
 
 impl Outbox {
@@ -362,7 +363,11 @@ impl Outbox {
 
     pub fn insert(&mut self, seq: u64, item: OutboxItem) {
         if let OutboxItem::Row { table, key } = &item {
-            if let Some(old) = self.row_seq.insert((table.clone(), key.clone()), seq) {
+            let keys = match self.rows.get_mut(&**table) {
+                Some(keys) => keys,
+                None => self.rows.entry(table.clone()).or_default(),
+            };
+            if let Some(old) = keys.insert(key.clone(), seq) {
                 self.by_seq.remove(&old);
             }
         }
@@ -375,12 +380,29 @@ impl Outbox {
         let done = std::mem::replace(&mut self.by_seq, rest);
         for (seq, item) in done {
             if let OutboxItem::Row { table, key } = item {
-                let k = (table, key);
-                if self.row_seq.get(&k) == Some(&seq) {
-                    self.row_seq.remove(&k);
+                if let Some(keys) = self.rows.get_mut(&*table) {
+                    if keys.get(&key) == Some(&seq) {
+                        keys.remove(&key);
+                        if keys.is_empty() {
+                            self.rows.remove(&*table);
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /// Pending rows grouped by table (the snapshot stores them this way).
+    pub fn rows(&self) -> impl Iterator<Item = (&Arc<str>, &BTreeMap<Value, u64>)> {
+        self.rows.iter()
+    }
+
+    /// Pending schema changes in order.
+    pub fn schema_changes(&self) -> impl Iterator<Item = (u64, &Change)> {
+        self.by_seq.iter().filter_map(|(seq, item)| match item {
+            OutboxItem::Schema(c) => Some((*seq, c)),
+            OutboxItem::Row { .. } => None,
+        })
     }
 }
 

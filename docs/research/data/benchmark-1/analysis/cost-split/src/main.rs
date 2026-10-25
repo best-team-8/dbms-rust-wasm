@@ -17,7 +17,7 @@
 use std::hint::black_box;
 use std::time::Instant;
 
-use cost_split::{load, row, Lcg, ROWS};
+use cost_split::{load, row, with_outbox, Lcg, ROWS};
 use flatsql_core::expr::{eval_pred, Binder};
 use flatsql_core::plan;
 use flatsql_core::sql::{parse_one, Statement};
@@ -301,17 +301,19 @@ fn main() {
         }
     }
 
-    let with = db.snapshot().unwrap();
+    let with = with_outbox(&db);
     let mut acked = Database::restore(Some(&with), &[], 1).unwrap();
     let upto = acked.stats().next_seq;
     acked.ack_outbox(upto);
     let without = acked.snapshot().unwrap();
     println!(
-        "outbox entries {} -> {}; snapshot {} bytes with the outbox, {} without",
-        db.stats().outbox,
+        "outbox entries {} -> {}; snapshot {} bytes with the outbox, {} without; the benchmark database: outbox {}, snapshot {} bytes",
+        Database::restore(Some(&with), &[], 1).unwrap().stats().outbox,
         acked.stats().outbox,
         with.len(),
-        without.len()
+        without.len(),
+        db.stats().outbox,
+        db.snapshot().unwrap().len()
     );
     println!("snapshot, restore, index rebuild and UPDATE 10%, ms (with outbox / without)");
     for round in 1..=ROUNDS {

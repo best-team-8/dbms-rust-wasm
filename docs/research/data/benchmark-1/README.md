@@ -36,6 +36,6 @@ Po Benchmarku 1 program służy też do pomiaru optymalizacji ([optimization-res
 node docs/research/data/benchmark-1/analysis/cost-split/run.mjs --flatsql bench/versions/prototyp [--bin allocations] [--out PLIK]
 ```
 
-Części programu, które korzystają z wewnętrznego API rdzenia zmienionego przez optymalizację, wybiera `build.rs` na podstawie źródeł mierzonego rdzenia; każda taka część jest opisana w komentarzu programu.
+Części programu, które korzystają z wewnętrznego API rdzenia zmienionego przez optymalizację, wybiera `build.rs` na podstawie źródeł mierzonego rdzenia; każda taka część jest opisana w komentarzu programu. Od wersji, w której outbox jest prowadzony dopiero po włączeniu synchronizacji, stan „z outboxem” program uzyskuje, włączając synchronizację na kopii bazy, a osobne pozycje mierzą bazę w stanie, w jakim tworzy ją benchmark; dodano też pozycje programu `allocations` dla wstawienia 1000 wierszy i snapshotu oraz odtworzenia bazy z benchmarku.
 
 Pomiar RxDB w grupie „trwały zapis” (`raw/browser/workload/rxdb/`) powtórzono po poprawce adaptera: pierwsza wersja wymuszała ponowne wykonanie zapytania dodatkowym warunkiem na polu bez indeksu, co zmieniało plan zapytania. Powtórzenie wykonano tą samą wersją silnika i tym samym środowiskiem tego samego dnia; opis w `manifest.json` (`reruns`).

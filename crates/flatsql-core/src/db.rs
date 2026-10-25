@@ -20,7 +20,7 @@ use crate::result::QueryResult;
 use crate::sql::{self, Statement};
 use crate::storage::codec::Writer;
 use crate::storage::snapshot;
-use crate::storage::wal::{self, LogOp, WalReader, OP_ACK, OP_CHANGE};
+use crate::storage::wal::{self, LogOp, WalReader, OP_ACK, OP_CHANGE, OP_SYNC};
 use crate::sync::{
     decode_batch, encode_batch, encode_change, encode_delete, encode_put, system_now_ms, ApplyReport, Change, Hlc,
     Mutation, Outbox, OutboxItem, SchemaConflict, Stamp, MAX_DRIFT_MS,
@@ -85,6 +85,8 @@ pub struct DbStats {
     pub acked_seq: u64,
     pub clock: u64,
     pub in_transaction: bool,
+    /// Whether local row changes are kept in the outbox.
+    pub sync: bool,
 }
 
 /// A parsed statement that can be executed many times with different
@@ -171,6 +173,11 @@ pub struct Database {
     pub(crate) next_seq: u64,
     pub(crate) acked_seq: u64,
     pub(crate) outbox: Outbox,
+    /// Synchronisation is enabled: local row changes enter the outbox. Until
+    /// then only schema changes do; enabling marks every row and tombstone as
+    /// pending, which is what the outbox of a database that never synced
+    /// would hold.
+    pub(crate) sync: bool,
     wal_out: Vec<u8>,
     txn: Option<Txn>,
     recovery: Option<RecoveryReport>,
@@ -189,6 +196,7 @@ impl Database {
             next_seq: 1,
             acked_seq: 0,
             outbox: Outbox::default(),
+            sync: false,
             wal_out: Vec::new(),
             txn: None,
             recovery: None,
@@ -368,6 +376,7 @@ impl Database {
             acked_seq: self.acked_seq,
             clock: self.clock.last(),
             in_transaction: self.txn.is_some(),
+            sync: self.sync,
         }
     }
 
@@ -437,7 +446,7 @@ impl Database {
     /// Stores a validated row. `local == false` for changes from other replicas.
     pub(crate) fn write_put(&mut self, tkey: &str, values: Vec<Value>, stamp: Stamp, local: bool) -> Result<()> {
         let seq = self.next_seq_for(local);
-        let Database { tables, txn, .. } = self;
+        let Database { tables, txn, sync, .. } = self;
         let txn = txn.as_mut().expect("write outside of a transaction");
         let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
         let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
@@ -448,7 +457,7 @@ impl Database {
         txn.op_count += 1;
         let key = values[t.schema.pk].clone();
         let (prev, prev_tomb) = t.put(values, stamp);
-        if local {
+        if local && *sync {
             txn.outbox.push((seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() }));
         }
         txn.undo.push(Undo::Row { table: t.key.clone(), key, prev, prev_tomb });
@@ -457,7 +466,7 @@ impl Database {
 
     pub(crate) fn write_delete(&mut self, tkey: &str, key: Value, stamp: Stamp, local: bool) -> Result<()> {
         let seq = self.next_seq_for(local);
-        let Database { tables, txn, .. } = self;
+        let Database { tables, txn, sync, .. } = self;
         let txn = txn.as_mut().expect("write outside of a transaction");
         let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
         let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
@@ -467,7 +476,7 @@ impl Database {
         txn.ops = w.buf;
         txn.op_count += 1;
         let (prev, prev_tomb) = t.delete(&key, stamp);
-        if local {
+        if local && *sync {
             txn.outbox.push((seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() }));
         }
         txn.undo.push(Undo::Row { table: t.key.clone(), key, prev, prev_tomb });
@@ -553,6 +562,7 @@ impl Database {
                         }
                     }
                     LogOp::Ack(upto) => db.apply_ack(upto),
+                    LogOp::Sync(first) => db.mark_all_pending(first),
                 }
             }
             db.lsn = frame.lsn;
@@ -596,7 +606,7 @@ impl Database {
                 OutboxItem::Schema(change)
             }
         };
-        if seq > 0 {
+        if seq > 0 && (self.sync || matches!(item, OutboxItem::Schema(_))) {
             self.outbox.insert(seq, item);
         }
         Ok(())
@@ -614,6 +624,50 @@ impl Database {
     /// Number of local changes not yet acknowledged by the sync server.
     pub fn outbox_len(&self) -> usize {
         self.outbox.len()
+    }
+
+    /// Whether local row changes are kept in the outbox (see
+    /// [`enable_sync`](Self::enable_sync)).
+    pub fn sync_enabled(&self) -> bool {
+        self.sync
+    }
+
+    /// Starts keeping local row changes in the outbox. A database that has
+    /// not synchronised yet keeps only its schema changes there; enabling
+    /// makes every row and tombstone a pending entry, so the first push sends
+    /// the whole state, as the outbox of a database that kept every change
+    /// would. The step is logged, so it survives a restart. Returns whether
+    /// synchronisation was off before.
+    pub fn enable_sync(&mut self) -> Result<bool> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot enable synchronisation inside an open transaction".into()));
+        }
+        if self.sync {
+            return Ok(false);
+        }
+        let first = self.next_seq;
+        self.mark_all_pending(first);
+        let mut w = Writer::new();
+        w.u8(OP_SYNC);
+        w.var(first);
+        self.lsn += 1;
+        wal::write_frame(&mut self.wal_out, self.lsn, 1, &w.buf);
+        Ok(true)
+    }
+
+    /// Enables synchronisation and makes every row and tombstone a pending
+    /// outbox entry, numbered from `first` in catalog and key order (the same
+    /// order when the step is replayed from the WAL).
+    fn mark_all_pending(&mut self, first: u64) {
+        self.sync = true;
+        let mut seq = first.max(self.next_seq);
+        for t in self.tables.values() {
+            for key in t.rows.keys().chain(t.tombstones.keys()) {
+                self.outbox.insert(seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() });
+                seq += 1;
+            }
+        }
+        self.next_seq = seq;
     }
 
     /// Encodes up to `max` pending local changes as a batch. Returns the batch
