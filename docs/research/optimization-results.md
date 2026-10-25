@@ -39,6 +39,7 @@ Rozmiar modułu WebAssembly (gzip -9) obu wersji zapisuje się w manifeście pom
 | [5. Outbox od włączenia synchronizacji](#5-outbox-od-włączenia-synchronizacji) | S5, S6, S4, S8 | odtworzenie natywnie 111 ms → 54,7 ms, snapshot 25,7 → 18,2 ms (5,03 → 3,71 MiB), pamięć WASM po wczytaniu 73,3 → 54,8 MiB, wstawienie −22% | potwierdzona |
 | [6. UPDATE w miejscu](#6-update-w-miejscu) | S4 | `UPDATE` 10% natywnie 23,1 → 15,7 ms, Node.js 33,8 → 17,5 ms | potwierdzona |
 | [7. Hurtowa budowa indeksów](#7-hurtowa-budowa-indeksów) | S5 | budowa indeksu 21–22 → 10,6–11,1 ms, odtworzenie natywnie 53,9 → 46,2 ms | potwierdzona |
+| [8. Grupowanie przez tablicę mieszającą](#8-grupowanie-przez-tablicę-mieszającą) | S9 | `GROUP BY` (100 grup) natywnie 16,7 → 11,0 ms, Node.js 19,2 → 11,7 ms | potwierdzona |
 
 ## 1. Liczenie wierszy po indeksie bez ich czytania
 
@@ -135,5 +136,19 @@ Status: potwierdzona.
 | Wynik | Budowa indeksu (rozbicie kosztów, natywnie): 21–22 ms → 10,6–13,9 ms. Odtworzenie: natywnie 53,9 (53,7–54,9) ms → 46,2 (45,9–47,7) ms (−14%), Node.js z wynikiem jako JSON 66,8 (63,3–73,8) ms → 59,1 (58,4–59,8) ms (−11,5%); przedziały ufności rozłączne; Node.js z wynikiem jako obiekty 63,7 → 61,2 ms (−4%, w rozrzucie). Ponowne otwarcie z IndexedDB w przeglądarce 102 (100–105) ms → 98,4 (96,9–101) ms (−3,7%, w rozrzucie). Alokacje odtworzenia 325 937 → 319 540; przydzielone bajty rosną (37,6 → 41,8 MB) przez wektory kluczy powiększane podczas grupowania. |
 | Wpływ na inne operacje | Pozostałe operacje bez zmiany wykazanej kryterium przedziałów ufności poza pełnym skanem natywnie (−3,6%), którego zmieniony kod nie wykonuje. Moduł WebAssembly: 247 915 → 257 469 B po kompresji gzip (+9,3 KiB), głównie kod tablicy mieszającej z biblioteki standardowej; ten sam kod wykorzystuje grupowanie w następnej optymalizacji. Wyniki wszystkich zapytań i stan tabeli zgodne w obu wersjach. |
 | Ograniczenia | W przeglądarce ponowne otwarcie obejmuje odczyt z IndexedDB i odtworzenie WAL, więc zysk z budowy indeksu jest w nim mniejszy niż w samym odtworzeniu. Grupowanie przez tablicę mieszającą przy indeksie o samych unikalnych wartościach tworzy wektor dla każdej wartości; nie mierzono takiego przypadku. |
+
+Status: potwierdzona.
+
+## 8. Grupowanie przez tablicę mieszającą
+
+| Element | Zawartość |
+|---|---|
+| Słabość | `SELECT category, COUNT(*), AVG(price), MAX(qty) FROM items GROUP BY category` (100 grup) trwał w Benchmarku 1 15,7 ms w przeglądarce i 14,9 ms natywnie, wobec 3,6 ms w DuckDB-Wasm i 1,7 ms w czystym JavaScripcie. |
+| Hipoteza | Wykonawca znajduje grupę każdego wiersza w drzewie (`BTreeMap`) porównaniami kluczy, czyli tekstów `c0`…`c99`. Licznik alokacji Benchmarku 1 odrzucił już część hipotezy o kluczu tworzonym dla każdego wiersza (540 alokacji na całe zapytanie). Rozbicie kosztów z pętlą ręczną (te same agregaty liczone wprost): grupa znajdowana w drzewie 11,5–11,7 ms, w tablicy mieszającej 6,1–6,5 ms, a grupy wzięte z indeksu na kolumnie `category` z wyszukaniem każdego wiersza po kluczu 27–28 ms. Wyszukanie grupy w drzewie to więc około 5 ms z około 16 ms zapytania, a przejście po indeksie jest wolniejsze od przeglądu tabeli, bo każdy z 100 000 wierszy trzeba znaleźć w drzewie wierszy. |
+| Zmiana | Gdy kluczem grupy jest jedna kolumna, wykonawca (`execute_select` w `exec.rs`) znajduje grupę wiersza w tablicy mieszającej wartości kolumny (`hash::ValueKey`, ta sama funkcja skrótu co przy budowie indeksów, równa dla wartości równych w porządku `Value`), a znalezione grupy wstawia na końcu do drzewa grup, więc kolejność wyniku pozostaje kolejnością kluczy. Klucz wiersza jest odwołaniem do wartości w tabeli, bez kopii. Wiele kolumn i wyrażenia jako klucz zostają przy drzewie. Odrzucono przejście po indeksie kolumny grupującej (hipoteza O11; zmierzone 27–28 ms wobec 11,5 ms), które opłaca się tylko przy samym `COUNT(*)`, gdzie wiersze nie są potrzebne. |
+| Pomiar | `bench/compare.js`, przed: tag `po-2.12`, po: zmiana z commita „core: group rows by one column through a hash table” przed zatwierdzeniem, 10 uruchomień na wersję na przemian, 25.10.2026, obciążenie procesora przed pomiarem 16,3% (aplikacje użytkownika). Rozbicie kosztów z dodaną sekcją grupowania w pętli ręcznej. Dane: [data/optimization/08-group-by-hash/](data/optimization/08-group-by-hash/). |
+| Wynik | `GROUP BY`: natywnie 16,7 (16,3–16,8) ms → 11,0 (10,8–11,2) ms (−34%), Node.js z wynikiem jako obiekty 19,2 (18,6–20,2) ms → 11,7 (11,6–12,3) ms (−39%), z wynikiem jako JSON 18,9 (18,5–19,6) ms → 12,1 (11,9–12,4) ms (−36%); przedziały ufności rozłączne. W rozbiciu kosztów silnik 15,4–15,8 → 10,4–10,7 ms, czyli spadek o tyle, ile w pętli ręcznej dzieli drzewo od tablicy mieszającej. Alokacje zapytania 521 → 533 (tablica mieszająca). |
+| Wpływ na inne operacje | Natywnie wstawienie +2,5% i pobranie 10 000 wierszy +6,2% przy rozłącznych przedziałach, choć zmieniony kod w nich nie bierze udziału (w Node.js +1,8% i +0,8%, w rozrzucie); przypisuję to zmianie rozmieszczenia kodu i obciążeniu maszyny w czasie pomiaru. Moduł WebAssembly: 257 430 → 259 491 B po kompresji gzip (+2,0 KiB; kod tablicy mieszającej jest już w module od budowy indeksów). Wyniki wszystkich zapytań i stan tabeli zgodne w obu wersjach. |
+| Ograniczenia | DuckDB-Wasm i czysty JavaScript grupują nadal szybciej (3,6 ms i 1,7 ms w Benchmarku 1): pozostały koszt to obsługa agregatów przez ogólne akumulatory i przegląd drzewa wierszy (pętla ręczna z tablicą mieszającą 6,1–6,5 ms). |
 
 Status: potwierdzona.

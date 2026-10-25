@@ -36,6 +36,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [3.3](#33-instrukcje-przygotowane-z-zapamiętanym-planem) `prepared_statements_with_parameters_give_the_same_answers_as_a_full_scan`, `prepared_statement_follows_schema_changes`, `parameters_are_checked_and_usable_in_limit`, `statements kept by exec and query follow schema changes…`, `reads do not look for WAL bytes, writes do` | Czy instrukcja przygotowana ze skompilowanym planem daje dla każdych wartości parametrów tę samą odpowiedź co pełny przegląd i czy jej plan nadąża za zmianami schematu? | zaliczony |
 | [3.4](#34-wyrażenia-skompilowane-a-interpreter) `compiled_expressions_give_the_interpreters_results` | Czy warunek i wyrażenie skompilowane dają ten sam wynik i ten sam błąd co interpreter? | zaliczony |
 | [3.5](#35-update-w-miejscu) `updates_in_place_keep_indexes_rollbacks_and_the_wal_consistent`, `one_clock_reading_per_statement_still_gives_every_row_its_own_stamp` | Czy UPDATE zmieniający wiersz w miejscu zostawia indeksy, wycofanie i WAL w stanie zgodnym z tabelą bez indeksów? | zaliczony |
+| [3.6](#36-grupowanie-przez-tablicę-mieszającą) `grouping_by_one_column_gives_the_groups_of_the_general_path`, `equal_values_hash_equally` | Czy grupowanie po jednej kolumnie przez tablicę mieszającą daje te same grupy co ścieżka ogólna? | zaliczony |
 
 ## 1. Trwałość i odtwarzanie po awarii
 
@@ -285,3 +286,16 @@ Każda zmiana wysyłana między replikami ma znacznik z hybrydowego zegara logic
 | Wynik | Zaliczony, 400 instrukcji z około 100 wycofaniami, przebieg 0,3 s w kompilacji optymalizowanej. 25.10.2026, środowisko z początku dokumentu, commit „core: update rows in place, touch only changed indexes, read the clock once per statement”. |
 | Wpływ na projekt | Pierwsza wersja testu porównywała po wycofaniu cały snapshot i wykazała, że zegar HLC zostaje przesunięty przez wycofaną transakcję; to zachowanie zamierzone (zegar nigdy się nie cofa), więc test porównuje stan wierszy ze znacznikami. |
 | Ograniczenia | `UPDATE` zmieniający klucz główny używa dawnej ścieżki i jest objęty istniejącymi testami SQL, nie tym testem losowym. |
+
+### 3.6 Grupowanie przez tablicę mieszającą
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy grupowanie po jednej kolumnie przez tablicę mieszającą daje te same grupy, wiersze reprezentujące grupę, agregaty i kolejność wyniku co ogólna ścieżka z drzewem grup? |
+| Uzasadnienie | Tablica mieszająca rozstrzyga o równości kluczy skrótem, a drzewo porządkiem wartości. Wartości równe w porządku muszą mieć równy skrót: 1 i 1,0, zero z obu znaków (różne bity, ta sama wartość), każdy NaN; inaczej jedna grupa rozpadłaby się na kilka. |
+| Model awarii i założenia | Niezgodność skrótu z równością wartości albo różna kolejność grup. Wyrocznią jest ta sama grupa zapisana wyrażeniem, które zachowuje wartość (`a + 0`, `b \|\| ''`, `c + 0.0`, `d OR FALSE`), bo wyrażenie jako klucz idzie ścieżką ogólną. |
+| Procedura | Plik `crates/flatsql-core/tests/planner.rs`, test `grouping_by_one_column_gives_the_groups_of_the_general_path`: dane z §3.2 uzupełnione o zera z obu znaków w kolumnie FLOAT, 3 ziarna × 300 losowych zapytań z grupowaniem po każdej z pięciu kolumn, losowym warunkiem i agregatami `COUNT(*)`, `SUM`, `MIN`, `MAX`, `AVG`; wyrocznia: równe wiersze wyniku. Test jednostkowy `equal_values_hash_equally` (`hash.rs`): równe skróty dla 3 i 3,0, 0,0 i −0,0, dwóch NaN, różne dla różnych tekstów i dla wartości logicznej wobec liczby. Polecenie: `cargo test -p flatsql-core --test planner grouping`. |
+| Kontrola negatywna | Ze skrótem, który nie ujednolica zera ze znakiem, test losowy zawiódł (grupa wartości 0 rozpadła się na dwie). |
+| Wynik | Zaliczony, 900 par zapytań. 25.10.2026, środowisko z początku dokumentu, commit „core: group rows by one column through a hash table”. |
+| Wpływ na projekt | Funkcja skrótu wartości jest wspólna dla grupowania i budowy indeksów. |
+| Ograniczenia | Liczby całkowite powyżej 2^53, przy których porównanie liczby całkowitej z ułamkową traci dokładność, nie występują w danych; kolumna ma zawsze jeden typ wartości. |

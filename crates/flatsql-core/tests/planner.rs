@@ -41,6 +41,8 @@ fn value(rng: &mut Rng, col: usize, id: i64) -> Value {
         1 => Value::Int(rng.below(20) as i64),
         2 => Value::Text(format!("k{}", rng.below(10))),
         3 if rng.chance(3) => Value::Float(f64::NAN),
+        // Zero with both signs: equal values, different bits.
+        3 if rng.chance(4) => Value::Float(if rng.chance(50) { -0.0 } else { 0.0 }),
         3 => Value::Float(rng.below(40) as f64 * 0.5),
         _ => Value::Bool(rng.chance(50)),
     }
@@ -319,4 +321,24 @@ fn parameters_are_checked_and_usable_in_limit() {
     let ins = db.prepare("INSERT INTO t (id, a) VALUES (?, ? * 2)").unwrap();
     db.execute_prepared(&ins, &[Value::Int(1001), Value::Int(21)]).unwrap();
     assert_eq!(run(&mut db, "SELECT a FROM t WHERE id = 1001").rows[0][0], Value::Int(42));
+}
+
+#[test]
+fn grouping_by_one_column_gives_the_groups_of_the_general_path() {
+    // `GROUP BY col` takes the hash table path; the same grouping written as
+    // an expression that keeps the value (`a + 0`, `b || ''`, `c + 0.0`,
+    // `d OR FALSE`) takes the general one.
+    let same_value = ["id + 0", "a + 0", "b || ''", "c + 0.0", "d OR FALSE"];
+    for seed in 1..=3u64 {
+        let mut rng = Rng(seed.wrapping_mul(0xA24B_AED4_963E_E407) | 1);
+        let (_, mut db) = databases(&mut rng, 300);
+        for _ in 0..300 {
+            let col = rng.below(5) as usize;
+            let w = filter(&mut rng);
+            let select = format!("SELECT {}, COUNT(*), SUM(a), MIN(b), MAX(c), AVG(a) FROM t WHERE {w}", COLUMNS[col]);
+            let hashed = run(&mut db, &format!("{select} GROUP BY {}", COLUMNS[col]));
+            let general = run(&mut db, &format!("{select} GROUP BY {}", same_value[col]));
+            assert_eq!(hashed.rows, general.rows, "seed {seed}: {select} GROUP BY {}", COLUMNS[col]);
+        }
+    }
 }

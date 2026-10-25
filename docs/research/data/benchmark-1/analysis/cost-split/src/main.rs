@@ -301,6 +301,77 @@ fn main() {
         }
     }
 
+    // GROUP BY category with COUNT(*), AVG(price), MAX(qty) by hand: the
+    // group of a row found in a tree of groups (comparisons of the texts),
+    // in a hash table, or the groups taken from the index (a key lookup for
+    // every row).
+    #[derive(Default, Clone, Copy)]
+    struct Acc {
+        n: i64,
+        sum: f64,
+        max: i64,
+    }
+    fn add(a: &mut Acc, values: &[Value]) {
+        a.n += 1;
+        if let Value::Float(p) = values[2] {
+            a.sum += p;
+        }
+        if let Value::Int(q) = values[3] {
+            a.max = a.max.max(q);
+        }
+    }
+    #[derive(Default)]
+    struct Fx(u64);
+    impl std::hash::Hasher for Fx {
+        fn write(&mut self, bytes: &[u8]) {
+            for chunk in bytes.chunks(8) {
+                let mut word = [0u8; 8];
+                word[..chunk.len()].copy_from_slice(chunk);
+                self.0 = (self.0.rotate_left(5) ^ u64::from_le_bytes(word)).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+            }
+        }
+        fn finish(&self) -> u64 {
+            self.0
+        }
+    }
+    println!("GROUP BY by hand, ms (group found in a tree | in a hash table | groups from the index, a key lookup per row)");
+    for round in 1..=ROUNDS {
+        let t0 = Instant::now();
+        for _ in 0..20 {
+            let mut groups: std::collections::BTreeMap<&Value, Acc> = std::collections::BTreeMap::new();
+            for e in t.rows.values() {
+                add(groups.entry(&e.values[1]).or_default(), &e.values);
+            }
+            black_box(groups);
+        }
+        let tree = ms(t0) / 20.0;
+        let t0 = Instant::now();
+        for _ in 0..20 {
+            let mut groups: std::collections::HashMap<&str, Acc, std::hash::BuildHasherDefault<Fx>> = Default::default();
+            for e in t.rows.values() {
+                if let Value::Text(c) = &e.values[1] {
+                    add(groups.entry(c.as_str()).or_default(), &e.values);
+                }
+            }
+            black_box(groups);
+        }
+        let hashed = ms(t0) / 20.0;
+        let t0 = Instant::now();
+        for _ in 0..20 {
+            let mut out = Vec::new();
+            for (value, keys) in &t.indexes[0].map {
+                let mut a = Acc::default();
+                for k in keys {
+                    add(&mut a, &t.rows[k].values);
+                }
+                out.push((value, a));
+            }
+            black_box(out);
+        }
+        let by_index = ms(t0) / 20.0;
+        println!("  round {round}: {tree:.2} | {hashed:.2} | {by_index:.2}");
+    }
+
     // Parts of the work an UPDATE of 10% of the rows did per changed row
     // before rows were changed in place, measured on the table outside the
     // database: copy of the row with validation, writing it back with the

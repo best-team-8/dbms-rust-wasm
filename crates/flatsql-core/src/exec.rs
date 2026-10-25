@@ -9,13 +9,14 @@
 
 use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
 use crate::compile::{self, Pred, ValueExpr};
 use crate::db::{catalog_key, Database};
 use crate::error::{Error, Result};
 use crate::expr::{describe, eval, eval_pred, AggAcc, AggFunc, AggSpec, BExpr, Binder, Cx};
+use crate::hash::{FxBuildHasher, ValueKey};
 use crate::plan::{self, Access, AccessPlan};
 use crate::result::QueryResult;
 use crate::sql::{CreateTable, Delete, Expr, Insert, OnConflict, Select, SelectItem, Statement, Update};
@@ -418,6 +419,36 @@ fn execute_select(r: &Run) -> Result<QueryResult> {
             Some(t) if r.count_only => {
                 let n = plan::count(t, &r.access) as i64;
                 groups.insert(Vec::new(), (&null_row[..], p.aggs.iter().map(|_| AggAcc::counted(n)).collect()));
+            }
+            // One column as the group key: a row finds its group through a
+            // hash table of the column's values instead of comparisons in the
+            // tree of groups. The groups go into the tree at the end, so the
+            // output keeps the order of the keys.
+            Some(t) if matches!(p.group.as_slice(), [BExpr::Col(_)]) => {
+                let [BExpr::Col(c)] = p.group.as_slice() else { unreachable!() };
+                let mut slots: HashMap<ValueKey, usize, FxBuildHasher> = HashMap::default();
+                let mut found: Vec<(&Value, &[Value], Vec<AggAcc>)> = Vec::new();
+                for entry in plan::scan(t, &r.access, false) {
+                    scanned += 1;
+                    if !filter.matches(&entry.values)? {
+                        continue;
+                    }
+                    let value = &entry.values[*c];
+                    let i = match slots.get(&ValueKey(value)) {
+                        Some(&i) => i,
+                        None => {
+                            slots.insert(ValueKey(value), found.len());
+                            found.push((value, &entry.values[..], p.aggs.iter().map(AggAcc::new).collect()));
+                            found.len() - 1
+                        }
+                    };
+                    for (acc, spec) in found[i].2.iter_mut().zip(&p.aggs) {
+                        acc.update(spec, &entry.values, r.params)?;
+                    }
+                }
+                for (value, row, accs) in found {
+                    groups.insert(vec![Cow::Borrowed(value)], (row, accs));
+                }
             }
             Some(t) => {
                 for entry in plan::scan(t, &r.access, false) {
