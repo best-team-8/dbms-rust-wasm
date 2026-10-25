@@ -8,6 +8,8 @@ Surowe wyniki pomiarów każdej optymalizacji opisanej w [optimization-results.m
 | `before/`, `after/` | wyniki `bench/run.js` dla wersji przed zmianą i po niej: `raw/<środowisko>/<rodzaj>/<silnik>/NN.json` (jeden plik na proces), `manifest.json` runnera |
 | `compare.md` | tabela: mediana z kwartylami przed i po, zmiana mediany, czy 95% przedziały ufności średnich są rozłączne; zgodność sum kontrolnych wyników obu wersji |
 | `cost-split-*.txt`, `allocations-*.txt` | natywne rozbicie kosztów i liczba alokacji tych samych operacji w obu wersjach (program z [benchmark-1/analysis/cost-split](../benchmark-1/analysis/cost-split/)) |
+| podkatalogi z `compare.md` | pomiary dodatkowe tym samym skryptem: `first/` – pierwsza wersja zmiany, poprawiona po pomiarze; `native-20/` – benchmark natywny z 20 uruchomieniami na wersję, gdy 10 nie rozstrzygało; `network/` – porównanie Local-First (`--kinds network`) |
+| skrypty `*.mjs` i ich wyniki `*-before-N.txt`, `*-after-N.txt` | pomiary operacji spoza obciążenia (np. warstwa mostu `FlatDB`), uruchamiane na przemian dla obu wersji: `node <skrypt> <katalog wersji> --out <plik>` |
 
 Pomiar przed i po wykonuje skrypt `bench/compare.js`: obie wersje silnika mierzy to samo narzędzie, na przemian (uruchomienie 1 wersji „przed”, uruchomienie 1 wersji „po”, potem w odwrotnej kolejności), każda w 10 nowych procesach. Wersja „przed” to worktree poprzedniego stanu zbudowany przez `bench/build-version.js`, wersja „po” to katalog roboczy ze zmianą przed jej zatwierdzeniem:
 

@@ -17,6 +17,9 @@ pub enum BExpr {
     Col(usize),
     /// Result of the n-th aggregate of the current group.
     Agg(usize),
+    /// Parameter `?` number n (from 0) of a prepared statement, read when
+    /// the statement is executed.
+    Param(usize),
     Neg(Box<BExpr>),
     Not(Box<BExpr>),
     Bin(BinaryOp, Box<BExpr>, Box<BExpr>),
@@ -104,12 +107,20 @@ impl BExpr {
 /// Resolves names of an AST expression against a table schema.
 pub struct Binder<'a> {
     schema: Option<&'a TableSchema>,
-    params: &'a [Value],
+    /// Values of `?` parameters, or `None` to keep them as `BExpr::Param`.
+    params: Option<&'a [Value]>,
 }
 
 impl<'a> Binder<'a> {
+    /// Binder that replaces parameters by the given values.
     pub fn new(schema: Option<&'a TableSchema>, params: &'a [Value]) -> Self {
-        Binder { schema, params }
+        Binder { schema, params: Some(params) }
+    }
+
+    /// Binder that keeps parameters as references, so the bound expression
+    /// can be evaluated with different values (a prepared statement).
+    pub fn deferred(schema: Option<&'a TableSchema>) -> Self {
+        Binder { schema, params: None }
     }
 
     /// Binds an expression in which aggregate functions are not allowed.
@@ -127,9 +138,8 @@ impl<'a> Binder<'a> {
         let b = match e {
             Expr::Literal(v) => return Ok(BExpr::Lit(v.clone())),
             Expr::Param(i) => {
-                let v = self.params.get(*i).ok_or_else(|| {
-                    Error::Eval(format!("missing value for parameter ?{} ({} supplied)", i + 1, self.params.len()))
-                })?;
+                let Some(params) = self.params else { return Ok(BExpr::Param(*i)) };
+                let v = params.get(*i).ok_or_else(|| missing_param(*i, params.len()))?;
                 return Ok(BExpr::Lit(v.clone()));
             }
             Expr::Column(name) => {
@@ -270,13 +280,33 @@ fn fold(b: BExpr) -> Result<BExpr> {
         BExpr::Between(x, l, h, _) => x.is_lit() && l.is_lit() && h.is_lit(),
         BExpr::Like { expr, pattern, .. } => expr.is_lit() && pattern.is_lit(),
         BExpr::Func(_, args) => args.iter().all(BExpr::is_lit),
-        BExpr::Lit(_) | BExpr::Col(_) | BExpr::Agg(_) => false,
+        BExpr::Lit(_) | BExpr::Col(_) | BExpr::Agg(_) | BExpr::Param(_) => false,
     };
     if constant {
-        let v = eval(&b, &[], &[])?.into_owned();
+        let v = eval(&b, &[], Cx::default())?.into_owned();
         Ok(BExpr::Lit(v))
     } else {
         Ok(b)
+    }
+}
+
+/// Error for a parameter `?` without a value.
+pub fn missing_param(i: usize, supplied: usize) -> Error {
+    Error::Eval(format!("missing value for parameter ?{} ({} supplied)", i + 1, supplied))
+}
+
+/// What an expression may refer to besides the row: the aggregate values of
+/// the current group and the parameters of the statement.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Cx<'a> {
+    pub aggs: &'a [Value],
+    pub params: &'a [Value],
+}
+
+impl<'a> Cx<'a> {
+    /// Context of an expression over rows (no aggregates).
+    pub fn params(params: &'a [Value]) -> Self {
+        Cx { aggs: &[], params }
     }
 }
 
@@ -288,101 +318,88 @@ fn fold(b: BExpr) -> Result<BExpr> {
 /// through `eval_node`. Keeping the hot path out of the big `match` avoids a
 /// heavy stack frame per leaf, which made filters several times slower.
 #[inline(always)]
-pub fn eval<'a>(e: &'a BExpr, row: &'a [Value], aggs: &'a [Value]) -> Result<Cow<'a, Value>> {
+pub fn eval<'a>(e: &'a BExpr, row: &'a [Value], cx: Cx<'a>) -> Result<Cow<'a, Value>> {
     match e {
         BExpr::Lit(v) => Ok(Cow::Borrowed(v)),
         BExpr::Col(i) => Ok(Cow::Borrowed(&row[*i])),
-        BExpr::Agg(i) => Ok(Cow::Borrowed(&aggs[*i])),
-        other => eval_node(other, row, aggs).map(Cow::Owned),
+        BExpr::Agg(i) => Ok(Cow::Borrowed(&cx.aggs[*i])),
+        BExpr::Param(i) => cx.params.get(*i).map(Cow::Borrowed).ok_or_else(|| missing_param(*i, cx.params.len())),
+        other => eval_node(other, row, cx).map(Cow::Owned),
     }
 }
 
 #[inline(never)]
-fn eval_node(e: &BExpr, row: &[Value], aggs: &[Value]) -> Result<Value> {
+fn eval_node(e: &BExpr, row: &[Value], cx: Cx) -> Result<Value> {
     match e {
-        BExpr::Lit(_) | BExpr::Col(_) | BExpr::Agg(_) => Ok(eval(e, row, aggs)?.into_owned()),
-        BExpr::Bin(BinaryOp::And | BinaryOp::Or, ..) | BExpr::Not(_) => Ok(opt_bool(eval_pred(e, row, aggs)?)),
+        BExpr::Lit(_) | BExpr::Col(_) | BExpr::Agg(_) | BExpr::Param(_) => Ok(eval(e, row, cx)?.into_owned()),
+        BExpr::Bin(BinaryOp::And | BinaryOp::Or, ..) | BExpr::Not(_) => Ok(opt_bool(eval_pred(e, row, cx)?)),
         BExpr::Bin(op, l, r) if op.is_comparison() => {
-            Ok(opt_bool(compare(*op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?)?))
+            Ok(opt_bool(compare(*op, &*eval(l, row, cx)?, &*eval(r, row, cx)?)?))
         }
         BExpr::Bin(BinaryOp::Concat, l, r) => {
-            let (a, b) = (eval(l, row, aggs)?, eval(r, row, aggs)?);
+            let (a, b) = (eval(l, row, cx)?, eval(r, row, cx)?);
             if a.is_null() || b.is_null() {
                 return Ok(Value::Null);
             }
             Ok(Value::Text(format!("{a}{b}")))
         }
-        BExpr::Bin(op, l, r) => arith(*op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?),
-        BExpr::Neg(x) => match &*eval(x, row, aggs)? {
+        BExpr::Bin(op, l, r) => arith(*op, &*eval(l, row, cx)?, &*eval(r, row, cx)?),
+        BExpr::Neg(x) => match &*eval(x, row, cx)? {
             Value::Null => Ok(Value::Null),
             Value::Int(i) => i.checked_neg().map(Value::Int).ok_or_else(overflow),
             Value::Float(f) => Ok(Value::Float(-f)),
             other => Err(type_error(format!("cannot negate {} value", other.type_name()))),
         },
-        BExpr::IsNull(x, negated) => Ok(Value::Bool(eval(x, row, aggs)?.is_null() != *negated)),
-        BExpr::InList(..) | BExpr::Between(..) | BExpr::Like { .. } => Ok(opt_bool(eval_pred(e, row, aggs)?)),
-        BExpr::Func(f, args) => eval_func(*f, args, row, aggs),
+        BExpr::IsNull(x, negated) => Ok(Value::Bool(eval(x, row, cx)?.is_null() != *negated)),
+        BExpr::InList(..) | BExpr::Between(..) | BExpr::Like { .. } => Ok(opt_bool(eval_pred(e, row, cx)?)),
+        BExpr::Func(f, args) => eval_func(*f, args, row, cx),
     }
 }
 
 /// Evaluates a boolean expression to SQL three-valued logic (`None` = NULL)
 /// without materialising intermediate `Value::Bool`s.
-pub fn eval_pred(e: &BExpr, row: &[Value], aggs: &[Value]) -> Result<Option<bool>> {
+pub fn eval_pred(e: &BExpr, row: &[Value], cx: Cx) -> Result<Option<bool>> {
     match e {
         BExpr::Bin(BinaryOp::And, l, r) => {
-            let a = eval_pred(l, row, aggs)?;
+            let a = eval_pred(l, row, cx)?;
             if a == Some(false) {
                 return Ok(Some(false));
             }
-            Ok(and3(a, eval_pred(r, row, aggs)?))
+            Ok(and3(a, eval_pred(r, row, cx)?))
         }
         BExpr::Bin(BinaryOp::Or, l, r) => {
-            let a = eval_pred(l, row, aggs)?;
+            let a = eval_pred(l, row, cx)?;
             if a == Some(true) {
                 return Ok(Some(true));
             }
-            Ok(match (a, eval_pred(r, row, aggs)?) {
+            Ok(match (a, eval_pred(r, row, cx)?) {
                 (_, Some(true)) => Some(true),
                 (Some(false), Some(false)) => Some(false),
                 _ => None,
             })
         }
-        BExpr::Bin(op, l, r) if op.is_comparison() => compare(*op, &*eval(l, row, aggs)?, &*eval(r, row, aggs)?),
-        BExpr::Not(x) => Ok(eval_pred(x, row, aggs)?.map(|b| !b)),
-        BExpr::IsNull(x, negated) => Ok(Some(eval(x, row, aggs)?.is_null() != *negated)),
-        BExpr::InList(x, list, negated) => eval_in_list(x, list, *negated, row, aggs),
-        BExpr::Between(x, lo, hi, negated) => eval_between(x, lo, hi, *negated, row, aggs),
-        BExpr::Like { expr, pattern, negated, ci } => eval_like(expr, pattern, *negated, *ci, row, aggs),
-        other => truth(&*eval(other, row, aggs)?),
+        BExpr::Bin(op, l, r) if op.is_comparison() => compare(*op, &*eval(l, row, cx)?, &*eval(r, row, cx)?),
+        BExpr::Not(x) => Ok(eval_pred(x, row, cx)?.map(|b| !b)),
+        BExpr::IsNull(x, negated) => Ok(Some(eval(x, row, cx)?.is_null() != *negated)),
+        BExpr::InList(x, list, negated) => eval_in_list(x, list, *negated, row, cx),
+        BExpr::Between(x, lo, hi, negated) => eval_between(x, lo, hi, *negated, row, cx),
+        BExpr::Like { expr, pattern, negated, ci } => eval_like(expr, pattern, *negated, *ci, row, cx),
+        other => truth(&*eval(other, row, cx)?),
     }
 }
 
 #[inline(never)]
-fn eval_between(
-    x: &BExpr,
-    lo: &BExpr,
-    hi: &BExpr,
-    negated: bool,
-    row: &[Value],
-    aggs: &[Value],
-) -> Result<Option<bool>> {
-    let v = eval(x, row, aggs)?;
-    let ge = compare(BinaryOp::GtEq, &v, &*eval(lo, row, aggs)?)?;
-    let le = compare(BinaryOp::LtEq, &v, &*eval(hi, row, aggs)?)?;
+fn eval_between(x: &BExpr, lo: &BExpr, hi: &BExpr, negated: bool, row: &[Value], cx: Cx) -> Result<Option<bool>> {
+    let v = eval(x, row, cx)?;
+    let ge = compare(BinaryOp::GtEq, &v, &*eval(lo, row, cx)?)?;
+    let le = compare(BinaryOp::LtEq, &v, &*eval(hi, row, cx)?)?;
     Ok(and3(ge, le).map(|b| b != negated))
 }
 
 #[inline(never)]
-fn eval_like(
-    x: &BExpr,
-    pattern: &BExpr,
-    negated: bool,
-    ci: bool,
-    row: &[Value],
-    aggs: &[Value],
-) -> Result<Option<bool>> {
-    let v = eval(x, row, aggs)?;
-    let p = eval(pattern, row, aggs)?;
+fn eval_like(x: &BExpr, pattern: &BExpr, negated: bool, ci: bool, row: &[Value], cx: Cx) -> Result<Option<bool>> {
+    let v = eval(x, row, cx)?;
+    let p = eval(pattern, row, cx)?;
     match (&*v, &*p) {
         (Value::Null, _) | (_, Value::Null) => Ok(None),
         (Value::Text(s), Value::Text(pat)) => Ok(Some(like_match(s, pat, ci) != negated)),
@@ -391,14 +408,14 @@ fn eval_like(
 }
 
 #[inline(never)]
-fn eval_in_list(x: &BExpr, list: &[BExpr], negated: bool, row: &[Value], aggs: &[Value]) -> Result<Option<bool>> {
-    let v = eval(x, row, aggs)?;
+fn eval_in_list(x: &BExpr, list: &[BExpr], negated: bool, row: &[Value], cx: Cx) -> Result<Option<bool>> {
+    let v = eval(x, row, cx)?;
     if v.is_null() {
         return Ok(None);
     }
     let mut saw_null = false;
     for item in list {
-        let iv = eval(item, row, aggs)?;
+        let iv = eval(item, row, cx)?;
         if iv.is_null() {
             saw_null = true;
         } else if sql_cmp(&v, &iv)? == Ordering::Equal {
@@ -448,7 +465,7 @@ pub fn truth(v: &Value) -> Result<Option<bool>> {
 pub fn matches(filter: Option<&BExpr>, row: &[Value]) -> Result<bool> {
     match filter {
         None => Ok(true),
-        Some(f) => Ok(eval_pred(f, row, &[])? == Some(true)),
+        Some(f) => Ok(eval_pred(f, row, Cx::default())? == Some(true)),
     }
 }
 
@@ -457,13 +474,14 @@ pub fn matches(filter: Option<&BExpr>, row: &[Value]) -> Result<bool> {
 /// evaluated in order like `AND`: the first FALSE decides, and a NULL term
 /// makes the row not qualify.
 #[inline]
-pub fn matches_terms(terms: &[BExpr], skip: u64, row: &[Value]) -> Result<bool> {
+pub fn matches_terms(terms: &[BExpr], skip: u64, row: &[Value], params: &[Value]) -> Result<bool> {
+    let cx = Cx::params(params);
     let mut all = true;
     for (i, term) in terms.iter().enumerate() {
         if i < 64 && skip >> i & 1 == 1 {
             continue;
         }
-        match eval_pred(term, row, &[])? {
+        match eval_pred(term, row, cx)? {
             Some(true) => {}
             Some(false) => return Ok(false),
             None => all = false,
@@ -543,17 +561,17 @@ fn arith(op: BinaryOp, a: &Value, b: &Value) -> Result<Value> {
     }
 }
 
-fn eval_func(f: ScalarFn, args: &[BExpr], row: &[Value], aggs: &[Value]) -> Result<Value> {
+fn eval_func(f: ScalarFn, args: &[BExpr], row: &[Value], cx: Cx) -> Result<Value> {
     if f == ScalarFn::Coalesce {
         for a in args {
-            let v = eval(a, row, aggs)?;
+            let v = eval(a, row, cx)?;
             if !v.is_null() {
                 return Ok(v.into_owned());
             }
         }
         return Ok(Value::Null);
     }
-    let first = eval(&args[0], row, aggs)?;
+    let first = eval(&args[0], row, cx)?;
     if f == ScalarFn::Typeof {
         return Ok(Value::Text(first.type_name().to_ascii_lowercase()));
     }
@@ -575,7 +593,7 @@ fn eval_func(f: ScalarFn, args: &[BExpr], row: &[Value], aggs: &[Value]) -> Resu
         },
         ScalarFn::Round => {
             let digits = match args.get(1) {
-                Some(d) => match &*eval(d, row, aggs)? {
+                Some(d) => match &*eval(d, row, cx)? {
                     Value::Int(n) => *n,
                     Value::Null => return Ok(Value::Null),
                     _ => return Err(Error::Type("ROUND() precision must be an INT".into())),
@@ -596,7 +614,7 @@ fn eval_func(f: ScalarFn, args: &[BExpr], row: &[Value], aggs: &[Value]) -> Resu
             let int_arg = |i: usize| -> Result<Option<i64>> {
                 match args.get(i) {
                     None => Ok(None),
-                    Some(a) => match &*eval(a, row, aggs)? {
+                    Some(a) => match &*eval(a, row, cx)? {
                         Value::Int(n) => Ok(Some(*n)),
                         _ => Err(Error::Type("SUBSTR() positions must be INT".into())),
                     },
@@ -665,12 +683,12 @@ impl AggAcc {
         AggAcc { count: n, int_sum: 0, float_sum: 0.0, saw_float: false, best: None, seen: None }
     }
 
-    pub fn update(&mut self, spec: &AggSpec, row: &[Value]) -> Result<()> {
+    pub fn update(&mut self, spec: &AggSpec, row: &[Value], params: &[Value]) -> Result<()> {
         let Some(arg) = &spec.arg else {
             self.count += 1;
             return Ok(());
         };
-        let v = eval(arg, row, &[])?;
+        let v = eval(arg, row, Cx::params(params))?;
         if v.is_null() {
             return Ok(());
         }
@@ -746,6 +764,7 @@ pub fn describe(e: &BExpr, schema: Option<&TableSchema>, aggs: &[AggSpec]) -> St
         },
         BExpr::Col(i) => schema.map_or_else(|| format!("#{i}"), |s| s.columns[*i].name.clone()),
         BExpr::Agg(i) => aggs.get(*i).map_or_else(|| format!("agg#{i}"), |a| a.label.clone()),
+        BExpr::Param(i) => format!("?{}", i + 1),
         BExpr::Neg(x) => format!("-{}", d(x)),
         BExpr::Not(x) => format!("NOT {}", d(x)),
         BExpr::Bin(op, l, r) => format!("{} {} {}", d(l), op.symbol(), d(r)),
@@ -782,7 +801,7 @@ mod tests {
         let Statement::Select(s) = parse_one(&format!("SELECT {expr}")).unwrap() else { panic!() };
         let SelectItem::Expr { expr, .. } = &s.projection[0] else { panic!() };
         let b = Binder::new(None, &[]).bind(expr, "SELECT")?;
-        Ok(eval(&b, &[], &[])?.into_owned())
+        Ok(eval(&b, &[], Cx::default())?.into_owned())
     }
 
     #[test]

@@ -47,6 +47,16 @@ export class FlatDB extends EventTarget {
   #chain = Promise.resolve();
   #flushQueued = false;
   #closed = false;
+  // Prepared statements of exec(sql) and query(sql, params) by SQL text, the
+  // least recently used first; null for SQL that is not one statement.
+  #statements = new Map();
+  // SQL texts executed once by exec(sql): a statement is prepared and kept
+  // when its text comes again, so SQL with literals inside does not fill the
+  // cache.
+  #seen = new Map();
+  #cacheSize;
+  // Statements that only read: no WAL to look for after them.
+  #readOnly = new WeakSet();
 
   /**
    * Opens (or creates) a database persisted in `store`.
@@ -65,9 +75,12 @@ export class FlatDB extends EventTarget {
    *   IndexedDB data (navigator.storage.persist, default true); Firefox asks
    *   the user, so an application may pass false and call
    *   requestPersistence() later
+   * @param {number} [options.statementCache] number of prepared statements
+   *   kept for exec(sql) and query(sql, params) by SQL text (default 64, 0
+   *   turns the cache off)
    */
   static async open(options = {}) {
-    const { name, nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability, persist = true } = options;
+    const { name, nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability, persist = true, statementCache = 64 } = options;
     if (name !== undefined && options.store) throw new TypeError('name applies to the default IndexedDB store only');
     const store = options.store ?? defaultStore(name ?? 'default');
     if (durability !== undefined) {
@@ -84,7 +97,7 @@ export class FlatDB extends EventTarget {
     const db = Database.restore(state.snapshot ?? undefined, state.wal ?? undefined, node);
     const recoveryMs = performance.now() - t0;
     if (state.meta.nodeId === undefined) await store.setMeta('nodeId', db.nodeId);
-    const fdb = new FlatDB(db, store, { checkpointBytes, flush });
+    const fdb = new FlatDB(db, store, { checkpointBytes, flush, statementCache });
     fdb.recovery = { ...db.recoveryReport(), ms: recoveryMs };
     // A torn tail must not stay in front of frames appended later.
     if (fdb.recovery.tornBytes > 0) await fdb.checkpoint();
@@ -94,10 +107,11 @@ export class FlatDB extends EventTarget {
     return fdb;
   }
 
-  constructor(db, store, { checkpointBytes, flush }) {
+  constructor(db, store, { checkpointBytes, flush, statementCache = 64 }) {
     super();
     this.#db = db;
     this.#store = store;
+    this.#cacheSize = statementCache;
     this.checkpointBytes = checkpointBytes;
     this.autoFlush = flush === 'auto';
     /** true: the browser will not evict the data; false: it may; null: unknown or not applicable. */
@@ -115,6 +129,8 @@ export class FlatDB extends EventTarget {
 
   /** Executes SQL; returns `{ columns, rows, rowsAffected, rowsScanned, message }`. */
   exec(sql) {
+    const st = this.#cached(sql, false);
+    if (st) return this.run(st);
     const r = this.#db.exec(sql);
     this.#afterWrite();
     return r;
@@ -136,19 +152,57 @@ export class FlatDB extends EventTarget {
 
   /** Runs a query and returns rows as plain objects. */
   query(sql, params) {
-    const r = params === undefined ? this.#db.exec(sql) : this.run(this.prepare(sql), params);
-    this.#afterWrite();
-    return rowsToObjects(r);
+    if (params === undefined) return rowsToObjects(this.exec(sql));
+    return rowsToObjects(this.run(this.#cached(sql, true) ?? this.prepare(sql), params));
   }
 
   prepare(sql) {
-    return this.#db.prepare(sql);
+    const statement = this.#db.prepare(sql);
+    if (statement.readOnly) this.#readOnly.add(statement);
+    return statement;
   }
 
   run(statement, params = []) {
     const r = this.#db.run(statement, params);
-    this.#afterWrite();
+    if (!this.#readOnly.has(statement)) this.#afterWrite();
     return r;
+  }
+
+  /**
+   * Prepared statement of `sql` from the cache, or prepared now and kept;
+   * null when the cache is off or `sql` is not a single statement. exec(sql)
+   * keeps a statement from the second time its text is executed, query with
+   * parameters from the first.
+   */
+  #cached(sql, now) {
+    if (this.#cacheSize <= 0) return null;
+    let statement = this.#statements.get(sql);
+    if (statement !== undefined) {
+      this.#statements.delete(sql);
+      this.#statements.set(sql, statement);
+      return statement;
+    }
+    if (!now && !this.#remember(sql)) return null;
+    try {
+      statement = this.prepare(sql);
+    } catch {
+      statement = null; // several statements, or an error exec reports
+    }
+    this.#statements.set(sql, statement);
+    if (this.#statements.size > this.#cacheSize) {
+      const [oldest, evicted] = this.#statements.entries().next().value;
+      this.#statements.delete(oldest);
+      evicted?.free();
+    }
+    return statement;
+  }
+
+  /** Whether `sql` was executed before; remembers it otherwise. */
+  #remember(sql) {
+    if (this.#seen.delete(sql)) return true;
+    this.#seen.set(sql, true);
+    if (this.#seen.size > 4 * this.#cacheSize) this.#seen.delete(this.#seen.keys().next().value);
+    return false;
   }
 
   /** Executes a prepared write and returns the number of affected rows. */
@@ -160,7 +214,7 @@ export class FlatDB extends EventTarget {
 
   runJson(statement, params = []) {
     const r = this.#db.runJson(statement, params);
-    this.#afterWrite();
+    if (!this.#readOnly.has(statement)) this.#afterWrite();
     return r;
   }
 
@@ -310,6 +364,8 @@ export class FlatDB extends EventTarget {
     if (this.#closed) return;
     await this.flush();
     this.#closed = true;
+    for (const statement of this.#statements.values()) statement?.free();
+    this.#statements.clear();
     this.#db.free();
     await this.#store.close?.();
   }

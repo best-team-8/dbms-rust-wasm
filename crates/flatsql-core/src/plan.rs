@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use std::ops::Bound;
 
 use crate::error::{Error, Result};
-use crate::expr::{describe, truth, BExpr};
+use crate::expr::{describe, missing_param, truth, BExpr};
 use crate::sql::BinaryOp;
 use crate::table::{RowEntry, Table};
 use crate::value::{DataType, Value};
@@ -90,15 +90,170 @@ impl Access {
 /// Picks the access path for a (bound) WHERE clause.
 pub fn choose(table: &Table, filter: Option<&BExpr>) -> Result<Access> {
     let terms = filter.map(BExpr::conjuncts).unwrap_or_default();
-    Ok(choose_terms(table, &terms)?.0)
+    Ok(choose_terms(table, &terms, &[])?.0)
 }
 
 /// Picks the access path and tells whether it guarantees the whole WHERE
 /// clause (see [`choose_terms`]).
 pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, bool)> {
     let terms = filter.map(BExpr::conjuncts).unwrap_or_default();
-    let (access, absorbed) = choose_terms(table, &terms)?;
+    let (access, absorbed) = choose_terms(table, &terms, &[])?;
     Ok((access, covers_all(absorbed, terms.len())))
+}
+
+/// Value of a literal, or of a parameter of the statement.
+fn operand<'a>(e: &'a BExpr, params: &'a [Value]) -> Option<&'a Value> {
+    match e {
+        BExpr::Lit(v) => Some(v),
+        BExpr::Param(i) => params.get(*i),
+        _ => None,
+    }
+}
+
+/// Access path of a prepared statement. A WHERE clause without parameters
+/// gets its path once, when the statement is prepared. A clause that is a
+/// single condition on the primary key or an indexed column compared with
+/// parameters (`col = ?`, `col < ?`, `col BETWEEN ? AND ?`) gets a template
+/// filled with the parameter values at execution. Any other clause with
+/// parameters has its path chosen at every execution. The template gives the
+/// path [`choose_terms`] would choose for the same values; when a value does
+/// not fit the template (NULL, or a type that cannot drive the lookup) the
+/// general choice decides.
+#[derive(Debug, Clone)]
+pub struct AccessPlan {
+    template: Template,
+}
+
+#[derive(Debug, Clone)]
+enum Template {
+    Fixed(Access, u64),
+    /// `col = ?n`; `index` is `None` for the primary key.
+    Point {
+        index: Option<usize>,
+        col: usize,
+        param: usize,
+    },
+    /// `col > ?a`, `col BETWEEN ?a AND ?b`, ...: parameter and inclusiveness
+    /// of each bound.
+    Range {
+        index: Option<usize>,
+        col: usize,
+        lo: Option<(usize, bool)>,
+        hi: Option<(usize, bool)>,
+    },
+    Dynamic,
+}
+
+fn has_param(e: &BExpr) -> bool {
+    match e {
+        BExpr::Param(_) => true,
+        BExpr::Lit(_) | BExpr::Col(_) | BExpr::Agg(_) => false,
+        BExpr::Neg(x) | BExpr::Not(x) | BExpr::IsNull(x, _) => has_param(x),
+        BExpr::Bin(_, l, r) => has_param(l) || has_param(r),
+        BExpr::InList(x, l, _) => has_param(x) || l.iter().any(has_param),
+        BExpr::Between(x, l, h, _) => has_param(x) || has_param(l) || has_param(h),
+        BExpr::Like { expr, pattern, .. } => has_param(expr) || has_param(pattern),
+        BExpr::Func(_, args) => args.iter().any(has_param),
+    }
+}
+
+impl AccessPlan {
+    /// Prepares the access path of a WHERE clause given as its conjuncts.
+    pub fn new(table: &Table, terms: &[BExpr]) -> Result<AccessPlan> {
+        if !terms.iter().any(has_param) {
+            let (access, absorbed) = choose_terms(table, terms, &[])?;
+            return Ok(AccessPlan { template: Template::Fixed(access, absorbed) });
+        }
+        let keyed = |col: usize| {
+            if col == table.schema.pk {
+                Some(None)
+            } else {
+                table.index_on(col).map(Some)
+            }
+        };
+        let template = match terms {
+            [BExpr::Bin(op, l, r)] if op.is_comparison() && *op != BinaryOp::NotEq => {
+                let (col, param, op) = match (&**l, &**r) {
+                    (BExpr::Col(c), BExpr::Param(p)) => (*c, *p, *op),
+                    (BExpr::Param(p), BExpr::Col(c)) => (*c, *p, op.flipped()),
+                    _ => return Ok(AccessPlan { template: Template::Dynamic }),
+                };
+                match (keyed(col), op) {
+                    (None, _) => Template::Dynamic,
+                    (Some(index), BinaryOp::Eq) => Template::Point { index, col, param },
+                    (Some(index), BinaryOp::Lt) => Template::Range { index, col, lo: None, hi: Some((param, false)) },
+                    (Some(index), BinaryOp::LtEq) => Template::Range { index, col, lo: None, hi: Some((param, true)) },
+                    (Some(index), BinaryOp::Gt) => Template::Range { index, col, lo: Some((param, false)), hi: None },
+                    (Some(index), BinaryOp::GtEq) => Template::Range { index, col, lo: Some((param, true)), hi: None },
+                    _ => Template::Dynamic,
+                }
+            }
+            [BExpr::Between(x, lo, hi, false)] => match (&**x, &**lo, &**hi) {
+                (BExpr::Col(col), BExpr::Param(a), BExpr::Param(b)) => match keyed(*col) {
+                    Some(index) => Template::Range { index, col: *col, lo: Some((*a, true)), hi: Some((*b, true)) },
+                    None => Template::Dynamic,
+                },
+                _ => Template::Dynamic,
+            },
+            _ => Template::Dynamic,
+        };
+        Ok(AccessPlan { template })
+    }
+
+    /// Access path for the given parameter values and the conjuncts it
+    /// guarantees (as [`choose_terms`]).
+    pub fn resolve(&self, table: &Table, terms: &[BExpr], params: &[Value]) -> Result<(Access, u64)> {
+        let key = |col: usize, param: usize| -> Result<Option<Option<Value>>> {
+            let v = params.get(param).ok_or_else(|| missing_param(param, params.len()))?;
+            if v.is_null() {
+                return Ok(Some(None));
+            }
+            Ok(key_for(table, col, v)?.map(Some))
+        };
+        match &self.template {
+            Template::Fixed(access, absorbed) => Ok((access.clone(), *absorbed)),
+            Template::Point { index, col, param } => match key(*col, *param)? {
+                Some(Some(k)) => Ok((
+                    match index {
+                        None => Access::PkPoint(k),
+                        Some(i) => Access::IndexPoint(*i, k),
+                    },
+                    1,
+                )),
+                Some(None) => Ok((Access::Empty, 1)),
+                None => choose_terms(table, terms, params),
+            },
+            Template::Range { index, col, lo, hi } => {
+                let bound = |b: &Option<(usize, bool)>| -> Result<Option<Option<Bound<Value>>>> {
+                    let Some((param, inclusive)) = *b else { return Ok(Some(Some(Bound::Unbounded))) };
+                    Ok(key(*col, param)?
+                        .map(|k| k.map(|k| if inclusive { Bound::Included(k) } else { Bound::Excluded(k) })))
+                };
+                let (lo, hi) = match (bound(lo)?, bound(hi)?) {
+                    (Some(Some(lo)), Some(Some(hi))) => (lo, hi),
+                    (Some(None), Some(_)) | (Some(_), Some(None)) => return Ok((Access::Empty, 1)),
+                    _ => return choose_terms(table, terms, params),
+                };
+                if range_empty(&lo, &hi) {
+                    return Ok((Access::Empty, 1));
+                }
+                Ok((
+                    match index {
+                        None => Access::PkRange(lo, hi),
+                        Some(i) => {
+                            let lo = match lo {
+                                Bound::Unbounded => Bound::Excluded(Value::Null),
+                                lo => lo,
+                            };
+                            Access::IndexRange(*i, lo, hi)
+                        }
+                    },
+                    1,
+                ))
+            }
+            Template::Dynamic => choose_terms(table, terms, params),
+        }
+    }
 }
 
 /// Mask of the first `n` conjuncts.
@@ -129,7 +284,8 @@ pub fn covers_all(absorbed: u64, n: usize) -> bool {
 /// secondary index without a lower bound starts after NULL, which the index
 /// stores but which never satisfies a comparison. A literal TRUE is
 /// guaranteed as well; when the access path is `Empty` nothing is evaluated.
-pub fn choose_terms<T: Borrow<BExpr>>(table: &Table, terms: &[T]) -> Result<(Access, u64)> {
+/// Parameters (`BExpr::Param`) count as literals with the values `params`.
+pub fn choose_terms<T: Borrow<BExpr>>(table: &Table, terms: &[T], params: &[Value]) -> Result<(Access, u64)> {
     let empty = Ok((Access::Empty, all_terms(terms.len())));
     let bit = |pos: usize| if pos < 64 { 1u64 << pos } else { 0 };
 
@@ -153,8 +309,10 @@ pub fn choose_terms<T: Borrow<BExpr>>(table: &Table, terms: &[T]) -> Result<(Acc
             },
             BExpr::Bin(op, l, r) if op.is_comparison() && *op != BinaryOp::NotEq => {
                 let (col, v, op) = match (&**l, &**r) {
-                    (BExpr::Col(c), BExpr::Lit(v)) => (*c, v, *op),
-                    (BExpr::Lit(v), BExpr::Col(c)) => (*c, v, op.flipped()),
+                    (BExpr::Col(c), r) if operand(r, params).is_some() => (*c, operand(r, params).unwrap(), *op),
+                    (l, BExpr::Col(c)) if operand(l, params).is_some() => {
+                        (*c, operand(l, params).unwrap(), op.flipped())
+                    }
                     _ => continue,
                 };
                 if v.is_null() {
@@ -175,7 +333,9 @@ pub fn choose_terms<T: Borrow<BExpr>>(table: &Table, terms: &[T]) -> Result<(Acc
                 *ranged.entry(col).or_default() |= bit(pos);
             }
             BExpr::Between(x, lo, hi, false) => {
-                let (BExpr::Col(c), BExpr::Lit(a), BExpr::Lit(b)) = (&**x, &**lo, &**hi) else { continue };
+                let (BExpr::Col(c), Some(a), Some(b)) = (&**x, operand(lo, params), operand(hi, params)) else {
+                    continue;
+                };
                 if a.is_null() || b.is_null() {
                     return empty;
                 }
@@ -190,13 +350,13 @@ pub fn choose_terms<T: Borrow<BExpr>>(table: &Table, terms: &[T]) -> Result<(Acc
                 let mut values = Vec::with_capacity(list.len());
                 let mut usable = true;
                 for item in list {
-                    match item {
-                        BExpr::Lit(v) if v.is_null() => {}
-                        BExpr::Lit(v) => match key_for(table, *c, v)? {
+                    match operand(item, params) {
+                        Some(v) if v.is_null() => {}
+                        Some(v) => match key_for(table, *c, v)? {
                             Some(k) => values.push(k),
                             None => usable = false,
                         },
-                        _ => usable = false,
+                        None => usable = false,
                     }
                 }
                 if !usable {

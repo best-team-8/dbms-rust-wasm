@@ -8,7 +8,12 @@ use std::fs;
 use std::path::PathBuf;
 
 /// (cfg name, source file of the core, marker text)
-const API: &[(&str, &str, &str)] = &[];
+const API: &[(&str, &str, &str)] = &[
+    // Expressions evaluated with a context of aggregates and parameters.
+    ("core_cx", "expr.rs", "pub struct Cx"),
+    // Prepared statements keep a compiled access path.
+    ("core_access_plan", "plan.rs", "pub struct AccessPlan"),
+];
 
 fn main() {
     let core = env::var("FLATSQL_CORE_DIR")

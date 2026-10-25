@@ -140,3 +140,44 @@ test('low level Database API: snapshot + WAL restore', () => {
   db.free();
   restored.free();
 });
+
+test('statements kept by exec and query follow schema changes and are freed on close', async () => {
+  for (const statementCache of [64, 1, 0]) {
+    const db = await FlatDB.open({ store: new MemoryStore(), statementCache });
+    db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT)');
+    db.exec("INSERT INTO t VALUES (1, 'a'), (2, 'b')");
+    for (let i = 0; i < 3; i++) {
+      assert.deepEqual(db.exec('SELECT v FROM t ORDER BY id').rows, [['a'], ['b']]);
+      assert.deepEqual(db.query('SELECT v FROM t WHERE id = ?', [2]), [{ v: 'b' }]);
+    }
+    // The cached statements are compiled again for the new definition.
+    db.exec('DROP TABLE t; CREATE TABLE t (v TEXT, id INT PRIMARY KEY)');
+    db.exec("INSERT INTO t VALUES ('x', 2)");
+    assert.deepEqual(db.exec('SELECT v FROM t ORDER BY id').rows, [['x']]);
+    assert.deepEqual(db.query('SELECT v FROM t WHERE id = ?', [2]), [{ v: 'x' }]);
+    // Scripts and errors still go through exec.
+    assert.equal(db.exec("INSERT INTO t VALUES ('y', 3); SELECT COUNT(*) FROM t").rows[0][0], 2);
+    assert.throws(() => db.exec('SELEC 1'), (e) => e.kind === 'parse');
+    assert.throws(() => db.exec('SELEC 1'), (e) => e.kind === 'parse');
+    await db.close();
+  }
+});
+
+test('reads do not look for WAL bytes, writes do', async () => {
+  const db = await FlatDB.open({ store: new MemoryStore(), flush: 'manual' });
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v INT)');
+  let changes = 0;
+  db.addEventListener('change', () => changes++);
+  const read = db.prepare('SELECT v FROM t WHERE id = ?');
+  const write = db.prepare('INSERT INTO t VALUES (?, ?)');
+  assert.equal(read.readOnly, true);
+  assert.equal(write.readOnly, false);
+  db.run(write, [1, 10]);
+  assert.equal(changes, 1);
+  assert.deepEqual(db.run(read, [1]).rows, [[10]]);
+  db.query('SELECT v FROM t WHERE id = ?', [1]);
+  assert.equal(changes, 1);
+  db.query('INSERT INTO t VALUES (?, ?)', [2, 20]);
+  assert.equal(changes, 2);
+  await db.close();
+});

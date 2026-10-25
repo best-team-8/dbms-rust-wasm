@@ -1,30 +1,76 @@
 //! Statement execution.
+//!
+//! SELECT, INSERT, UPDATE and DELETE are first compiled against the catalog
+//! ([`compile`]): names are resolved, `?` parameters stay as references and
+//! the access path is chosen or prepared as a template. A prepared statement
+//! keeps the compiled form and executes it with new parameter values; a
+//! statement executed once is compiled and run right away. Other statements
+//! run from their syntax tree.
 
 use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use crate::db::{catalog_key, Database};
 use crate::error::{Error, Result};
-use crate::expr::{describe, eval, eval_pred, matches_terms, AggAcc, AggFunc, AggSpec, BExpr, Binder};
-use crate::plan::{self, Access};
+use crate::expr::{describe, eval, eval_pred, matches_terms, AggAcc, AggFunc, AggSpec, BExpr, Binder, Cx};
+use crate::plan::{self, Access, AccessPlan};
 use crate::result::QueryResult;
 use crate::sql::{CreateTable, Delete, Expr, Insert, OnConflict, Select, SelectItem, Statement, Update};
 use crate::sync::{Change, Mutation};
 use crate::table::{Column, Table, TableSchema};
 use crate::value::Value;
 
-pub(crate) fn run_read(db: &Database, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
-    match stmt {
-        Statement::Select(s) => execute_select(&plan_select(db, s, params)?),
-        Statement::Explain(inner) => explain(db, inner, params),
-        Statement::ShowTables => Ok(show_tables(db)),
-        Statement::Describe(name) => describe_table(db, name),
-        _ => unreachable!("not a read-only statement"),
+/// A statement compiled against the catalog (see the module documentation).
+/// One per prepared statement, so the size of the largest variant does not
+/// matter, while a box would add an indirection to every execution.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone)]
+pub(crate) enum Compiled {
+    Select(SelectPlan),
+    Insert(InsertPlan),
+    Update(UpdatePlan),
+    Delete(DeletePlan),
+}
+
+/// Compiles SELECT, INSERT, UPDATE and DELETE; `None` for other statements.
+pub(crate) fn compile(db: &Database, stmt: &Statement) -> Result<Option<Compiled>> {
+    Ok(Some(match stmt {
+        Statement::Select(s) => Compiled::Select(compile_select(db, s)?),
+        Statement::Insert(i) => Compiled::Insert(compile_insert(db, i)?),
+        Statement::Update(u) => Compiled::Update(compile_update(db, u)?),
+        Statement::Delete(d) => Compiled::Delete(compile_delete(db, d)?),
+        _ => return Ok(None),
+    }))
+}
+
+pub(crate) fn run_select(db: &Database, p: &SelectPlan, params: &[Value]) -> Result<QueryResult> {
+    execute_select(&bind_select(db, p, params)?)
+}
+
+/// Runs a compiled INSERT, UPDATE or DELETE (inside a transaction).
+pub(crate) fn run_compiled_write(db: &mut Database, c: &Compiled, params: &[Value]) -> Result<QueryResult> {
+    match c {
+        Compiled::Insert(p) => insert(db, p, params),
+        Compiled::Update(p) => update(db, p, params),
+        Compiled::Delete(p) => delete(db, p, params),
+        Compiled::Select(_) => unreachable!("SELECT does not write"),
     }
 }
 
-pub(crate) fn run_write(db: &mut Database, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
+/// Read-only statements without a compiled form.
+pub(crate) fn run_read(db: &Database, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
+    match stmt {
+        Statement::Explain(inner) => explain(db, inner, params),
+        Statement::ShowTables => Ok(show_tables(db)),
+        Statement::Describe(name) => describe_table(db, name),
+        _ => unreachable!("not a read-only statement without a compiled form"),
+    }
+}
+
+/// Schema statements (inside a transaction).
+pub(crate) fn run_write(db: &mut Database, stmt: &Statement) -> Result<QueryResult> {
     match stmt {
         Statement::CreateTable(ct) => create_table(db, ct),
         Statement::DropTable { name, if_exists } => drop_table(db, name, *if_exists),
@@ -32,47 +78,66 @@ pub(crate) fn run_write(db: &mut Database, stmt: &Statement, params: &[Value]) -
             create_index(db, name, table, column, *if_not_exists)
         }
         Statement::DropIndex { name, if_exists } => drop_index(db, name, *if_exists),
-        Statement::Insert(i) => insert(db, i, params),
-        Statement::Update(u) => update(db, u, params),
-        Statement::Delete(d) => delete(db, d, params),
-        _ => unreachable!("not a write statement"),
+        _ => unreachable!("not a schema statement"),
     }
+}
+
+fn table_of<'a>(db: &'a Database, key: &str) -> Result<&'a Table> {
+    db.tables.get(key).ok_or_else(|| Error::Schema(format!("no such table '{key}'")))
 }
 
 // ----------------------------------------------------------------------
 // SELECT
 // ----------------------------------------------------------------------
 
-struct SelectPlan<'a> {
-    table: Option<&'a Table>,
+/// A compiled SELECT.
+#[derive(Debug, Clone)]
+pub(crate) struct SelectPlan {
+    /// Catalog key of the table (`None` without FROM).
+    table: Option<Arc<str>>,
     /// Conjuncts of the WHERE clause.
     filter: Vec<BExpr>,
-    /// Conjuncts the access path guarantees (bit `i`: conjunct `i`); they are
-    /// not evaluated again.
-    skip: u64,
-    access: Access,
+    access: Option<AccessPlan>,
     aggregate: bool,
     aggs: Vec<AggSpec>,
     proj: Vec<BExpr>,
-    names: Vec<String>,
+    /// Column names of the result, shared by every result of the statement.
+    names: Arc<[String]>,
     group: Vec<BExpr>,
     having: Option<BExpr>,
     order: Vec<(BExpr, bool)>,
-    /// Every aggregate is `COUNT(*)` of one group and the access path
-    /// guarantees the WHERE clause, so the rows are counted, not read.
+    /// Every aggregate is `COUNT(*)` of one group and nothing else refers to
+    /// a column: when the access path guarantees the WHERE clause, the rows
+    /// are counted, not read.
+    count_shape: bool,
+    /// `ORDER BY` is the primary key alone (`Some(desc)`), so a path in key
+    /// order needs no sort.
+    pk_order: Option<bool>,
+    distinct: bool,
+    limit: Option<BExpr>,
+    offset: Option<BExpr>,
+}
+
+/// A compiled SELECT with the parameter values of one execution.
+struct Run<'a> {
+    p: &'a SelectPlan,
+    table: Option<&'a Table>,
+    params: &'a [Value],
+    access: Access,
+    /// Conjuncts the access path guarantees (bit `i`: conjunct `i`); they are
+    /// not evaluated again.
+    skip: u64,
     count_only: bool,
     /// Rows come from the access path in the requested order already.
     presorted: bool,
     reverse: bool,
-    distinct: bool,
     limit: Option<usize>,
     offset: usize,
 }
 
-fn const_usize(e: &Option<Expr>, params: &[Value], clause: &str) -> Result<Option<usize>> {
+fn const_usize(e: &Option<BExpr>, params: &[Value], clause: &str) -> Result<Option<usize>> {
     let Some(e) = e else { return Ok(None) };
-    let b = Binder::new(None, params).bind(e, clause)?;
-    match eval(&b, &[], &[])?.as_ref() {
+    match eval(e, &[], Cx::params(params))?.as_ref() {
         Value::Int(n) if *n >= 0 => Ok(Some(*n as usize)),
         Value::Null => Ok(None),
         other => Err(Error::Type(format!("{clause} must be a non-negative integer, got {}", other.to_sql()))),
@@ -83,7 +148,7 @@ fn const_usize(e: &Option<Expr>, params: &[Value], clause: &str) -> Result<Optio
 fn any_node(e: &BExpr, leaf: &impl Fn(&BExpr) -> bool) -> bool {
     leaf(e)
         || match e {
-            BExpr::Agg(_) | BExpr::Lit(_) | BExpr::Col(_) => false,
+            BExpr::Agg(_) | BExpr::Lit(_) | BExpr::Col(_) | BExpr::Param(_) => false,
             BExpr::Neg(x) | BExpr::Not(x) | BExpr::IsNull(x, _) => any_node(x, leaf),
             BExpr::Bin(_, l, r) => any_node(l, leaf) || any_node(r, leaf),
             BExpr::InList(x, l, _) => any_node(x, leaf) || l.iter().any(|i| any_node(i, leaf)),
@@ -101,13 +166,13 @@ fn uses_columns(e: &BExpr) -> bool {
     any_node(e, &|n| matches!(n, BExpr::Col(_)))
 }
 
-fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<SelectPlan<'a>> {
+fn compile_select(db: &Database, s: &Select) -> Result<SelectPlan> {
     let table = match &s.from {
         Some(name) => Some(db.table(name)?),
         None => None,
     };
     let schema = table.map(|t| &*t.schema);
-    let binder = Binder::new(schema, params);
+    let binder = Binder::deferred(schema);
 
     let filter = match &s.selection {
         Some(e) => binder.bind(e, "WHERE")?.into_conjuncts(),
@@ -176,46 +241,67 @@ fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<Sel
         order.push((b, item.desc));
     }
 
-    let (access, skip) = match table {
-        Some(t) => plan::choose_terms(t, &filter)?,
-        None => (Access::FullScan, 0),
+    let access = match table {
+        Some(t) => Some(AccessPlan::new(t, &filter)?),
+        None => None,
     };
-    let covered = table.is_some() && plan::covers_all(skip, filter.len());
     // SELECT COUNT(*) FROM t WHERE <guaranteed by the access path>: nothing
     // but the number of rows is needed, and an index stores it.
-    let count_only = aggregate
-        && covered
+    let count_shape = aggregate
         && group.is_empty()
         && aggs.iter().all(|a| a.func == AggFunc::CountStar)
         && !proj.iter().chain(having.iter()).chain(order.iter().map(|(e, _)| e)).any(uses_columns);
-
-    let mut presorted = order.is_empty();
-    let mut reverse = false;
-    if let (Some(t), [(BExpr::Col(c), desc)]) = (table, order.as_slice()) {
-        if !aggregate && !s.distinct && *c == t.schema.pk && access.pk_ordered() {
-            presorted = true;
-            reverse = *desc;
-        }
-    }
+    let pk_order = match (table, order.as_slice()) {
+        (Some(t), [(BExpr::Col(c), desc)]) if !aggregate && !s.distinct && *c == t.schema.pk => Some(*desc),
+        _ => None,
+    };
+    let limits = Binder::deferred(None);
+    let limit = s.limit.as_ref().map(|e| limits.bind(e, "LIMIT")).transpose()?;
+    let offset = s.offset.as_ref().map(|e| limits.bind(e, "OFFSET")).transpose()?;
 
     Ok(SelectPlan {
-        table,
+        table: table.map(|t| t.key.clone()),
         filter,
-        skip,
         access,
         aggregate,
         aggs,
         proj,
-        names,
+        names: names.into(),
         group,
         having,
         order,
+        count_shape,
+        pk_order,
+        distinct: s.distinct,
+        limit,
+        offset,
+    })
+}
+
+/// Fills a compiled SELECT with the parameter values of one execution.
+fn bind_select<'a>(db: &'a Database, p: &'a SelectPlan, params: &'a [Value]) -> Result<Run<'a>> {
+    let table = p.table.as_deref().map(|k| table_of(db, k)).transpose()?;
+    let (access, skip) = match (table, &p.access) {
+        (Some(t), Some(a)) => a.resolve(t, &p.filter, params)?,
+        _ => (Access::FullScan, 0),
+    };
+    let count_only = p.count_shape && table.is_some() && plan::covers_all(skip, p.filter.len());
+    let (presorted, reverse) = match p.pk_order {
+        _ if p.order.is_empty() => (true, false),
+        Some(desc) if access.pk_ordered() => (true, desc),
+        _ => (false, false),
+    };
+    Ok(Run {
+        p,
+        table,
+        params,
+        access,
+        skip,
         count_only,
         presorted,
         reverse,
-        distinct: s.distinct,
-        limit: const_usize(&s.limit, params, "LIMIT")?,
-        offset: const_usize(&s.offset, params, "OFFSET")?.unwrap_or(0),
+        limit: const_usize(&p.limit, params, "LIMIT")?,
+        offset: const_usize(&p.offset, params, "OFFSET")?.unwrap_or(0),
     })
 }
 
@@ -226,8 +312,8 @@ fn position(proj: &[BExpr], n: i64, clause: &str) -> Result<BExpr> {
     Ok(proj[n as usize - 1].clone())
 }
 
-fn project(proj: &[BExpr], row: &[Value], aggs: &[Value]) -> Result<Vec<Value>> {
-    proj.iter().map(|e| eval(e, row, aggs).map(Cow::into_owned)).collect()
+fn project(proj: &[BExpr], row: &[Value], cx: Cx) -> Result<Vec<Value>> {
+    proj.iter().map(|e| eval(e, row, cx).map(Cow::into_owned)).collect()
 }
 
 fn cmp_keys<A: Borrow<Value>, B: Borrow<Value>>(a: &[A], b: &[B], dirs: &[(BExpr, bool)]) -> Ordering {
@@ -272,14 +358,15 @@ fn window<T>(rows: Vec<T>, offset: usize, limit: Option<usize>) -> Vec<T> {
 struct Residual<'a> {
     terms: &'a [BExpr],
     skip: u64,
+    params: &'a [Value],
     /// Some conjunct has to be evaluated. Without one every row qualifies and
     /// the check is one predictable branch per row, not a call.
     any: bool,
 }
 
 impl<'a> Residual<'a> {
-    fn new(terms: &'a [BExpr], skip: u64) -> Self {
-        Residual { terms, skip, any: !plan::covers_all(skip, terms.len()) }
+    fn new(terms: &'a [BExpr], skip: u64, params: &'a [Value]) -> Self {
+        Residual { terms, skip, params, any: !plan::covers_all(skip, terms.len()) }
     }
 
     #[inline(always)]
@@ -287,45 +374,47 @@ impl<'a> Residual<'a> {
         if !self.any {
             return Ok(true);
         }
-        matches_terms(self.terms, self.skip, row)
+        matches_terms(self.terms, self.skip, row, self.params)
     }
 }
 
-fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
+fn execute_select(r: &Run) -> Result<QueryResult> {
+    let p = r.p;
     let empty_row: Vec<Value> = Vec::new();
-    let filter = Residual::new(&p.filter, p.skip);
+    let filter = Residual::new(&p.filter, r.skip, r.params);
+    let cx = Cx::params(r.params);
     let mut scanned: u64 = 0;
-    let need = p.limit.map(|l| l.saturating_add(p.offset));
+    let need = r.limit.map(|l| l.saturating_add(r.offset));
 
     let rows: Vec<Vec<Value>> = if p.aggregate {
-        let null_row = vec![Value::Null; p.table.map_or(0, |t| t.schema.columns.len())];
+        let null_row = vec![Value::Null; r.table.map_or(0, |t| t.schema.columns.len())];
         // Group keys borrow column values from the table where possible; a key
         // is only copied when a new group is created.
         let mut groups: Groups = BTreeMap::new();
         let mut key: Vec<Cow<Value>> = Vec::with_capacity(p.group.len());
-        match p.table {
-            Some(t) if p.count_only => {
-                let n = plan::count(t, &p.access) as i64;
+        match r.table {
+            Some(t) if r.count_only => {
+                let n = plan::count(t, &r.access) as i64;
                 groups.insert(Vec::new(), (&null_row[..], p.aggs.iter().map(|_| AggAcc::counted(n)).collect()));
             }
             Some(t) => {
-                for entry in plan::scan(t, &p.access, false) {
+                for entry in plan::scan(t, &r.access, false) {
                     scanned += 1;
                     if !filter.matches(&entry.values)? {
                         continue;
                     }
                     key.clear();
                     for g in &p.group {
-                        key.push(eval(g, &entry.values, &[])?);
+                        key.push(eval(g, &entry.values, cx)?);
                     }
                     if let Some(slot) = groups.get_mut(key.as_slice()) {
                         for (acc, spec) in slot.1.iter_mut().zip(&p.aggs) {
-                            acc.update(spec, &entry.values)?;
+                            acc.update(spec, &entry.values, r.params)?;
                         }
                     } else {
                         let mut accs: Vec<AggAcc> = p.aggs.iter().map(AggAcc::new).collect();
                         for (acc, spec) in accs.iter_mut().zip(&p.aggs) {
-                            acc.update(spec, &entry.values)?;
+                            acc.update(spec, &entry.values, r.params)?;
                         }
                         groups.insert(key.clone(), (&entry.values[..], accs));
                     }
@@ -344,51 +433,49 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
         let mut seen = BTreeSet::new();
         for (i, (_, (row, accs))) in groups.into_iter().enumerate() {
             let agg_values: Vec<Value> = accs.iter().zip(&p.aggs).map(|(a, s)| a.finish(s)).collect();
+            let gcx = Cx { aggs: &agg_values, params: r.params };
             if let Some(h) = &p.having {
-                if eval_pred(h, row, &agg_values)? != Some(true) {
+                if eval_pred(h, row, gcx)? != Some(true) {
                     continue;
                 }
             }
-            let values = project(&p.proj, row, &agg_values)?;
+            let values = project(&p.proj, row, gcx)?;
             if p.distinct && !seen.insert(values.clone()) {
                 continue;
             }
-            let keys = p
-                .order
-                .iter()
-                .map(|(e, _)| eval(e, row, &agg_values).map(Cow::into_owned))
-                .collect::<Result<Vec<_>>>()?;
+            let keys =
+                p.order.iter().map(|(e, _)| eval(e, row, gcx).map(Cow::into_owned)).collect::<Result<Vec<_>>>()?;
             out.push((keys, i, values));
         }
         if !p.order.is_empty() {
             sort_window(&mut out, &p.order, need);
         }
-        window(out.into_iter().map(|(_, _, v)| v).collect(), p.offset, p.limit)
-    } else if p.presorted && !p.distinct {
+        window(out.into_iter().map(|(_, _, v)| v).collect(), r.offset, r.limit)
+    } else if r.presorted && !p.distinct {
         // Streaming: stop as soon as LIMIT is satisfied.
         let mut out = Vec::new();
         let mut skipped = 0;
-        if p.limit != Some(0) {
-            match p.table {
+        if r.limit != Some(0) {
+            match r.table {
                 Some(t) => {
-                    for entry in plan::scan(t, &p.access, p.reverse) {
+                    for entry in plan::scan(t, &r.access, r.reverse) {
                         scanned += 1;
                         if !filter.matches(&entry.values)? {
                             continue;
                         }
-                        if skipped < p.offset {
+                        if skipped < r.offset {
                             skipped += 1;
                             continue;
                         }
-                        out.push(project(&p.proj, &entry.values, &[])?);
-                        if Some(out.len()) == p.limit {
+                        out.push(project(&p.proj, &entry.values, cx)?);
+                        if Some(out.len()) == r.limit {
                             break;
                         }
                     }
                 }
                 None => {
-                    if filter.matches(&empty_row)? && p.offset == 0 {
-                        out.push(project(&p.proj, &empty_row, &[])?);
+                    if filter.matches(&empty_row)? && r.offset == 0 {
+                        out.push(project(&p.proj, &empty_row, cx)?);
                     }
                 }
             }
@@ -397,8 +484,8 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
     } else if !p.distinct {
         // Sort candidate rows by reference, project only the final window.
         let mut cands: Vec<(Vec<Value>, usize, &[Value])> = Vec::new();
-        let rows: Box<dyn Iterator<Item = &[Value]>> = match p.table {
-            Some(t) => Box::new(plan::scan(t, &p.access, false).map(|e| &e.values[..])),
+        let rows: Box<dyn Iterator<Item = &[Value]>> = match r.table {
+            Some(t) => Box::new(plan::scan(t, &r.access, false).map(|e| &e.values[..])),
             None => Box::new(std::iter::once(&empty_row[..])),
         };
         match need {
@@ -417,7 +504,7 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
                     }
                     key.clear();
                     for (e, _) in &p.order {
-                        key.push(eval(e, row, &[])?);
+                        key.push(eval(e, row, cx)?);
                     }
                     // Equal keys keep scan order, so a tie with the k-th row loses.
                     if cands.len() == k && cmp_keys(&key, &cands[k - 1].0, &p.order) != Ordering::Less {
@@ -437,26 +524,26 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
                     let keys = p
                         .order
                         .iter()
-                        .map(|(e, _)| eval(e, row, &[]).map(Cow::into_owned))
+                        .map(|(e, _)| eval(e, row, cx).map(Cow::into_owned))
                         .collect::<Result<Vec<_>>>()?;
                     cands.push((keys, i, row));
                 }
                 sort_window(&mut cands, &p.order, need);
             }
         }
-        if p.table.is_none() {
+        if r.table.is_none() {
             scanned = 0;
         }
-        window(cands, p.offset, p.limit)
+        window(cands, r.offset, r.limit)
             .into_iter()
-            .map(|(_, _, row)| project(&p.proj, row, &[]))
+            .map(|(_, _, row)| project(&p.proj, row, cx))
             .collect::<Result<Vec<_>>>()?
     } else {
         // DISTINCT: project first, de-duplicate, then sort.
         let mut seen = BTreeSet::new();
         let mut out: Vec<(Vec<Value>, usize, Vec<Value>)> = Vec::new();
-        let rows: Box<dyn Iterator<Item = &[Value]>> = match p.table {
-            Some(t) => Box::new(plan::scan(t, &p.access, false).map(|e| &e.values[..])),
+        let rows: Box<dyn Iterator<Item = &[Value]>> = match r.table {
+            Some(t) => Box::new(plan::scan(t, &r.access, false).map(|e| &e.values[..])),
             None => Box::new(std::iter::once(&empty_row[..])),
         };
         for (i, row) in rows.enumerate() {
@@ -464,42 +551,42 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
             if !filter.matches(row)? {
                 continue;
             }
-            let values = project(&p.proj, row, &[])?;
+            let values = project(&p.proj, row, cx)?;
             if !seen.insert(values.clone()) {
                 continue;
             }
             let keys =
-                p.order.iter().map(|(e, _)| eval(e, row, &[]).map(Cow::into_owned)).collect::<Result<Vec<_>>>()?;
+                p.order.iter().map(|(e, _)| eval(e, row, cx).map(Cow::into_owned)).collect::<Result<Vec<_>>>()?;
             out.push((keys, i, values));
         }
         if !p.order.is_empty() {
             sort_window(&mut out, &p.order, need);
         }
-        window(out.into_iter().map(|(_, _, v)| v).collect(), p.offset, p.limit)
+        window(out.into_iter().map(|(_, _, v)| v).collect(), r.offset, r.limit)
     };
 
-    let n = rows.len();
     Ok(QueryResult {
         columns: p.names.clone(),
         rows,
         rows_affected: 0,
-        rows_scanned: if p.table.is_some() { scanned } else { 0 },
-        message: format!("SELECT {n}"),
+        rows_scanned: if r.table.is_some() { scanned } else { 0 },
+        message: String::new(),
     })
 }
 
-fn explain_select(p: &SelectPlan) -> Vec<String> {
-    let schema = p.table.map(|t| &*t.schema);
+fn explain_select(r: &Run) -> Vec<String> {
+    let p = r.p;
+    let schema = r.table.map(|t| &*t.schema);
     let d = |e: &BExpr| describe(e, schema, &p.aggs);
     let mut lines = Vec::new();
-    match p.table {
+    match r.table {
         Some(t) => {
             lines.push(format!("SELECT FROM {}", t.name()));
-            lines.push(format!("  ACCESS:    {}", p.access.describe(t)));
+            lines.push(format!("  ACCESS:    {}", r.access.describe(t)));
         }
         None => lines.push("SELECT (no table)".into()),
     }
-    if let Some(f) = residual_text(&p.filter, p.skip, schema) {
+    if let Some(f) = residual_text(&p.filter, r.skip, schema) {
         lines.push(format!("  FILTER:    {f}"));
     }
     if p.aggregate {
@@ -509,7 +596,7 @@ fn explain_select(p: &SelectPlan) -> Vec<String> {
             format!("GROUP BY {}", p.group.iter().map(d).collect::<Vec<_>>().join(", "))
         };
         let aggs = p.aggs.iter().map(|a| a.label.clone()).collect::<Vec<_>>().join(", ");
-        let counted = if p.count_only { " (rows counted by the access path, not read)" } else { "" };
+        let counted = if r.count_only { " (rows counted by the access path, not read)" } else { "" };
         lines.push(format!("  AGGREGATE: {groups}; {aggs}{counted}"));
     }
     if let Some(h) = &p.having {
@@ -525,17 +612,17 @@ fn explain_select(p: &SelectPlan) -> Vec<String> {
             .map(|(e, desc)| format!("{}{}", d(e), if *desc { " DESC" } else { "" }))
             .collect::<Vec<_>>()
             .join(", ");
-        if p.presorted {
+        if r.presorted {
             lines.push(format!("  ORDER:     {keys} (primary key order, no sort)"));
-        } else if let Some(l) = p.limit {
-            lines.push(format!("  SORT:      {keys} (top-{} selection)", l + p.offset));
+        } else if let Some(l) = r.limit {
+            lines.push(format!("  SORT:      {keys} (top-{} selection)", l + r.offset));
         } else {
             lines.push(format!("  SORT:      {keys}"));
         }
     }
-    if p.limit.is_some() || p.offset > 0 {
-        let limit = p.limit.map_or("ALL".to_string(), |l| l.to_string());
-        lines.push(format!("  LIMIT:     {limit} OFFSET {}", p.offset));
+    if r.limit.is_some() || r.offset > 0 {
+        let limit = r.limit.map_or("ALL".to_string(), |l| l.to_string());
+        lines.push(format!("  LIMIT:     {limit} OFFSET {}", r.offset));
     }
     lines.push(format!("  OUTPUT:    {}", p.names.join(", ")));
     lines
@@ -552,7 +639,11 @@ fn residual_text(terms: &[BExpr], skip: u64, schema: Option<&TableSchema>) -> Op
         many => Some(
             many.iter()
                 .map(|t| match t {
-                    BExpr::Bin(..) | BExpr::Between(..) | BExpr::InList(..) | BExpr::Like { .. } | BExpr::IsNull(..) => {
+                    BExpr::Bin(..)
+                    | BExpr::Between(..)
+                    | BExpr::InList(..)
+                    | BExpr::Like { .. }
+                    | BExpr::IsNull(..) => {
                         format!("({})", text(t))
                     }
                     _ => text(t),
@@ -564,15 +655,12 @@ fn residual_text(terms: &[BExpr], skip: u64, schema: Option<&TableSchema>) -> Op
 }
 
 fn explain(db: &Database, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
-    let lines = match stmt {
-        Statement::Select(s) => explain_select(&plan_select(db, s, params)?),
-        Statement::Update(Update { table, selection, .. }) | Statement::Delete(Delete { table, selection }) => {
-            let t = db.table(table)?;
-            let filter = match selection {
-                Some(e) => Binder::new(Some(&t.schema), params).bind(e, "WHERE")?.into_conjuncts(),
-                None => Vec::new(),
-            };
-            let (access, skip) = plan::choose_terms(t, &filter)?;
+    let lines = match compile(db, stmt)? {
+        Some(Compiled::Select(p)) => explain_select(&bind_select(db, &p, params)?),
+        Some(Compiled::Update(UpdatePlan { table, filter, access, .. }))
+        | Some(Compiled::Delete(DeletePlan { table, filter, access })) => {
+            let t = table_of(db, &table)?;
+            let (access, skip) = access.resolve(t, &filter, params)?;
             let verb = if matches!(stmt, Statement::Update(_)) { "UPDATE" } else { "DELETE FROM" };
             let mut lines = vec![format!("{verb} {}", t.name()), format!("  ACCESS:    {}", access.describe(t))];
             if let Some(f) = residual_text(&filter, skip, Some(&t.schema)) {
@@ -583,7 +671,7 @@ fn explain(db: &Database, stmt: &Statement, params: &[Value]) -> Result<QueryRes
         _ => return Err(Error::Unsupported("EXPLAIN supports SELECT, UPDATE and DELETE".into())),
     };
     Ok(QueryResult {
-        columns: vec!["plan".into()],
+        columns: vec!["plan".to_string()].into(),
         rows: lines.into_iter().map(|l| vec![Value::Text(l)]).collect(),
         message: "EXPLAIN".into(),
         ..Default::default()
@@ -606,7 +694,7 @@ fn show_tables(db: &Database) -> QueryResult {
         .collect::<Vec<_>>();
     let n = rows.len();
     QueryResult {
-        columns: ["table", "rows", "columns", "indexes", "primary_key"].map(String::from).to_vec(),
+        columns: ["table", "rows", "columns", "indexes", "primary_key"].map(String::from).to_vec().into(),
         rows,
         message: format!("SHOW TABLES {n}"),
         ..Default::default()
@@ -641,7 +729,7 @@ fn describe_table(db: &Database, name: &str) -> Result<QueryResult> {
         .collect::<Vec<_>>();
     let n = rows.len();
     Ok(QueryResult {
-        columns: ["column", "type", "nullable", "key"].map(String::from).to_vec(),
+        columns: ["column", "type", "nullable", "key"].map(String::from).to_vec().into(),
         rows,
         message: format!("DESCRIBE {n}"),
         ..Default::default()
@@ -739,9 +827,27 @@ fn drop_index(db: &mut Database, name: &str, if_exists: bool) -> Result<QueryRes
 // DML
 // ----------------------------------------------------------------------
 
-fn insert(db: &mut Database, ins: &Insert, params: &[Value]) -> Result<QueryResult> {
-    let tkey = catalog_key(&ins.table);
-    let schema = db.table(&ins.table)?.schema.clone();
+/// Value of one column of an inserted row.
+#[derive(Debug, Clone)]
+enum Source {
+    Lit(Value),
+    Param(usize),
+    /// Expression without column references, evaluated for every execution.
+    Expr(BExpr),
+}
+
+/// A compiled INSERT: per row, the column positions and their values.
+#[derive(Debug, Clone)]
+pub(crate) struct InsertPlan {
+    table: Arc<str>,
+    schema: Arc<TableSchema>,
+    rows: Vec<Vec<(usize, Source)>>,
+    on_conflict: OnConflict,
+}
+
+fn compile_insert(db: &Database, ins: &Insert) -> Result<InsertPlan> {
+    let t = db.table(&ins.table)?;
+    let schema = t.schema.clone();
     let positions: Vec<usize> = match &ins.columns {
         Some(cols) => {
             let mut out = Vec::with_capacity(cols.len());
@@ -756,8 +862,8 @@ fn insert(db: &mut Database, ins: &Insert, params: &[Value]) -> Result<QueryResu
         }
         None => (0..schema.columns.len()).collect(),
     };
-    let binder = Binder::new(None, params);
-    let mut affected = 0;
+    let binder = Binder::deferred(None);
+    let mut rows = Vec::with_capacity(ins.rows.len());
     for row in &ins.rows {
         if row.len() != positions.len() {
             return Err(Error::Schema(format!(
@@ -767,28 +873,40 @@ fn insert(db: &mut Database, ins: &Insert, params: &[Value]) -> Result<QueryResu
                 row.len()
             )));
         }
-        let mut values = vec![Value::Null; schema.columns.len()];
+        let mut sources = Vec::with_capacity(row.len());
         for (e, &pos) in row.iter().zip(&positions) {
-            values[pos] = match e {
-                Expr::Literal(v) => v.clone(),
-                Expr::Param(i) => params
-                    .get(*i)
-                    .cloned()
-                    .ok_or_else(|| Error::Eval(format!("missing value for parameter ?{}", i + 1)))?,
-                e => {
-                    let b = binder.bind(e, "VALUES").map_err(|err| match err {
-                        Error::Schema(m) if m.contains("without FROM") => {
-                            Error::Schema("column references are not allowed in VALUES".into())
-                        }
-                        other => other,
-                    })?;
-                    eval(&b, &[], &[])?.into_owned()
-                }
+            let source = match e {
+                Expr::Literal(v) => Source::Lit(v.clone()),
+                Expr::Param(i) => Source::Param(*i),
+                e => Source::Expr(binder.bind(e, "VALUES").map_err(|err| match err {
+                    Error::Schema(m) if m.contains("without FROM") => {
+                        Error::Schema("column references are not allowed in VALUES".into())
+                    }
+                    other => other,
+                })?),
+            };
+            sources.push((pos, source));
+        }
+        rows.push(sources);
+    }
+    Ok(InsertPlan { table: t.key.clone(), schema, rows, on_conflict: ins.on_conflict })
+}
+
+fn insert(db: &mut Database, p: &InsertPlan, params: &[Value]) -> Result<QueryResult> {
+    let schema = &p.schema;
+    let mut affected = 0;
+    for row in &p.rows {
+        let mut values = vec![Value::Null; schema.columns.len()];
+        for (pos, source) in row {
+            values[*pos] = match source {
+                Source::Lit(v) => v.clone(),
+                Source::Param(i) => params[*i].clone(),
+                Source::Expr(b) => eval(b, &[], Cx::params(params))?.into_owned(),
             };
         }
         let values = schema.check_row(values)?;
-        if db.tables[&*tkey].rows.contains_key(&values[schema.pk]) {
-            match ins.on_conflict {
+        if table_of(db, &p.table)?.rows.contains_key(&values[schema.pk]) {
+            match p.on_conflict {
                 OnConflict::Abort => {
                     return Err(Error::Constraint(format!(
                         "duplicate primary key {} in table '{}'",
@@ -801,17 +919,26 @@ fn insert(db: &mut Database, ins: &Insert, params: &[Value]) -> Result<QueryResu
             }
         }
         let stamp = db.new_stamp();
-        db.write_put(&tkey, values, stamp, true)?;
+        db.write_put(&p.table, values, stamp, true)?;
         affected += 1;
     }
     Ok(QueryResult::with_affected("INSERT", affected, 0))
 }
 
-fn update(db: &mut Database, u: &Update, params: &[Value]) -> Result<QueryResult> {
-    let tkey = catalog_key(&u.table);
+/// A compiled UPDATE.
+#[derive(Debug, Clone)]
+pub(crate) struct UpdatePlan {
+    table: Arc<str>,
+    schema: Arc<TableSchema>,
+    assigns: Vec<(usize, BExpr)>,
+    filter: Vec<BExpr>,
+    access: AccessPlan,
+}
+
+fn compile_update(db: &Database, u: &Update) -> Result<UpdatePlan> {
     let t = db.table(&u.table)?;
     let schema = &t.schema;
-    let binder = Binder::new(Some(schema), params);
+    let binder = Binder::deferred(Some(schema));
     let mut assigns: Vec<(usize, BExpr)> = Vec::with_capacity(u.assignments.len());
     for (col, e) in &u.assignments {
         let i = schema.require_column(col)?;
@@ -824,8 +951,16 @@ fn update(db: &mut Database, u: &Update, params: &[Value]) -> Result<QueryResult
         Some(e) => binder.bind(e, "WHERE")?.into_conjuncts(),
         None => Vec::new(),
     };
-    let (access, skip) = plan::choose_terms(t, &filter)?;
-    let residual = Residual::new(&filter, skip);
+    let access = AccessPlan::new(t, &filter)?;
+    Ok(UpdatePlan { table: t.key.clone(), schema: schema.clone(), assigns, filter, access })
+}
+
+fn update(db: &mut Database, p: &UpdatePlan, params: &[Value]) -> Result<QueryResult> {
+    let t = table_of(db, &p.table)?;
+    let schema = &p.schema;
+    let (access, skip) = p.access.resolve(t, &p.filter, params)?;
+    let residual = Residual::new(&p.filter, skip, params);
+    let cx = Cx::params(params);
     let pk = schema.pk;
     let mut targets = Vec::new();
     let mut scanned = 0;
@@ -835,40 +970,52 @@ fn update(db: &mut Database, u: &Update, params: &[Value]) -> Result<QueryResult
             continue;
         }
         let mut new = entry.values.clone();
-        for (c, e) in &assigns {
-            new[*c] = eval(e, &entry.values, &[])?.into_owned();
+        for (c, e) in &p.assigns {
+            new[*c] = eval(e, &entry.values, cx)?.into_owned();
         }
         targets.push((entry.values[pk].clone(), schema.check_row(new)?));
     }
-    let table_name = schema.name.clone();
     let affected = targets.len() as u64;
     for (old_key, new) in targets {
         if new[pk] != old_key {
-            if db.tables[&*tkey].rows.contains_key(&new[pk]) {
+            if table_of(db, &p.table)?.rows.contains_key(&new[pk]) {
                 return Err(Error::Constraint(format!(
                     "duplicate primary key {} in table '{}'",
                     new[pk].to_sql(),
-                    table_name
+                    schema.name
                 )));
             }
             let stamp = db.new_stamp();
-            db.write_delete(&tkey, old_key, stamp, true)?;
+            db.write_delete(&p.table, old_key, stamp, true)?;
         }
         let stamp = db.new_stamp();
-        db.write_put(&tkey, new, stamp, true)?;
+        db.write_put(&p.table, new, stamp, true)?;
     }
     Ok(QueryResult::with_affected("UPDATE", affected, scanned))
 }
 
-fn delete(db: &mut Database, d: &Delete, params: &[Value]) -> Result<QueryResult> {
-    let tkey = catalog_key(&d.table);
+/// A compiled DELETE.
+#[derive(Debug, Clone)]
+pub(crate) struct DeletePlan {
+    table: Arc<str>,
+    filter: Vec<BExpr>,
+    access: AccessPlan,
+}
+
+fn compile_delete(db: &Database, d: &Delete) -> Result<DeletePlan> {
     let t = db.table(&d.table)?;
     let filter = match &d.selection {
-        Some(e) => Binder::new(Some(&t.schema), params).bind(e, "WHERE")?.into_conjuncts(),
+        Some(e) => Binder::deferred(Some(&t.schema)).bind(e, "WHERE")?.into_conjuncts(),
         None => Vec::new(),
     };
-    let (access, skip) = plan::choose_terms(t, &filter)?;
-    let residual = Residual::new(&filter, skip);
+    let access = AccessPlan::new(t, &filter)?;
+    Ok(DeletePlan { table: t.key.clone(), filter, access })
+}
+
+fn delete(db: &mut Database, p: &DeletePlan, params: &[Value]) -> Result<QueryResult> {
+    let t = table_of(db, &p.table)?;
+    let (access, skip) = p.access.resolve(t, &p.filter, params)?;
+    let residual = Residual::new(&p.filter, skip, params);
     let pk = t.schema.pk;
     let mut keys = Vec::new();
     let mut scanned = 0;
@@ -881,7 +1028,7 @@ fn delete(db: &mut Database, d: &Delete, params: &[Value]) -> Result<QueryResult
     let affected = keys.len() as u64;
     for key in keys {
         let stamp = db.new_stamp();
-        db.write_delete(&tkey, key, stamp, true)?;
+        db.write_delete(&p.table, key, stamp, true)?;
     }
     Ok(QueryResult::with_affected("DELETE", affected, scanned))
 }

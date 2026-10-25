@@ -8,11 +8,14 @@
 //! the database is produced by [`Database::snapshot`] (checkpoint).
 
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::exec;
+use crate::expr::missing_param;
 use crate::result::QueryResult;
 use crate::sql::{self, Statement};
 use crate::storage::codec::Writer;
@@ -85,11 +88,16 @@ pub struct DbStats {
 }
 
 /// A parsed statement that can be executed many times with different
-/// `?` parameters.
+/// `?` parameters. SELECT, INSERT, UPDATE and DELETE also keep their
+/// compiled form (names resolved, access path chosen or prepared as a
+/// template), built when the statement is prepared and again when the
+/// schema of the database it runs on has changed since.
 #[derive(Debug, Clone)]
 pub struct Prepared {
     stmt: Statement,
     params: usize,
+    /// Compiled form and the catalog version it was built for.
+    compiled: RefCell<Option<(u64, exec::Compiled)>>,
 }
 
 impl Prepared {
@@ -145,8 +153,18 @@ struct Mark {
     next_seq: u64,
 }
 
+/// A new catalog version. The counter is shared by every database of the
+/// process, so a version also identifies the database.
+fn next_catalog_version() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
 pub struct Database {
     pub(crate) tables: BTreeMap<String, Table>,
+    /// Changes with every change of the schema (tables and indexes); a
+    /// compiled statement is valid for the version it was built for.
+    catalog_version: u64,
     pub(crate) node_id: u32,
     pub(crate) clock: Hlc,
     pub(crate) lsn: u64,
@@ -164,6 +182,7 @@ impl Database {
     pub fn new(node_id: u32) -> Self {
         Database {
             tables: BTreeMap::new(),
+            catalog_version: next_catalog_version(),
             node_id,
             clock: Hlc::new(system_now_ms),
             lsn: 0,
@@ -212,14 +231,26 @@ impl Database {
     pub fn prepare(&self, sql: &str) -> Result<Prepared> {
         let stmt = sql::parse_one(sql)?;
         let params = sql::param_count(&stmt);
-        Ok(Prepared { stmt, params })
+        // A statement on a table that does not exist yet is compiled when it
+        // runs, which also reports the error.
+        let compiled = exec::compile(self, &stmt).ok().flatten().map(|c| (self.catalog_version, c));
+        Ok(Prepared { stmt, params, compiled: RefCell::new(compiled) })
     }
 
     pub fn execute_prepared(&mut self, p: &Prepared, params: &[Value]) -> Result<QueryResult> {
         if params.len() != p.params {
             return Err(Error::Eval(format!("statement expects {} parameter(s), {} supplied", p.params, params.len())));
         }
-        self.execute_statement(&p.stmt, params)
+        let fresh = matches!(&*p.compiled.borrow(), Some((version, _)) if *version == self.catalog_version);
+        if !fresh {
+            match exec::compile(self, &p.stmt)? {
+                Some(c) => *p.compiled.borrow_mut() = Some((self.catalog_version, c)),
+                None => return self.execute_statement(&p.stmt, params),
+            }
+        }
+        let compiled = p.compiled.borrow();
+        let (_, plan) = compiled.as_ref().expect("compiled above");
+        self.run_compiled(plan, params)
     }
 
     pub fn execute_statement(&mut self, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
@@ -249,16 +280,34 @@ impl Database {
             _ => {}
         }
 
+        if params.len() < sql::param_count(stmt) {
+            return Err(missing_param(params.len(), params.len()));
+        }
+        if let Some(c) = exec::compile(self, stmt)? {
+            return self.run_compiled(&c, params);
+        }
         if stmt.is_read_only() {
             return exec::run_read(self, stmt, params);
         }
+        self.in_statement(|db| exec::run_write(db, stmt))
+    }
 
+    fn run_compiled(&mut self, c: &exec::Compiled, params: &[Value]) -> Result<QueryResult> {
+        match c {
+            exec::Compiled::Select(p) => exec::run_select(self, p, params),
+            write => self.in_statement(|db| exec::run_compiled_write(db, write, params)),
+        }
+    }
+
+    /// Runs a write with statement level atomicity, in a transaction of its
+    /// own unless one is open.
+    fn in_statement(&mut self, f: impl FnOnce(&mut Database) -> Result<QueryResult>) -> Result<QueryResult> {
         let implicit = self.txn.is_none();
         if implicit {
             self.txn = Some(Txn { seq_start: self.next_seq, ..Default::default() });
         }
         let mark = self.mark();
-        match exec::run_write(self, stmt, params) {
+        match f(self) {
             Ok(r) => {
                 if implicit {
                     self.commit();
@@ -338,10 +387,16 @@ impl Database {
     }
 
     fn rollback_to(&mut self, m: Mark) {
-        let Database { txn, tables, next_seq, .. } = self;
+        let Database { txn, tables, next_seq, catalog_version, .. } = self;
         let txn = txn.as_mut().expect("rollback outside of a transaction");
+        let mut schema = false;
         while txn.undo.len() > m.undo {
-            apply_undo(tables, txn.undo.pop().unwrap());
+            let undo = txn.undo.pop().unwrap();
+            schema |= !matches!(undo, Undo::Row { .. });
+            apply_undo(tables, undo);
+        }
+        if schema {
+            *catalog_version = next_catalog_version();
         }
         txn.ops.truncate(m.ops);
         txn.op_count = m.op_count;
@@ -422,6 +477,7 @@ impl Database {
     /// Applies a schema change (CREATE/DROP TABLE/INDEX).
     pub(crate) fn write_schema(&mut self, change: Change, local: bool) -> Result<()> {
         let undo = apply_schema(&mut self.tables, &change)?;
+        self.catalog_version = next_catalog_version();
         let seq = self.next_seq_for(local);
         let txn = self.txn.as_mut().expect("write outside of a transaction");
         let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
@@ -536,6 +592,7 @@ impl Database {
             mutation => {
                 let change = Change { stamp, mutation };
                 apply_schema(&mut self.tables, &change)?;
+                self.catalog_version = next_catalog_version();
                 OutboxItem::Schema(change)
             }
         };

@@ -1,17 +1,33 @@
+use std::sync::Arc;
+
 use crate::value::{write_json_string, Value};
 
 /// Result of a single statement.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct QueryResult {
-    /// Column names (empty for statements that return no rows).
-    pub columns: Vec<String>,
+    /// Column names (empty for statements that return no rows); shared by
+    /// every result of one prepared statement.
+    pub columns: Arc<[String]>,
     pub rows: Vec<Vec<Value>>,
     /// Rows inserted / updated / deleted.
     pub rows_affected: u64,
     /// Rows visited by the access path (shows whether an index was used).
     pub rows_scanned: u64,
-    /// Command tag, e.g. `SELECT 3`, `INSERT 2`, `CREATE TABLE`.
+    /// Command tag of statements that change data or the schema, e.g.
+    /// `INSERT 2`, `CREATE TABLE`; empty for SELECT, whose result is the rows.
     pub message: String,
+}
+
+impl Default for QueryResult {
+    fn default() -> Self {
+        QueryResult {
+            columns: Arc::from(Vec::new()),
+            rows: Vec::new(),
+            rows_affected: 0,
+            rows_scanned: 0,
+            message: String::new(),
+        }
+    }
 }
 
 impl QueryResult {
@@ -120,7 +136,7 @@ mod tests {
     #[test]
     fn json_shape() {
         let r = QueryResult {
-            columns: vec!["id".into(), "name".into()],
+            columns: vec!["id".to_string(), "name".to_string()].into(),
             rows: vec![vec![Value::Int(1), Value::Text("a\"b".into())], vec![Value::Int(2), Value::Null]],
             rows_affected: 0,
             rows_scanned: 2,
@@ -135,7 +151,7 @@ mod tests {
     #[test]
     fn table_rendering() {
         let r = QueryResult {
-            columns: vec!["id".into(), "name".into()],
+            columns: vec!["id".to_string(), "name".to_string()].into(),
             rows: vec![vec![Value::Int(10), Value::Text("sword".into())]],
             message: "SELECT 1".into(),
             ..Default::default()

@@ -53,6 +53,8 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0037](0037-pomiar-prototypu-przed-optymalizacjami.md) | Pomiar prototypu przed optymalizacjami, ta sama metodyka w obu pomiarach | proces | przyjęta; kolejność z pkt 1 zastąpiona przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | [0038](0038-metodyka-benchmarku-1.md) | Metodyka benchmarku: powtórzenia procesu, sumy kontrolne, grupy warunków, wskazana wersja silnika | proces | przyjęta |
 | [0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) | Zadania optymalizacji z rozbicia kosztów silnika jako wymagane | proces | przyjęta |
+| [0040](0040-warunek-gwarantowany-przez-sciezke-dostepu.md) | Planer zwraca koniunkty gwarantowane przez ścieżkę dostępu | architektura | przyjęta |
+| [0041](0041-plan-w-instrukcji-przygotowanej.md) | Plan zapamiętany w instrukcji przygotowanej, pamięć instrukcji w moście | architektura | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

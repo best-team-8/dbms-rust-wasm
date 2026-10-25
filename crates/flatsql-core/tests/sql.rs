@@ -30,10 +30,11 @@ fn col(r: &QueryResult, i: usize) -> Vec<String> {
 fn select_projection_filter_and_order() {
     let mut db = db();
     let r = q(&mut db, "SELECT name, price * 2 AS double FROM items WHERE category = 'weapon' ORDER BY price DESC");
-    assert_eq!(r.columns, vec!["name", "double"]);
+    assert_eq!(&r.columns[..], ["name", "double"]);
     assert_eq!(col(&r, 0), vec!["sword", "bow"]);
     assert_eq!(r.rows[0][1], Value::Float(240.0));
-    assert_eq!(r.message, "SELECT 2");
+    // The command tag is reserved for statements that change something.
+    assert_eq!(r.message, "");
 }
 
 #[test]
@@ -337,6 +338,6 @@ fn json_output() {
     let r = q(&mut db, "SELECT id, name FROM items WHERE id = 1");
     assert_eq!(
         r.to_json(),
-        r#"{"columns":["id","name"],"rows":[[1,"sword"]],"rowsAffected":0,"rowsScanned":1,"message":"SELECT 1"}"#
+        r#"{"columns":["id","name"],"rows":[[1,"sword"]],"rowsAffected":0,"rowsScanned":1,"message":""}"#
     );
 }

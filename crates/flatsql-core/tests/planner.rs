@@ -189,3 +189,134 @@ fn only_conjuncts_the_access_path_does_not_guarantee_are_evaluated() {
     assert_eq!(plan(&mut db, "id BETWEEN 2 AND 9 AND c > 1.5 AND d"), vec!["FILTER:    (c > 1.5) AND d"]);
     assert_eq!(plan(&mut db, "a + 1 > 3"), vec!["FILTER:    (a + 1) > 3"]);
 }
+
+/// Literal value comparable with column `col` (as `literal`, as a value).
+fn literal_value(rng: &mut Rng, col: usize) -> Value {
+    if rng.chance(3) {
+        return Value::Null;
+    }
+    match col {
+        0 => Value::Int(rng.below(700) as i64),
+        1 if rng.chance(20) => Value::Float(rng.below(20) as f64 + 0.5),
+        1 => Value::Int(rng.below(22) as i64),
+        2 => Value::Text(format!("k{}", rng.below(11))),
+        3 if rng.chance(30) => Value::Int(rng.below(20) as i64),
+        3 => Value::Float(rng.below(42) as f64 * 0.5),
+        _ => [Value::Bool(true), Value::Bool(false), Value::Int(0), Value::Int(1)][rng.below(4) as usize].clone(),
+    }
+}
+
+/// A WHERE clause with `?` in place of every literal, and the column each
+/// `?` is compared with.
+fn shape(rng: &mut Rng) -> (String, Vec<usize>) {
+    let mut cols = Vec::new();
+    let n = 1 + rng.below(3);
+    let mut terms = Vec::new();
+    for _ in 0..n {
+        let col = rng.below(5) as usize;
+        let name = COLUMNS[col];
+        terms.push(match rng.below(8) {
+            0..=3 => {
+                cols.push(col);
+                let op = ["=", "<", "<=", ">", ">=", "<>"][rng.below(6) as usize];
+                if rng.chance(20) {
+                    format!("? {op} {name}")
+                } else {
+                    format!("{name} {op} ?")
+                }
+            }
+            4 | 5 => {
+                cols.extend([col, col]);
+                format!("{name} BETWEEN ? AND ?")
+            }
+            _ => {
+                let k = 1 + rng.below(3) as usize;
+                cols.extend(std::iter::repeat(col).take(k));
+                format!("{name} IN ({})", vec!["?"; k].join(", "))
+            }
+        });
+    }
+    (terms.join(" AND "), cols)
+}
+
+#[test]
+fn prepared_statements_with_parameters_give_the_same_answers_as_a_full_scan() {
+    for seed in 1..=3u64 {
+        let mut rng = Rng(seed.wrapping_mul(0xD1B5_4A32_D192_ED03) | 1);
+        let (mut plain, mut indexed) = databases(&mut rng, 300);
+        for _ in 0..300 {
+            let (w, cols) = shape(&mut rng);
+            let prepared: Vec<_> = QUERIES.iter().map(|t| indexed.prepare(&t.replace("{w}", &w)).unwrap()).collect();
+            // The same statements run with several sets of values, so the
+            // access path template is filled again for every execution.
+            for _ in 0..5 {
+                let values: Vec<Value> = cols.iter().map(|&c| literal_value(&mut rng, c)).collect();
+                let mut literal = w.clone();
+                for v in &values {
+                    literal = literal.replacen('?', &v.to_sql(), 1);
+                }
+                for (template, p) in QUERIES.iter().zip(&prepared) {
+                    let got = indexed.execute_prepared(p, &values).unwrap_or_else(|e| panic!("{w} {values:?}: {e}"));
+                    let want = run(&mut plain, &template.replace("{w}", &format!("({literal}) OR FALSE")));
+                    assert_eq!(got.rows, want.rows, "seed {seed}: {} with {values:?}", template.replace("{w}", &w));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn prepared_statement_follows_schema_changes() {
+    let mut db = Database::new(1);
+    run(&mut db, "CREATE TABLE t (id INT PRIMARY KEY, g INT, v TEXT)");
+    run(&mut db, "INSERT INTO t VALUES (1, 10, 'a'), (2, 20, 'b'), (3, 10, 'c')");
+    run(&mut db, "CREATE INDEX t_g ON t (g)");
+    let by_group = db.prepare("SELECT id FROM t WHERE g = ? ORDER BY id").unwrap();
+    let all = db.prepare("SELECT * FROM t ORDER BY id").unwrap();
+    let ids = |r: QueryResult| r.rows.iter().map(|row| row[0].to_string()).collect::<Vec<_>>().join(",");
+    let scanned = |db: &mut Database, p: &Prepared| db.execute_prepared(p, &[Value::Int(10)]).unwrap().rows_scanned;
+
+    assert_eq!(ids(db.execute_prepared(&by_group, &[Value::Int(10)]).unwrap()), "1,3");
+    assert_eq!(scanned(&mut db, &by_group), 2, "index lookup");
+    // Without the index the compiled access path would point at nothing.
+    run(&mut db, "DROP INDEX t_g");
+    assert_eq!(ids(db.execute_prepared(&by_group, &[Value::Int(10)]).unwrap()), "1,3");
+    assert_eq!(scanned(&mut db, &by_group), 3, "full scan");
+    // A rolled back CREATE INDEX leaves no index behind either.
+    run(&mut db, "BEGIN; CREATE INDEX t_g2 ON t (g)");
+    assert_eq!(scanned(&mut db, &by_group), 2);
+    run(&mut db, "ROLLBACK");
+    assert_eq!(scanned(&mut db, &by_group), 3);
+    // The table defined again with other columns: SELECT * follows the new definition.
+    run(&mut db, "DROP TABLE t; CREATE TABLE t (v TEXT, id INT PRIMARY KEY, g INT)");
+    run(&mut db, "INSERT INTO t VALUES ('x', 7, 10)");
+    let r = db.execute_prepared(&all, &[]).unwrap();
+    assert_eq!(
+        (&r.columns[..], r.rows[0][0].to_string()),
+        (&["v".to_string(), "id".into(), "g".into()][..], "x".into())
+    );
+    assert_eq!(ids(db.execute_prepared(&by_group, &[Value::Int(10)]).unwrap()), "7");
+    // A statement prepared on one database runs on another.
+    let mut other = Database::new(2);
+    run(&mut other, "CREATE TABLE t (id INT PRIMARY KEY, g INT)");
+    run(&mut other, "INSERT INTO t VALUES (5, 10)");
+    assert_eq!(ids(other.execute_prepared(&by_group, &[Value::Int(10)]).unwrap()), "5");
+    // And a dropped table is reported, not looked up.
+    run(&mut other, "DROP TABLE t");
+    assert!(other.execute_prepared(&by_group, &[Value::Int(10)]).is_err());
+}
+
+#[test]
+fn parameters_are_checked_and_usable_in_limit() {
+    let mut rng = Rng(3);
+    let (_, mut db) = databases(&mut rng, 50);
+    let err = db.execute("SELECT * FROM t WHERE id = ?").unwrap_err();
+    assert_eq!(err.to_string(), "evaluation error: missing value for parameter ?1 (0 supplied)");
+    let p = db.prepare("SELECT id FROM t ORDER BY id LIMIT ? OFFSET ?").unwrap();
+    let r = db.execute_prepared(&p, &[Value::Int(3), Value::Int(2)]).unwrap();
+    assert_eq!(r.rows, vec![vec![Value::Int(4)], vec![Value::Int(6)], vec![Value::Int(8)]]);
+    assert!(db.execute_prepared(&p, &[Value::Int(-1), Value::Int(0)]).is_err());
+    let ins = db.prepare("INSERT INTO t (id, a) VALUES (?, ? * 2)").unwrap();
+    db.execute_prepared(&ins, &[Value::Int(1001), Value::Int(21)]).unwrap();
+    assert_eq!(run(&mut db, "SELECT a FROM t WHERE id = 1001").rows[0][0], Value::Int(42));
+}

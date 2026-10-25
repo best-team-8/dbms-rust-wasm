@@ -118,6 +118,8 @@ function metrics(r) {
     for (const [mode, ops] of Object.entries(res.file ?? res.storage ?? {})) {
       if (ops && typeof ops === 'object') for (const [op, v] of Object.entries(ops)) if (Number.isFinite(v?.meanUs)) m[`FileStorage ${mode} ${op}`] = v.meanUs;
     }
+  } else if (r.kind === 'network') {
+    for (const mode of res.modes ?? []) if (Number.isFinite(mode.meanMs)) m[mode.mode] = mode.meanMs * 1000;
   } else if (r.kind === 'checkpoint') {
     for (const s of res.sizes ?? []) {
       if (Number.isFinite(s.maxPauseMs)) m[`pause ${s.rows}`] = s.maxPauseMs * 1000;

@@ -122,6 +122,12 @@ impl PreparedStatement {
     pub fn param_count(&self) -> usize {
         self.inner.param_count()
     }
+
+    /// Whether the statement only reads (SELECT, EXPLAIN, SHOW, DESCRIBE).
+    #[wasm_bindgen(getter, js_name = readOnly)]
+    pub fn read_only(&self) -> bool {
+        self.inner.statement().is_read_only()
+    }
 }
 
 /// Pending local changes encoded for the sync server.

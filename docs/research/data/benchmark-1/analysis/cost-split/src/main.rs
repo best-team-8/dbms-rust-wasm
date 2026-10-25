@@ -25,6 +25,13 @@ use flatsql_core::table::Table;
 use flatsql_core::{Database, Stamp, Value};
 
 const LOOKUPS: usize = 200_000;
+
+/// Evaluation context without aggregates and parameters (the argument
+/// changed from a slice of aggregate values to a context with parameters).
+#[cfg(not(core_cx))]
+const EMPTY: &[Value] = &[];
+#[cfg(core_cx)]
+const EMPTY: flatsql_core::expr::Cx<'static> = flatsql_core::expr::Cx { aggs: &[], params: &[] };
 const ROUNDS: usize = 3;
 
 fn per_op_ns(t: Instant, n: usize) -> f64 {
@@ -65,12 +72,30 @@ fn main() {
             black_box(db.execute_prepared(&one, &[Value::Int(k)]).unwrap());
         }
         let id_only = per_op_ns(t0, LOOKUPS);
-        let t0 = Instant::now();
-        for &k in &keys {
-            let params = [Value::Int(k)];
-            let filter = Binder::new(Some(&schema), &params).bind(&selection, "WHERE").unwrap();
-            black_box(plan::choose(&t, Some(&filter)).unwrap());
-        }
+        // The work done for the WHERE clause at every execution: binding with
+        // the parameter as a literal and choosing the access path (core
+        // without compiled statements), or filling the access path template
+        // with the parameter (core with compiled statements).
+        #[cfg(not(core_access_plan))]
+        let t0 = {
+            let t0 = Instant::now();
+            for &k in &keys {
+                let params = [Value::Int(k)];
+                let filter = Binder::new(Some(&schema), &params).bind(&selection, "WHERE").unwrap();
+                black_box(plan::choose(&t, Some(&filter)).unwrap());
+            }
+            t0
+        };
+        #[cfg(core_access_plan)]
+        let t0 = {
+            let terms = Binder::deferred(Some(&schema)).bind(&selection, "WHERE").unwrap().into_conjuncts();
+            let access = plan::AccessPlan::new(&t, &terms).unwrap();
+            let t0 = Instant::now();
+            for &k in &keys {
+                black_box(access.resolve(&t, &terms, &[Value::Int(k)]).unwrap());
+            }
+            t0
+        };
         let planning = per_op_ns(t0, LOOKUPS);
         let t0 = Instant::now();
         for &k in &keys {
@@ -82,11 +107,27 @@ fn main() {
             black_box(t.rows.get(&Value::Int(k)).map(|e| e.values.clone()));
         }
         let copy = per_op_ns(t0, LOOKUPS);
-        let t0 = Instant::now();
-        for _ in &keys {
-            let names: Vec<String> = schema.columns.iter().map(|c| c.name.clone()).collect();
-            black_box((names, format!("SELECT {}", 1)));
-        }
+        // Column names and command tag of every result: copied and formatted
+        // (core without compiled statements), or shared and empty (core with
+        // compiled statements).
+        #[cfg(not(core_access_plan))]
+        let t0 = {
+            let t0 = Instant::now();
+            for _ in &keys {
+                let names: Vec<String> = schema.columns.iter().map(|c| c.name.clone()).collect();
+                black_box((names, format!("SELECT {}", 1)));
+            }
+            t0
+        };
+        #[cfg(core_access_plan)]
+        let t0 = {
+            let shared: std::sync::Arc<[String]> = schema.columns.iter().map(|c| c.name.clone()).collect();
+            let t0 = Instant::now();
+            for _ in &keys {
+                black_box((std::sync::Arc::clone(&shared), String::new()));
+            }
+            t0
+        };
         let names = per_op_ns(t0, LOOKUPS);
         println!("  round {round}: {whole:.0} | {id_only:.0} | {planning:.0} | {lookup:.0} | {copy:.0} | {names:.0}");
     }
@@ -156,7 +197,7 @@ fn main() {
             let s: f64 = t
                 .rows
                 .range(Value::Int(a)..=Value::Int(a + 999))
-                .filter(|(_, e)| eval_pred(&filter, &e.values, &[]).unwrap() == Some(true))
+                .filter(|(_, e)| eval_pred(&filter, &e.values, EMPTY).unwrap() == Some(true))
                 .map(|(_, e)| sum(e))
                 .sum();
             black_box(s);
@@ -187,6 +228,18 @@ fn main() {
             parts.push(format!("{:.0}", per_op_ns(t0, 20_000)));
         }
         println!("  round {round}: {}", parts.join(" | "));
+    }
+
+    // A point lookup executed once from its SQL text (parse, compile or plan,
+    // execute), as the local query of the Local-First comparison.
+    let texts: Vec<String> = keys.iter().take(50_000).map(|k| format!("SELECT * FROM items WHERE id = {k}")).collect();
+    println!("one-shot point lookup from SQL text, ns per call");
+    for round in 1..=ROUNDS {
+        let t0 = Instant::now();
+        for sql in &texts {
+            black_box(db.execute(sql).unwrap());
+        }
+        println!("  round {round}: {:.0}", per_op_ns(t0, texts.len()));
     }
 
     let scan = db.prepare("SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10").unwrap();

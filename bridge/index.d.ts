@@ -13,7 +13,7 @@ export interface QueryResult {
   rows: SqlValue[][];
   rowsAffected: number;
   rowsScanned: number;
-  /** Command tag, e.g. "SELECT 3", "INSERT 2", "CREATE TABLE". */
+  /** Command tag of statements that change data or the schema, e.g. "INSERT 2", "CREATE TABLE"; empty for SELECT. */
   message: string;
 }
 
@@ -143,6 +143,13 @@ export interface FlatDBOptions {
    * `requestPersistence()`.
    */
   persist?: boolean;
+  /**
+   * Prepared statements kept for `exec(sql)` and `query(sql, params)` by SQL
+   * text (default 64, 0 turns the cache off). `exec` keeps a statement from
+   * the second execution of the same text; SQL with values written into the
+   * text is better run with parameters.
+   */
+  statementCache?: number;
 }
 
 export interface DbStats {

@@ -15,8 +15,9 @@ Dokument opisuje budowę prototypu: warstwy silnika, ścieżkę zapytania i zapi
 flowchart TB
   SQL["tekst SQL"] --> Lexer["sql::lexer<br/>tokeny"] --> Parser["sql::parser<br/>AST"]
   Parser --> Binder["expr::Binder<br/>nazwy → indeksy kolumn,<br/>zwijanie stałych, agregaty"]
-  Binder --> Planner["plan::choose<br/>ścieżka dostępu"]
-  Planner --> Exec["exec<br/>SELECT / DML / DDL"]
+  Binder --> Planner["plan<br/>ścieżka dostępu, koniunkty<br/>przez nią gwarantowane"]
+  Planner --> Compiled["exec::compile<br/>postać skompilowana<br/>(w instrukcji przygotowanej)"]
+  Compiled --> Exec["exec<br/>SELECT / DML / DDL"]
   Exec --> Table["table<br/>BTreeMap wierszy, indeksy, tombstone'y"]
   Exec --> Txn["db: transakcja<br/>undo log · ramka WAL · outbox"]
   Txn --> WAL["bufor WAL<br/>(take_wal)"]
@@ -27,9 +28,9 @@ flowchart TB
 |---|---|
 | `value` | typ `Value` (`Null`, `Bool`, `Int`, `Float`, `Text`) z **porządkiem całkowitym** – liczby porównywane numerycznie bez względu na `Int`/`Float`, NaN na końcu – dzięki czemu `Value` może być kluczem `BTreeMap`. Koercja przy zapisie do kolumny jest bezstratna (`2.0` → `INT` tak, `2.5` → `INT` nie). |
 | `sql` | ręcznie napisany lekser (komentarze, cudzysłowy, Unicode w identyfikatorach) i parser rekurencyjny zstępujący z precedencją operatorów. Konstrukcje relacyjne (`JOIN`, `FOREIGN KEY`, `REFERENCES`, podzapytania, `UNION`) zwracają czytelny błąd `unsupported` – to część definicji języka. |
-| `expr` | wiązanie wyrażeń do postaci `BExpr` (kolumny jako indeksy), zwijanie stałych, wydzielanie agregatów (`COUNT(*) + COUNT(*)` liczony raz). Ewaluacja: liście (kolumna, literał) obsługiwane inline bez wywołania funkcji, predykaty `WHERE` przez osobny ewaluator logiki trójwartościowej. |
-| `plan` | wybór ścieżki dostępu na podstawie koniunkcji `WHERE`: PK lookup → PK multi-lookup (`IN`) → indeks (`=`/`IN`) → zakres PK → zakres indeksu → pełny skan; wykrywa warunki sprzeczne (`id > 5 AND id < 5`, `= NULL`). |
-| `exec` | SELECT: strumieniowanie z wczesnym zakończeniem dla porządku PK, ograniczony bufor top-k dla `ORDER BY … LIMIT`, grupowanie po kluczach pożyczonych z tabeli; DML i DDL. |
+| `expr` | wiązanie wyrażeń do postaci `BExpr` (kolumny jako indeksy, parametry `?` jako odwołania czytane przy wykonaniu), zwijanie stałych, wydzielanie agregatów (`COUNT(*) + COUNT(*)` liczony raz). Ewaluacja: liście (kolumna, literał, parametr) obsługiwane inline bez wywołania funkcji, predykaty `WHERE` przez osobny ewaluator logiki trójwartościowej. |
+| `plan` | wybór ścieżki dostępu na podstawie koniunkcji `WHERE`: PK lookup → PK multi-lookup (`IN`) → indeks (`=`/`IN`) → zakres PK → zakres indeksu → pełny skan; wykrywa warunki sprzeczne (`id > 5 AND id < 5`, `= NULL`); zwraca maskę koniunktów, które ścieżka gwarantuje, i liczy wiersze ścieżki bez ich czytania; dla instrukcji przygotowanej szablon ścieżki (`AccessPlan`) wypełniany wartością parametru. |
+| `exec` | kompilacja SELECT, INSERT, UPDATE i DELETE względem katalogu (postać przechowywana w instrukcji przygotowanej i unieważniana numerem wersji katalogu); SELECT: strumieniowanie z wczesnym zakończeniem dla porządku PK, ograniczony bufor top-k dla `ORDER BY … LIMIT`, grupowanie po kluczach pożyczonych z tabeli, `COUNT(*)` bez czytania wierszy, gdy ścieżka gwarantuje warunek; DML i DDL. |
 | `db` | obiekt `Database`: katalog, transakcje, WAL, odtwarzanie, API synchronizacji. |
 | `storage` | kodek binarny, WAL, snapshot, trait `Storage` (pamięć, plik), `Persistent`. |
 | `sync` | zegar HLC, `Change`/`Mutation`, paczki zmian, outbox. |
@@ -41,12 +42,14 @@ EXPLAIN SELECT category, COUNT(*) FROM items WHERE price > 10 AND id BETWEEN 100
 
 SELECT FROM items
   ACCESS:    PRIMARY KEY RANGE SCAN (id >= 100 AND id <= 200)
-  FILTER:    (price > 10) AND (id BETWEEN 100 AND 200)
+  FILTER:    price > 10
   AGGREGATE: GROUP BY category; COUNT(*)
   OUTPUT:    category, COUNT(*)
 ```
 
-Pełny warunek jest zawsze sprawdzany na wierszach kandydujących, więc ścieżka dostępu musi jedynie zwrócić nadzbiór wyników – upraszcza to planer i eliminuje całą klasę błędów.
+Ścieżka dostępu zwraca nadzbiór wyników, a planer mówi, które koniunkty warunku gwarantuje (równość wyszukania, granice zakresu); wykonawca sprawdza tylko pozostałe, więc w przykładzie warunek na `id` nie jest liczony w każdym wierszu ([ADR-0040](adr/0040-warunek-gwarantowany-przez-sciezke-dostepu.md)). `COUNT(*)` z warunkiem przejętym w całości przez ścieżkę liczy wiersze bez ich czytania: przy indeksie to długość zbioru kluczy wartości. Zgodność z pełnym przeglądem sprawdza test różnicowy planera.
+
+Instrukcja przygotowana kompiluje się przy `prepare`: nazwy kolumn rozwiązane, parametry zostają odwołaniami, ścieżka dostępu wybrana albo przygotowana jako szablon wypełniany wartością parametru. Postać skompilowana jest ważna dla wersji katalogu, dla której powstała; każda zmiana schematu (także wycofana i odebrana z innej repliki) zmienia wersję i wymusza ponowną kompilację ([ADR-0041](adr/0041-plan-w-instrukcji-przygotowanej.md)).
 
 ## 3. Transakcje
 
@@ -192,7 +195,7 @@ Konkatenacja paczek jest poprawną paczką – serwer przekazuje zapisane paczki
 - `exec`/`run` – obiekty i tablice JS budowane z Rust przez `js-sys` (wiele przejść przez granicę WASM↔JS),
 - `execJson`/`runJson` – wynik serializowany do JSON w Rust, parsowany przez `JSON.parse` (jedno przekazanie łańcucha).
 
-Dla zapisów masowych `execute` zwraca tylko liczbę zmienionych wierszy. Błędy są obiektami `Error` z polem `kind` (`parse`, `schema`, `constraint`, `type`, `eval`, `transaction`, `storage`, `unsupported`). Panika w Rust trafia do konsoli dzięki `console_error_panic_hook`.
+Dla zapisów masowych `execute` zwraca tylko liczbę zmienionych wierszy. Nazwy kolumn wyniku są wspólne dla wszystkich wyników jednej instrukcji przygotowanej, a komunikat (`message`) mają tylko instrukcje zmieniające dane lub schemat. `PreparedStatement.readOnly` pozwala mostowi pominąć sprawdzanie WAL po odczytach; `FlatDB` przechowuje ostatnio używane instrukcje `exec(sql)` i `query(sql, params)` według tekstu SQL (`statementCache`, domyślnie 64). Błędy są obiektami `Error` z polem `kind` (`parse`, `schema`, `constraint`, `type`, `eval`, `transaction`, `storage`, `unsupported`). Panika w Rust trafia do konsoli dzięki `console_error_panic_hook`.
 
 ## 8. Decyzje projektowe i kompromisy
 
