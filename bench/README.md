@@ -15,6 +15,7 @@ Kod benchmarku Flat-SQL i silników odniesienia. Metodyka, procedura i zagrożen
 | `wasm-memory.js` | sonda rozmiaru pamięci liniowej WebAssembly dowolnego silnika |
 | `run.js` | runner: powtarza pomiary w nowych procesach, zapisuje surowe wyniki |
 | `build-version.js` | worktree wskazanej wersji Flat-SQL z gotowym `pkg/` i CLI |
+| `compare.js` | pomiar optymalizacji: dwie wersje silnika na przemian tym samym runnerem, tabela przed i po z kryterium przedziałów ufności, zgodność wyników ([docs/research/data/optimization/](../docs/research/data/optimization/)) |
 | `../crates/flatsql-cli/src/bench.rs` | to samo obciążenie natywnie (`flatsql bench`), ta sama suma kontrolna |
 
 ## Uruchomienie

@@ -3,6 +3,8 @@
 //!
 //! - point lookup: whole prepared statement vs. its parts (binding and access
 //!   path choice, tree lookup, row copy, column names and message),
+//! - COUNT(*) by the secondary index vs. reading only the index, and the time
+//!   to prepare each statement of the workload,
 //! - full scan and GROUP BY: engine vs. a hand-written loop over the same tree,
 //! - snapshot, restore and UPDATE with the outbox of 100 000 local inserts and
 //!   with an empty outbox (all entries acknowledged).
@@ -86,6 +88,63 @@ fn main() {
         }
         let names = per_op_ns(t0, LOOKUPS);
         println!("  round {round}: {whole:.0} | {id_only:.0} | {planning:.0} | {lookup:.0} | {copy:.0} | {names:.0}");
+    }
+
+    // COUNT(*) by the secondary index: the engine vs. reading only the index.
+    let count = db.prepare("SELECT COUNT(*) FROM items WHERE category = ?").unwrap();
+    let cats: Vec<Value> = (0..2000).map(|_| Value::Text(format!("c{}", rng.below(100)))).collect();
+    let ix = &t.indexes[0];
+    println!("COUNT(*) by index, ns per call (engine | index set length | index keys + row lookups | + filter on each row)");
+    for round in 1..=ROUNDS {
+        let t0 = Instant::now();
+        for c in &cats {
+            black_box(db.execute_prepared(&count, std::slice::from_ref(c)).unwrap());
+        }
+        let engine = per_op_ns(t0, cats.len());
+        let t0 = Instant::now();
+        for c in &cats {
+            black_box(ix.map.get(c).map_or(0, |keys| keys.len()));
+        }
+        let set_len = per_op_ns(t0, cats.len());
+        let t0 = Instant::now();
+        for c in &cats {
+            let n = ix.map.get(c).map_or(0, |keys| keys.iter().filter(|k| t.rows.get(*k).is_some()).count());
+            black_box(n);
+        }
+        let rows = per_op_ns(t0, cats.len());
+        let t0 = Instant::now();
+        for c in &cats {
+            let n = ix.map.get(c).map_or(0, |keys| {
+                keys.iter().filter_map(|k| t.rows.get(k)).filter(|e| e.values[1] == *c).count()
+            });
+            black_box(n);
+        }
+        let filtered = per_op_ns(t0, cats.len());
+        println!("  round {round}: {engine:.0} | {set_len:.0} | {rows:.0} | {filtered:.0}");
+    }
+
+    // Preparing the statements of the workload (work done once per statement).
+    let queries = [
+        "SELECT * FROM items WHERE id = ?",
+        "SELECT COUNT(*) FROM items WHERE category = ?",
+        "SELECT SUM(price) FROM items WHERE id BETWEEN ? AND ?",
+        "SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10",
+        "SELECT category, COUNT(*), AVG(price), MAX(qty) FROM items GROUP BY category",
+        "SELECT id, price FROM items ORDER BY price DESC, id ASC LIMIT 10",
+        "SELECT * FROM items WHERE id < 10000",
+        "INSERT INTO items VALUES (?, ?, ?, ?, ?)",
+    ];
+    println!("prepare, ns per statement (point | count | range | scan | group | top-k | 10k rows | insert)");
+    for round in 1..=ROUNDS {
+        let mut parts = Vec::new();
+        for sql in queries {
+            let t0 = Instant::now();
+            for _ in 0..20_000 {
+                black_box(db.prepare(sql).unwrap());
+            }
+            parts.push(format!("{:.0}", per_op_ns(t0, 20_000)));
+        }
+        println!("  round {round}: {}", parts.join(" | "));
     }
 
     let scan = db.prepare("SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10").unwrap();

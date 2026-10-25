@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-25T00:59:31.842Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\prototyp",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\01-count-by-index"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\prototyp",
+    "describe": "prototyp",
+    "commit": "261d78fb445ed185c832a1ef2d3d52a6bbdc0a65",
+    "subject": "bench: module size of Worker engines, plain values from DuckDB, table alignment in the report",
+    "module": {
+      "bytes": 578926,
+      "gzipBytes": 219575
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "prototyp-7-g8f92ab2-dirty",
+    "commit": "8f92ab2136f4365cc149def3dfd2b627e487daaf",
+    "subject": "ci: benchmark smoke run with the options of the new runner, failed runs exit with an error, native benchmark formatted",
+    "module": {
+      "bytes": 586227,
+      "gzipBytes": 221642
+    },
+    "codeDiffSha256": "7df1c19511257fe5dc580dc1a713f9d3dbc50691e89964c6a5272b6be5814162"
+  },
+  "cpuLoadBefore": 0.11818556701030927,
+  "finished": "2026-10-25T01:04:03.103Z"
+}

@@ -34,8 +34,8 @@ fn wal_replay_rebuilds_identical_state() {
     let sql = "SELECT k, v FROM kv ORDER BY k";
     assert_eq!(original.execute(sql).unwrap(), restored.execute(sql).unwrap());
     // The secondary index is rebuilt as well.
-    let r = restored.execute("SELECT COUNT(*) FROM kv WHERE v = 99").unwrap();
-    assert_eq!((r.rows[0][0].clone(), r.rows_scanned), (Value::Int(1), 1));
+    let r = restored.execute("SELECT k FROM kv WHERE v = 99").unwrap();
+    assert_eq!((r.rows.len(), r.rows_scanned), (1, 1));
     assert_eq!(restored.stats().tombstones, 10);
 }
 

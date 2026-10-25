@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::db::{catalog_key, Database};
 use crate::error::{Error, Result};
-use crate::expr::{describe, eval, eval_pred, matches, AggAcc, AggSpec, BExpr, Binder};
+use crate::expr::{describe, eval, eval_pred, matches, AggAcc, AggFunc, AggSpec, BExpr, Binder};
 use crate::plan::{self, Access};
 use crate::result::QueryResult;
 use crate::sql::{CreateTable, Delete, Expr, Insert, OnConflict, Select, SelectItem, Statement, Update};
@@ -54,6 +54,9 @@ struct SelectPlan<'a> {
     group: Vec<BExpr>,
     having: Option<BExpr>,
     order: Vec<(BExpr, bool)>,
+    /// Every aggregate is `COUNT(*)` of one group and the access path
+    /// guarantees the WHERE clause, so the rows are counted, not read.
+    count_only: bool,
     /// Rows come from the access path in the requested order already.
     presorted: bool,
     reverse: bool,
@@ -72,17 +75,26 @@ fn const_usize(e: &Option<Expr>, params: &[Value], clause: &str) -> Result<Optio
     }
 }
 
+/// Whether any node of `e` satisfies `leaf` (checked on every node).
+fn any_node(e: &BExpr, leaf: &impl Fn(&BExpr) -> bool) -> bool {
+    leaf(e)
+        || match e {
+            BExpr::Agg(_) | BExpr::Lit(_) | BExpr::Col(_) => false,
+            BExpr::Neg(x) | BExpr::Not(x) | BExpr::IsNull(x, _) => any_node(x, leaf),
+            BExpr::Bin(_, l, r) => any_node(l, leaf) || any_node(r, leaf),
+            BExpr::InList(x, l, _) => any_node(x, leaf) || l.iter().any(|i| any_node(i, leaf)),
+            BExpr::Between(x, l, h, _) => any_node(x, leaf) || any_node(l, leaf) || any_node(h, leaf),
+            BExpr::Like { expr, pattern, .. } => any_node(expr, leaf) || any_node(pattern, leaf),
+            BExpr::Func(_, args) => args.iter().any(|a| any_node(a, leaf)),
+        }
+}
+
 fn contains_agg(e: &BExpr) -> bool {
-    match e {
-        BExpr::Agg(_) => true,
-        BExpr::Lit(_) | BExpr::Col(_) => false,
-        BExpr::Neg(x) | BExpr::Not(x) | BExpr::IsNull(x, _) => contains_agg(x),
-        BExpr::Bin(_, l, r) => contains_agg(l) || contains_agg(r),
-        BExpr::InList(x, l, _) => contains_agg(x) || l.iter().any(contains_agg),
-        BExpr::Between(x, l, h, _) => contains_agg(x) || contains_agg(l) || contains_agg(h),
-        BExpr::Like { expr, pattern, .. } => contains_agg(expr) || contains_agg(pattern),
-        BExpr::Func(_, args) => args.iter().any(contains_agg),
-    }
+    any_node(e, &|n| matches!(n, BExpr::Agg(_)))
+}
+
+fn uses_columns(e: &BExpr) -> bool {
+    any_node(e, &|n| matches!(n, BExpr::Col(_)))
 }
 
 fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<SelectPlan<'a>> {
@@ -160,10 +172,17 @@ fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<Sel
         order.push((b, item.desc));
     }
 
-    let access = match table {
-        Some(t) => plan::choose(t, filter.as_ref())?,
-        None => Access::FullScan,
+    let (access, covered) = match table {
+        Some(t) => plan::choose_covered(t, filter.as_ref())?,
+        None => (Access::FullScan, false),
     };
+    // SELECT COUNT(*) FROM t WHERE <guaranteed by the access path>: nothing
+    // but the number of rows is needed, and an index stores it.
+    let count_only = aggregate
+        && covered
+        && group.is_empty()
+        && aggs.iter().all(|a| a.func == AggFunc::CountStar)
+        && !proj.iter().chain(having.iter()).chain(order.iter().map(|(e, _)| e)).any(uses_columns);
 
     let mut presorted = order.is_empty();
     let mut reverse = false;
@@ -185,6 +204,7 @@ fn plan_select<'a>(db: &'a Database, s: &Select, params: &[Value]) -> Result<Sel
         group,
         having,
         order,
+        count_only,
         presorted,
         reverse,
         distinct: s.distinct,
@@ -254,6 +274,10 @@ fn execute_select(p: &SelectPlan) -> Result<QueryResult> {
         let mut groups: Groups = BTreeMap::new();
         let mut key: Vec<Cow<Value>> = Vec::with_capacity(p.group.len());
         match p.table {
+            Some(t) if p.count_only => {
+                let n = plan::count(t, &p.access) as i64;
+                groups.insert(Vec::new(), (&null_row[..], p.aggs.iter().map(|_| AggAcc::counted(n)).collect()));
+            }
             Some(t) => {
                 for entry in plan::scan(t, &p.access, false) {
                     scanned += 1;
@@ -455,7 +479,8 @@ fn explain_select(p: &SelectPlan) -> Vec<String> {
             format!("GROUP BY {}", p.group.iter().map(d).collect::<Vec<_>>().join(", "))
         };
         let aggs = p.aggs.iter().map(|a| a.label.clone()).collect::<Vec<_>>().join(", ");
-        lines.push(format!("  AGGREGATE: {groups}; {aggs}"));
+        let counted = if p.count_only { " (rows counted by the access path, not read)" } else { "" };
+        lines.push(format!("  AGGREGATE: {groups}; {aggs}{counted}"));
     }
     if let Some(h) = &p.having {
         lines.push(format!("  HAVING:    {}", d(h)));

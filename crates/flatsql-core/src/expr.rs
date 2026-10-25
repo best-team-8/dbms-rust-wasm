@@ -624,6 +624,11 @@ impl AggAcc {
         }
     }
 
+    /// `COUNT(*)` of `n` rows counted without reading them.
+    pub fn counted(n: i64) -> Self {
+        AggAcc { count: n, int_sum: 0, float_sum: 0.0, saw_float: false, best: None, seen: None }
+    }
+
     pub fn update(&mut self, spec: &AggSpec, row: &[Value]) -> Result<()> {
         let Some(arg) = &spec.arg else {
             self.count += 1;

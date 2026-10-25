@@ -11,6 +11,9 @@
 //!
 //! The complete WHERE clause is still evaluated on every candidate row, so
 //! the access path only has to return a superset of the matching rows.
+//! [`choose_covered`] also tells whether the access path guarantees the whole
+//! clause, so a query that needs nothing but the number of matching rows can
+//! count them without reading a row.
 
 use std::collections::BTreeMap;
 use std::ops::Bound;
@@ -85,17 +88,35 @@ impl Access {
 
 /// Picks the access path for a (bound) WHERE clause.
 pub fn choose(table: &Table, filter: Option<&BExpr>) -> Result<Access> {
-    let Some(filter) = filter else { return Ok(Access::FullScan) };
+    Ok(choose_covered(table, filter)?.0)
+}
+
+/// Picks the access path and tells whether it guarantees the whole WHERE
+/// clause: every row it returns satisfies the clause.
+///
+/// A conjunct `col = lit` or `col IN (lit, ...)` that drives a lookup is
+/// guaranteed, and so is every range conjunct on the column of a range scan,
+/// because the bounds of the scan are the tightest of them. The key passed
+/// to the tree has the type the column stores (`key_for`), and the tree
+/// orders values of one type the way the comparison operators do, so a
+/// returned row compares the same way as in the evaluator. A range scan of a
+/// secondary index without a lower bound starts after NULL, which the index
+/// stores but which never satisfies a comparison.
+pub fn choose_covered(table: &Table, filter: Option<&BExpr>) -> Result<(Access, bool)> {
+    let Some(filter) = filter else { return Ok((Access::FullScan, true)) };
     if let BExpr::Lit(v) = filter {
-        return Ok(if truth(v)? == Some(true) { Access::FullScan } else { Access::Empty });
+        return Ok((if truth(v)? == Some(true) { Access::FullScan } else { Access::Empty }, true));
     }
 
-    let mut eq: Vec<(usize, Value)> = Vec::new();
-    let mut ins: Vec<(usize, Vec<Value>)> = Vec::new();
+    // Each candidate remembers the positions of the conjuncts it guarantees.
+    let mut eq: Vec<(usize, Value, usize)> = Vec::new();
+    let mut ins: Vec<(usize, Vec<Value>, usize)> = Vec::new();
     let mut lower: BTreeMap<usize, Bound<Value>> = BTreeMap::new();
     let mut upper: BTreeMap<usize, Bound<Value>> = BTreeMap::new();
+    let mut ranged: BTreeMap<usize, usize> = BTreeMap::new();
 
-    for term in filter.conjuncts() {
+    let terms = filter.conjuncts();
+    for (pos, term) in terms.iter().copied().enumerate() {
         match term {
             BExpr::Bin(op, l, r) if op.is_comparison() && *op != BinaryOp::NotEq => {
                 let (col, v, op) = match (&**l, &**r) {
@@ -104,26 +125,31 @@ pub fn choose(table: &Table, filter: Option<&BExpr>) -> Result<Access> {
                     _ => continue,
                 };
                 if v.is_null() {
-                    return Ok(Access::Empty);
+                    return Ok((Access::Empty, true));
                 }
                 let Some(v) = key_for(table, col, v)? else { continue };
                 match op {
-                    BinaryOp::Eq => eq.push((col, v)),
+                    BinaryOp::Eq => {
+                        eq.push((col, v, pos));
+                        continue;
+                    }
                     BinaryOp::Lt => tighten(&mut upper, col, Bound::Excluded(v), false),
                     BinaryOp::LtEq => tighten(&mut upper, col, Bound::Included(v), false),
                     BinaryOp::Gt => tighten(&mut lower, col, Bound::Excluded(v), true),
                     BinaryOp::GtEq => tighten(&mut lower, col, Bound::Included(v), true),
-                    _ => {}
+                    _ => continue,
                 }
+                *ranged.entry(col).or_default() += 1;
             }
             BExpr::Between(x, lo, hi, false) => {
                 let (BExpr::Col(c), BExpr::Lit(a), BExpr::Lit(b)) = (&**x, &**lo, &**hi) else { continue };
                 if a.is_null() || b.is_null() {
-                    return Ok(Access::Empty);
+                    return Ok((Access::Empty, true));
                 }
                 if let (Some(a), Some(b)) = (key_for(table, *c, a)?, key_for(table, *c, b)?) {
                     tighten(&mut lower, *c, Bound::Included(a), true);
                     tighten(&mut upper, *c, Bound::Included(b), false);
+                    *ranged.entry(*c).or_default() += 1;
                 }
             }
             BExpr::InList(x, list, false) => {
@@ -144,31 +170,33 @@ pub fn choose(table: &Table, filter: Option<&BExpr>) -> Result<Access> {
                     continue;
                 }
                 if values.is_empty() {
-                    return Ok(Access::Empty);
+                    return Ok((Access::Empty, true));
                 }
                 values.sort();
                 values.dedup();
-                ins.push((*c, values));
+                ins.push((*c, values, pos));
             }
             _ => {}
         }
     }
 
+    // The access path guarantees the clause when it absorbed every conjunct.
+    let all = terms.len();
     let pk = table.schema.pk;
-    if let Some((_, v)) = eq.iter().find(|(c, _)| *c == pk) {
-        return Ok(Access::PkPoint(v.clone()));
+    if let Some((_, v, _)) = eq.iter().find(|(c, ..)| *c == pk) {
+        return Ok((Access::PkPoint(v.clone()), all == 1));
     }
-    if let Some((_, vs)) = ins.iter().find(|(c, _)| *c == pk) {
-        return Ok(Access::PkMulti(vs.clone()));
+    if let Some((_, vs, _)) = ins.iter().find(|(c, ..)| *c == pk) {
+        return Ok((Access::PkMulti(vs.clone()), all == 1));
     }
-    for (c, v) in &eq {
+    for (c, v, _) in &eq {
         if let Some(i) = table.index_on(*c) {
-            return Ok(Access::IndexPoint(i, v.clone()));
+            return Ok((Access::IndexPoint(i, v.clone()), all == 1));
         }
     }
-    for (c, vs) in &ins {
+    for (c, vs, _) in &ins {
         if let Some(i) = table.index_on(*c) {
-            return Ok(Access::IndexMulti(i, vs.clone()));
+            return Ok((Access::IndexMulti(i, vs.clone()), all == 1));
         }
     }
     let bounds = |c: usize| {
@@ -178,15 +206,43 @@ pub fn choose(table: &Table, filter: Option<&BExpr>) -> Result<Access> {
     };
     if lower.contains_key(&pk) || upper.contains_key(&pk) {
         let (lo, hi) = bounds(pk);
-        return Ok(if range_empty(&lo, &hi) { Access::Empty } else { Access::PkRange(lo, hi) });
+        if range_empty(&lo, &hi) {
+            return Ok((Access::Empty, true));
+        }
+        return Ok((Access::PkRange(lo, hi), all == ranged[&pk]));
     }
     for c in lower.keys().chain(upper.keys()) {
         if let Some(i) = table.index_on(*c) {
             let (lo, hi) = bounds(*c);
-            return Ok(if range_empty(&lo, &hi) { Access::Empty } else { Access::IndexRange(i, lo, hi) });
+            if range_empty(&lo, &hi) {
+                return Ok((Access::Empty, true));
+            }
+            let lo = match lo {
+                Bound::Unbounded => Bound::Excluded(Value::Null),
+                lo => lo,
+            };
+            return Ok((Access::IndexRange(i, lo, hi), all == ranged[c]));
         }
     }
-    Ok(Access::FullScan)
+    Ok((Access::FullScan, false))
+}
+
+/// Number of rows an access path returns, counted without reading them: a
+/// secondary index keeps the set of keys of every value.
+pub fn count(t: &Table, access: &Access) -> u64 {
+    let n = match access {
+        Access::Empty => 0,
+        Access::PkPoint(k) => usize::from(t.rows.contains_key(k)),
+        Access::PkMulti(keys) => keys.iter().filter(|k| t.rows.contains_key(*k)).count(),
+        Access::PkRange(lo, hi) => t.rows.range::<Value, _>((lo.as_ref(), hi.as_ref())).count(),
+        Access::IndexPoint(i, v) => t.indexes[*i].map.get(v).map_or(0, |keys| keys.len()),
+        Access::IndexMulti(i, vs) => vs.iter().filter_map(|v| t.indexes[*i].map.get(v)).map(|keys| keys.len()).sum(),
+        Access::IndexRange(i, lo, hi) => {
+            t.indexes[*i].map.range::<Value, _>((lo.as_ref(), hi.as_ref())).map(|(_, keys)| keys.len()).sum()
+        }
+        Access::FullScan => t.rows.len(),
+    };
+    n as u64
 }
 
 /// Converts a literal into a key comparable with the column, or `None` if the

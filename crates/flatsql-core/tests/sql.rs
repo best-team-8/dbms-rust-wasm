@@ -251,12 +251,15 @@ fn planner_uses_keys_and_indexes() {
     assert!(plan(&mut db, "SELECT * FROM t WHERE grp >= 8").starts_with("INDEX RANGE SCAN"));
 
     // Same answers whatever the access path.
+    let r = q(&mut db, "SELECT id FROM t WHERE grp = 3");
+    assert_eq!((r.rows.len(), r.rows_scanned), (100, 100));
+    let r = q(&mut db, "SELECT id FROM t WHERE id > 10 AND id <= 20");
+    assert_eq!((r.rows.len(), r.rows_scanned), (10, 10));
+    // COUNT(*) of rows the access path guarantees: counted, not read.
     let r = q(&mut db, "SELECT COUNT(*) FROM t WHERE grp = 3");
-    assert_eq!(r.rows[0][0], Value::Int(100));
-    assert_eq!(r.rows_scanned, 100);
+    assert_eq!((r.rows[0][0].clone(), r.rows_scanned), (Value::Int(100), 0));
     let r = q(&mut db, "SELECT COUNT(*) FROM t WHERE id > 10 AND id <= 20");
-    assert_eq!(r.rows[0][0], Value::Int(10));
-    assert_eq!(r.rows_scanned, 10);
+    assert_eq!((r.rows[0][0].clone(), r.rows_scanned), (Value::Int(10), 0));
     assert_eq!(q(&mut db, "SELECT COUNT(*) FROM t WHERE grp >= 8 AND v < 100").rows[0][0], Value::Int(20));
     assert_eq!(q(&mut db, "SELECT COUNT(*) FROM t WHERE id IN (1, 2, 2000)").rows[0][0], Value::Int(2));
     let r = q(&mut db, "SELECT v FROM t WHERE id = 5");

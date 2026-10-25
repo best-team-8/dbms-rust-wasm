@@ -49,11 +49,16 @@ fn main() {
     let mut db = load();
     let star = db.prepare("SELECT * FROM items WHERE id = ?").unwrap();
     let one = db.prepare("SELECT id FROM items WHERE id = ?").unwrap();
+    let by_index = db.prepare("SELECT COUNT(*) FROM items WHERE category = ?").unwrap();
+    let range = db.prepare("SELECT SUM(price) FROM items WHERE id BETWEEN ? AND ?").unwrap();
     let scan = db.prepare("SELECT COUNT(*) FROM items WHERE price > 50 AND qty < 10").unwrap();
     let group = db.prepare("SELECT category, COUNT(*), AVG(price), MAX(qty) FROM items GROUP BY category").unwrap();
 
     count("point lookup SELECT *", || db.execute_prepared(&star, &[Value::Int(4242)]).unwrap());
     count("point lookup SELECT id", || db.execute_prepared(&one, &[Value::Int(4242)]).unwrap());
+    count("COUNT(*) by index", || db.execute_prepared(&by_index, &[Value::from("c42")]).unwrap());
+    count("key range (1000 rows) + SUM", || db.execute_prepared(&range, &[Value::Int(4242), Value::Int(5241)]).unwrap());
+    count("prepare point lookup", || db.prepare("SELECT * FROM items WHERE id = ?").unwrap());
     count("full scan with filter", || db.execute_prepared(&scan, &[]).unwrap());
     count("GROUP BY (100 groups)", || db.execute_prepared(&group, &[]).unwrap());
 
