@@ -1,11 +1,12 @@
 //! In-memory table storage: rows keyed by primary key, secondary indexes and
 //! tombstones used by the Local-First synchronisation.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
 use crate::error::{Error, Result};
+use crate::hash::{FxBuildHasher, ValueKey};
 use crate::sync::Stamp;
 use crate::value::{DataType, Value};
 
@@ -238,13 +239,21 @@ impl Table {
         }
     }
 
-    /// Builds a secondary index over the existing rows.
+    /// Builds a secondary index over the existing rows in bulk. Rows are
+    /// visited in key order, so the keys of every value arrive sorted; they
+    /// are grouped by value in a hash table, the groups are sorted by value,
+    /// and every tree is built from sorted input instead of one insertion
+    /// into the index per row.
     pub fn add_index(&mut self, name: String, column: usize) {
-        let mut idx = Index { name, column, map: BTreeMap::new() };
+        let mut groups: HashMap<ValueKey<'_>, Vec<&Value>, FxBuildHasher> = HashMap::default();
         for (key, row) in &self.rows {
-            idx.insert(&row.values[column], key);
+            groups.entry(ValueKey(&row.values[column])).or_default().push(key);
         }
-        self.indexes.push(idx);
+        let mut groups: Vec<(&Value, Vec<&Value>)> = groups.into_iter().map(|(value, keys)| (value.0, keys)).collect();
+        groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
+        let map =
+            groups.into_iter().map(|(value, keys)| (value.clone(), keys.into_iter().cloned().collect())).collect();
+        self.indexes.push(Index { name, column, map });
     }
 }
 
@@ -291,6 +300,34 @@ mod tests {
         }
         t.add_index("ix".into(), 1);
         assert_eq!(t.indexes[0].map[&Value::from("even")].len(), 5);
+    }
+
+    #[test]
+    fn bulk_built_index_equals_one_built_row_by_row() {
+        // Values with repeats and NULL, keys inserted out of order.
+        let mut state = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for rows in [0, 1, 7, 500, 3000] {
+            let mut incremental = table();
+            incremental.add_index("ix".into(), 1);
+            let mut bulk = table();
+            for _ in 0..rows {
+                let id = (next() % 5000) as i64;
+                let tag = match next() % 6 {
+                    0 => Value::Null,
+                    n => Value::Text(format!("t{}", n * (next() % 4))),
+                };
+                incremental.put(vec![Value::Int(id), tag.clone()], Stamp::default());
+                bulk.put(vec![Value::Int(id), tag], Stamp::default());
+            }
+            bulk.add_index("ix".into(), 1);
+            assert_eq!(bulk.indexes[0], incremental.indexes[0], "{rows} rows");
+        }
     }
 
     #[test]

@@ -25,6 +25,7 @@ pub mod db;
 pub mod error;
 mod exec;
 pub mod expr;
+mod hash;
 pub mod plan;
 pub mod result;
 pub mod sql;
