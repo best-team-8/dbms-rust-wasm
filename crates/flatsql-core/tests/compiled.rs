@@ -54,7 +54,7 @@ fn row(rng: &mut Rng) -> Vec<Value> {
     };
     let mut r = vec![Value::Int(int(rng))];
     r.push(if null(rng) { Value::Null } else { Value::Int(int(rng)) });
-    r.push(if null(rng) { Value::Null } else { Value::Text(format!("k{}", rng.below(4))) });
+    r.push(if null(rng) { Value::Null } else { Value::Text(format!("k{}", rng.below(4)).into()) });
     r.push(if null(rng) {
         Value::Null
     } else {

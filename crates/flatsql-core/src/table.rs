@@ -320,7 +320,7 @@ mod tests {
                 let id = (next() % 5000) as i64;
                 let tag = match next() % 6 {
                     0 => Value::Null,
-                    n => Value::Text(format!("t{}", n * (next() % 4))),
+                    n => Value::Text(format!("t{}", n * (next() % 4)).into()),
                 };
                 incremental.put(vec![Value::Int(id), tag.clone()], Stamp::default());
                 bulk.put(vec![Value::Int(id), tag], Stamp::default());

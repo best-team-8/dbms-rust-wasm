@@ -40,6 +40,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [3.7](#37-nazwy-kolumn-wyniku-instrukcji-przygotowanej) `results of a prepared statement get their own column names and follow schema changes` | Czy wynik instrukcji przygotowanej, której nazwy kolumn są tworzone w JavaScripcie raz na plan, ma własne nazwy i ten sam kształt co dotąd, także po zmianie schematu? | zaliczony |
 | [3.8](#38-binarny-format-wyniku) `results_encoded_from_the_table_equal_the_encoded_query_result`, `values of every type come through the binary result format unchanged` | Czy wynik kodowany wprost z tabeli w binarnym formacie i dekodowany w JavaScripcie ma te same wartości co wynik zebrany w silniku? | zaliczony |
 | [3.9](#39-wiele-zestawów-parametrów-jednym-wywołaniem) `executing_for_many_sets_gives_the_rows_and_wal_of_executing_for_each`, `the_sets_are_one_statement`, `rows_of_all_sets_get_stamps_from_one_clock_reading`, `executeMany writes the rows of every parameter array as one statement`, `FlatDB.executeMany is a write…` | Czy instrukcja wykonana jednym wywołaniem dla wielu zestawów parametrów daje te same wiersze i WAL co wykonanie dla każdego zestawu, stosuje się w całości albo wcale i przekazuje każdy typ wartości jak `execute`? | zaliczony |
+| [3.10](#310-krótkie-teksty-w-wartości) `text_is_kept_in_place_up_to_the_size_of_a_value`, testy losowe z §3.2–§3.3 i §3.6 z tekstami obu postaci | Czy tekst trzymany w wartości albo na stercie ma tę samą równość, porządek i skrót, także gdy obie postaci spotykają się w indeksach, porównaniach i grupach? | zaliczony |
 
 ## 1. Trwałość i odtwarzanie po awarii
 
@@ -341,3 +342,16 @@ Każda zmiana wysyłana między replikami ma znacznik z hybrydowego zegara logic
 | Wynik | Zaliczony. 25.10.2026, środowisko z początku dokumentu, commit „core/wasm: execute a prepared write for many parameter sets in one call”. |
 | Wpływ na projekt | Wspólna reguła zamiany liczby JavaScriptu na INT albo FLOAT dla `execute` i `executeMany`. |
 | Ograniczenia | Samotny surogat UTF-16 zamienia się na U+FFFD w obu ścieżkach (tak koduje `TextEncoder`), więc test sprawdza zgodność ścieżek, a nie zachowanie surogatu. |
+
+### 3.10 Krótkie teksty w wartości
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy tekst przechowywany w samej wartości (do 22 bajtów, 14 na wasm32) i tekst na stercie zachowują się jak ten sam tekst: równość, porządek, skrót, zamiana na `String` i z powrotem, także gdy obie postaci spotykają się w indeksach, porównaniach, sortowaniu i grupach? |
+| Uzasadnienie | Porządek wartości wyznacza drzewa wierszy i indeksów. Porządek zależny od postaci (np. najpierw teksty w wartości, potem na stercie) psułby wyszukiwanie przez indeks i zakresy bez żadnego błędu przy krótkich danych testowych. |
+| Model awarii i założenia | Porównanie, równość lub skrót zależne od postaci, zła granica długości, błędna długość przy odczycie. Wyrocznie: porządek i równość `str` (test jednostkowy) oraz pełny przegląd tabeli bez indeksów (testy losowe). |
+| Procedura | Test jednostkowy `text_is_kept_in_place_up_to_the_size_of_a_value` (`value.rs`): rozmiar `Value`, teksty pusty, jednoznakowy, z polskim znakiem, o długości granicznej i o jeden bajt dłuższy, z emoji; postać zależna tylko od długości, zamiana z `String` i na `String`, porządek tekstu krótkiego wobec długiego także jako `Value`. Dane testów losowych planera (`planner.rs`, §3.2, §3.3, §3.6) zmieniono tak, że co drugi tekst jest dłuższy niż mieści się w wartości, więc obie postaci występują w indeksach, warunkach, zakresach i grupach. Polecenia: `cargo test -p flatsql-core value`, `cargo test -p flatsql-core --test planner`. |
+| Kontrola negatywna | Z porządkiem, który najpierw porównuje postać (w wartości przed stertą), zawiódł test jednostkowy, a testy losowe planera z tekstami obu postaci zawiodły w dwóch testach (`random_queries_give_the_same_answers_as_a_full_scan`, `prepared_statements_with_parameters_give_the_same_answers_as_a_full_scan`). Przed zmianą danych testów losowych (same krótkie teksty) te same testy tego błędu nie wykrywały. |
+| Wynik | Zaliczony. 28.10.2026, środowisko z początku dokumentu, commit „core: keep short texts inside the value”. |
+| Wpływ na projekt | Dane testów losowych mają teksty obu długości. |
+| Ograniczenia | Kod `unsafe` odczytu tekstu z wartości jest sprawdzany testami, nie narzędziem do wykrywania niezdefiniowanego zachowania (Miri). |

@@ -9,10 +9,10 @@ pub const ROWS: i64 = 100_000;
 pub fn row(i: i64) -> Vec<Value> {
     vec![
         Value::Int(i),
-        Value::Text(format!("c{}", i % 100)),
+        Value::Text(format!("c{}", i % 100).into()),
         Value::Float(((i * 7919) % 10000) as f64 / 100.0),
         Value::Int(i % 50),
-        Value::Text(format!("item-{i}")),
+        Value::Text(format!("item-{i}").into()),
     ]
 }
 

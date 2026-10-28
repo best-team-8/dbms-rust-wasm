@@ -790,7 +790,7 @@ fn explain(db: &Database, stmt: &Statement, params: &[Value]) -> Result<QueryRes
     };
     Ok(QueryResult {
         columns: vec!["plan".to_string()].into(),
-        rows: lines.into_iter().map(|l| vec![Value::Text(l)]).collect(),
+        rows: lines.into_iter().map(|l| vec![Value::Text(l.into())]).collect(),
         message: "EXPLAIN".into(),
         ..Default::default()
     })
@@ -802,11 +802,11 @@ fn show_tables(db: &Database) -> QueryResult {
         .values()
         .map(|t| {
             vec![
-                Value::Text(t.schema.name.clone()),
+                Value::from(t.schema.name.as_str()),
                 Value::Int(t.rows.len() as i64),
                 Value::Int(t.schema.columns.len() as i64),
                 Value::Int(t.indexes.len() as i64),
-                Value::Text(t.schema.pk_column().name.clone()),
+                Value::from(t.schema.pk_column().name.as_str()),
             ]
         })
         .collect::<Vec<_>>();
@@ -838,10 +838,10 @@ fn describe_table(db: &Database, name: &str) -> Result<QueryResult> {
                     .join(", ")
             };
             vec![
-                Value::Text(c.name.clone()),
+                Value::from(c.name.as_str()),
                 Value::Text(c.data_type.name().into()),
                 Value::Bool(!c.not_null),
-                Value::Text(key),
+                Value::Text(key.into()),
             ]
         })
         .collect::<Vec<_>>();

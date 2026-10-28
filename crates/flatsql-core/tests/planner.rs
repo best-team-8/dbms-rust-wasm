@@ -31,6 +31,16 @@ impl Rng {
 const SCHEMA: &str = "CREATE TABLE t (id INT PRIMARY KEY, a INT, b TEXT, c FLOAT, d BOOL)";
 const COLUMNS: [&str; 5] = ["id", "a", "b", "c", "d"];
 
+/// Text number `n`: short for even `n`, long for odd `n`, so texts kept in
+/// place and texts on the heap meet in comparisons, indexes and groups.
+fn text(n: u64) -> String {
+    if n % 2 == 0 {
+        format!("k{n}")
+    } else {
+        format!("k{n} – a text longer than fits in place")
+    }
+}
+
 /// Random value of column `col`; about 15% NULL outside the key, a few NaN.
 fn value(rng: &mut Rng, col: usize, id: i64) -> Value {
     if col > 0 && rng.chance(15) {
@@ -39,7 +49,7 @@ fn value(rng: &mut Rng, col: usize, id: i64) -> Value {
     match col {
         0 => Value::Int(id),
         1 => Value::Int(rng.below(20) as i64),
-        2 => Value::Text(format!("k{}", rng.below(10))),
+        2 => Value::Text(text(rng.below(10)).into()),
         3 if rng.chance(3) => Value::Float(f64::NAN),
         // Zero with both signs: equal values, different bits.
         3 if rng.chance(4) => Value::Float(if rng.chance(50) { -0.0 } else { 0.0 }),
@@ -78,7 +88,7 @@ fn literal(rng: &mut Rng, col: usize) -> String {
         0 => rng.below(700).to_string(),
         1 if rng.chance(20) => format!("{}.5", rng.below(20)),
         1 => rng.below(22).to_string(),
-        2 => format!("'k{}'", rng.below(11)),
+        2 => format!("'{}'", text(rng.below(11))),
         3 if rng.chance(30) => rng.below(20).to_string(),
         3 => format!("{:.1}", rng.below(42) as f64 * 0.5),
         _ => ["TRUE", "FALSE", "0", "1"][rng.below(4) as usize].into(),
@@ -153,14 +163,14 @@ fn count_by_index_reads_no_rows() {
     let mut rng = Rng(7);
     let (mut plain, mut indexed) = databases(&mut rng, 300);
     for (w, counted) in [
-        ("b = 'k3'", true),
+        ("b = 'k4'", true),
         ("a IN (1, 2, NULL)", true),
         // NULL is stored in the index, but never satisfies a comparison.
         ("a < 5", true),
         ("id BETWEEN 10 AND 100", true),
         ("TRUE", true),
         // Not guaranteed by the access path: the rows are read.
-        ("b = 'k3' AND a > 2", false),
+        ("b = 'k4' AND a > 2", false),
         ("a < 5 OR a > 10", false),
     ] {
         let (r, want) = both(&mut plain, &mut indexed, "SELECT COUNT(*) FROM t WHERE {w}", w);
@@ -171,7 +181,7 @@ fn count_by_index_reads_no_rows() {
         assert_eq!(text.iter().any(|l| l.contains("counted by the access path")), counted, "{text:?}");
     }
     // Other aggregates and groups need the rows.
-    for sql in ["SELECT COUNT(a) FROM t WHERE b = 'k3'", "SELECT COUNT(*) FROM t WHERE b = 'k3' GROUP BY a"] {
+    for sql in ["SELECT COUNT(a) FROM t WHERE b = 'k4'", "SELECT COUNT(*) FROM t WHERE b = 'k4' GROUP BY a"] {
         assert!(run(&mut indexed, sql).rows_scanned > 0, "{sql}");
     }
 }
@@ -201,7 +211,7 @@ fn literal_value(rng: &mut Rng, col: usize) -> Value {
         0 => Value::Int(rng.below(700) as i64),
         1 if rng.chance(20) => Value::Float(rng.below(20) as f64 + 0.5),
         1 => Value::Int(rng.below(22) as i64),
-        2 => Value::Text(format!("k{}", rng.below(11))),
+        2 => Value::Text(text(rng.below(11)).into()),
         3 if rng.chance(30) => Value::Int(rng.below(20) as i64),
         3 => Value::Float(rng.below(42) as f64 * 0.5),
         _ => [Value::Bool(true), Value::Bool(false), Value::Int(0), Value::Int(1)][rng.below(4) as usize].clone(),

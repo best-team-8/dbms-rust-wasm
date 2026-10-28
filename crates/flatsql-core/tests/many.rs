@@ -30,7 +30,7 @@ fn params(first: i64, n: i64) -> Vec<Vec<Value>> {
         .map(|i| {
             vec![
                 Value::Int(i),
-                if i % 7 == 0 { Value::Null } else { Value::Text(format!("ś{}", i % 13)) },
+                if i % 7 == 0 { Value::Null } else { Value::Text(format!("ś{}", i % 13).into()) },
                 Value::Float(i as f64 / 4.0),
                 Value::Bool(i % 2 == 0),
             ]
@@ -61,7 +61,10 @@ fn executing_for_many_sets_gives_the_rows_and_wal_of_executing_for_each() {
         ("INSERT INTO t VALUES (?, ?, ?, ?)", params(0, 500)),
         (
             "UPDATE t SET s = ?, f = f + ? WHERE id = ?",
-            (0..500).step_by(3).map(|i| vec![Value::Text(format!("u{i}")), Value::Float(0.5), Value::Int(i)]).collect(),
+            (0..500)
+                .step_by(3)
+                .map(|i| vec![Value::Text(format!("u{i}").into()), Value::Float(0.5), Value::Int(i)])
+                .collect(),
         ),
         (
             "DELETE FROM t WHERE id = ? OR s = ?",

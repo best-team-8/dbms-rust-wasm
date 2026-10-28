@@ -184,9 +184,14 @@ impl<'a> Reader<'a> {
     }
 
     pub fn str(&mut self) -> Result<String> {
+        Ok(self.str_ref()?.to_owned())
+    }
+
+    /// A string borrowed from the input, without a copy.
+    pub fn str_ref(&mut self) -> Result<&'a str> {
         let n = self.len()?;
         let b = self.take(n)?;
-        String::from_utf8(b.to_vec()).map_err(|_| Error::Storage("invalid UTF-8 string".into()))
+        std::str::from_utf8(b).map_err(|_| Error::Storage("invalid UTF-8 string".into()))
     }
 
     pub fn value(&mut self) -> Result<Value> {
@@ -196,7 +201,7 @@ impl<'a> Reader<'a> {
             TAG_TRUE => Value::Bool(true),
             TAG_INT => Value::Int(self.ivar()?),
             TAG_FLOAT => Value::Float(f64::from_le_bytes(self.take(8)?.try_into().unwrap())),
-            TAG_TEXT => Value::Text(self.str()?),
+            TAG_TEXT => Value::Text(self.str_ref()?.into()),
             t => return Err(Error::Storage(format!("unknown value tag {t}"))),
         })
     }
@@ -283,7 +288,7 @@ mod tests {
             Value::Int(i64::MAX),
             Value::Float(-2.5),
             Value::Text("zażółć gęślą jaźń".into()),
-            Value::Text(String::new()),
+            Value::Text("".into()),
         ];
         let mut w = Writer::new();
         w.values(&vals);

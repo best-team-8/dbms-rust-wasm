@@ -1,0 +1,25 @@
+Native workload (flatsql bench, 100 000 rows), median of 7 runs per build in alternating order, 28.10.2026.
+before = tag po-2.14; text = compact text, comparison of texts inlined (first measured version);
+noinline = Text::cmp not inlined (final version); hints = noinline plus #[inline] on Text::as_str and Value::cmp.
+
+operation | before | text | noinline
+insert | 159.02 ms | 181.29 ms | 156.66 ms
+insert_many | 141.55 ms | 164.97 ms | 140.20 ms
+point_lookup | 1.13 µs | 0.92 µs | 0.93 µs
+range_scan | 46.84 µs | 48.48 µs | 49.72 µs
+full_scan | 5.27 ms | 5.35 ms | 5.33 ms
+group_by | 9.93 ms | 10.65 ms | 10.67 ms
+top_k | 5.79 ms | 6.78 ms | 6.88 ms
+materialize_10k | 3.41 ms | 3.03 ms | 2.88 ms
+restore | 44.54 ms | 41.49 ms | 40.91 ms
+
+operation | before | noinline | hints
+insert | 159.46 ms | 156.94 ms | 157.94 ms
+insert_many | 143.66 ms | 142.42 ms | 142.03 ms
+point_lookup | 1.17 µs | 0.92 µs | 0.94 µs
+range_scan | 46.88 µs | 48.81 µs | 50.01 µs
+full_scan | 5.33 ms | 5.36 ms | 5.35 ms
+group_by | 10.02 ms | 10.81 ms | 10.72 ms
+top_k | 5.74 ms | 6.78 ms | 6.80 ms
+materialize_10k | 3.36 ms | 2.82 ms | 2.89 ms
+restore | 44.85 ms | 40.43 ms | 41.07 ms

@@ -46,10 +46,10 @@ impl Lcg {
 pub fn row(i: i64) -> Vec<Value> {
     vec![
         Value::Int(i),
-        Value::Text(format!("c{}", i % 100)),
+        Value::Text(format!("c{}", i % 100).into()),
         Value::Float(((i * 7919) % 10000) as f64 / 100.0),
         Value::Int(i % 50),
-        Value::Text(format!("item-{i}")),
+        Value::Text(format!("item-{i}").into()),
     ]
 }
 
@@ -130,7 +130,7 @@ fn gen_params(p: Params, rng: &mut Lcg, rows: i64) -> Vec<Value> {
     match p {
         Params::None => vec![],
         Params::Id => vec![Value::Int(rng.below(rows as u64) as i64)],
-        Params::Category => vec![Value::Text(format!("c{}", rng.below(100)))],
+        Params::Category => vec![Value::Text(format!("c{}", rng.below(100)).into())],
         Params::Range => {
             let a = rng.below((rows - 1000).max(1) as u64) as i64;
             vec![Value::Int(a), Value::Int(a + 999)]

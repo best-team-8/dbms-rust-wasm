@@ -73,7 +73,7 @@ fn value_from_js(v: &JsValue) -> Result<Value, JsValue> {
         return Ok(number(f));
     }
     if let Some(s) = v.as_string() {
-        return Ok(Value::Text(s));
+        return Ok(Value::Text(s.into()));
     }
     if v.is_bigint() {
         let i = i64::try_from(v.clone()).map_err(|_| JsValue::from_str("BigInt parameter out of i64 range"))?;
@@ -278,9 +278,10 @@ impl ParamChunk {
                 3 => number(f64::from_le_bytes(self.take())),
                 4 => {
                     let len = u32::from_le_bytes(self.take()) as usize;
-                    let text = String::from_utf8_lossy(&self.bytes[self.at..self.at + len]).into_owned();
+                    let text =
+                        Value::Text(String::from_utf8_lossy(&self.bytes[self.at..self.at + len]).as_ref().into());
                     self.at += len;
-                    Value::Text(text)
+                    text
                 }
                 _ => Value::Int(i64::from_le_bytes(self.take())),
             });

@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-27T23:30:30.043Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload,memory",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.14",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\14-compact-text"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.14",
+    "describe": "po-2.14",
+    "commit": "fc2703fd8ce84a0f811dcb77d9020513f23d42c1",
+    "subject": "core/wasm: execute a prepared write for many parameter sets in one call",
+    "codeTreeSha256": "ab36476f66a29905dcf765c828c11a43bb5e640b4298e115a398e3b009e7d4f6",
+    "module": {
+      "bytes": 700803,
+      "gzipBytes": 264711
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.14-dirty",
+    "commit": "fc2703fd8ce84a0f811dcb77d9020513f23d42c1",
+    "subject": "core/wasm: execute a prepared write for many parameter sets in one call",
+    "codeTreeSha256": "2473655ede6c6beaff9acb1108efdc534e56bd4cdaaf35768b7c72bed56cdace",
+    "module": {
+      "bytes": 711629,
+      "gzipBytes": 268883
+    }
+  },
+  "cpuLoadBefore": 0.0582657311992984,
+  "finished": "2026-10-27T23:33:51.610Z"
+}

@@ -341,7 +341,7 @@ fn eval_node(e: &BExpr, row: &[Value], cx: Cx) -> Result<Value> {
             if a.is_null() || b.is_null() {
                 return Ok(Value::Null);
             }
-            Ok(Value::Text(format!("{a}{b}")))
+            Ok(Value::Text(format!("{a}{b}").into()))
         }
         BExpr::Bin(op, l, r) => arith(*op, &*eval(l, row, cx)?, &*eval(r, row, cx)?),
         BExpr::Neg(x) => match &*eval(x, row, cx)? {
@@ -573,18 +573,18 @@ fn eval_func(f: ScalarFn, args: &[BExpr], row: &[Value], cx: Cx) -> Result<Value
     }
     let first = eval(&args[0], row, cx)?;
     if f == ScalarFn::Typeof {
-        return Ok(Value::Text(first.type_name().to_ascii_lowercase()));
+        return Ok(Value::Text(first.type_name().to_ascii_lowercase().into()));
     }
     if first.is_null() {
         return Ok(Value::Null);
     }
     let text = |v: &Value| match v {
-        Value::Text(s) => s.clone(),
+        Value::Text(s) => s.to_string(),
         other => other.to_string(),
     };
     match f {
-        ScalarFn::Lower => Ok(Value::Text(text(&first).to_lowercase())),
-        ScalarFn::Upper => Ok(Value::Text(text(&first).to_uppercase())),
+        ScalarFn::Lower => Ok(Value::Text(text(&first).to_lowercase().into())),
+        ScalarFn::Upper => Ok(Value::Text(text(&first).to_uppercase().into())),
         ScalarFn::Length => Ok(Value::Int(text(&first).chars().count() as i64)),
         ScalarFn::Abs => match &*first {
             Value::Int(i) => i.checked_abs().map(Value::Int).ok_or_else(overflow),
@@ -622,7 +622,7 @@ fn eval_func(f: ScalarFn, args: &[BExpr], row: &[Value], cx: Cx) -> Result<Value
             };
             let start = int_arg(1)?.unwrap_or(1).max(1) as usize - 1;
             let len = int_arg(2)?.map(|n| n.max(0) as usize).unwrap_or(usize::MAX);
-            Ok(Value::Text(s.iter().skip(start).take(len).collect()))
+            Ok(Value::Text(s.iter().skip(start).take(len).collect::<String>().into()))
         }
         ScalarFn::Coalesce | ScalarFn::Typeof => unreachable!(),
     }

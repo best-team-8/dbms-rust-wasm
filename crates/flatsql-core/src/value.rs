@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::ops::Deref;
 
 use crate::error::{Error, Result};
 
@@ -70,7 +72,118 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
-    Text(String),
+    Text(Text),
+}
+
+/// Bytes of text kept inside the value itself: as many as fit without making
+/// `Value` larger than with a `String` (24 B on 64-bit targets, 16 B on
+/// wasm32).
+const INLINE: usize = if cfg!(target_pointer_width = "64") { 22 } else { 14 };
+
+/// Text of a `Value`: up to `INLINE` bytes of UTF-8 stored in place, longer
+/// text in one heap allocation. Most column values (codes, names, short
+/// labels) need no allocation of their own, which saves memory and time when
+/// rows are built, copied and dropped.
+#[derive(Clone)]
+pub struct Text(Repr);
+
+#[derive(Clone)]
+enum Repr {
+    /// Invariant: the first `len` bytes are UTF-8 copied from a `str`.
+    Inline(u8, [u8; INLINE]),
+    Heap(Box<str>),
+}
+
+impl Text {
+    pub fn as_str(&self) -> &str {
+        match &self.0 {
+            // SAFETY: inline bytes are only written from a `&str` in
+            // `From<&str>`, whole and with their length (the invariant of
+            // `Repr::Inline`).
+            Repr::Inline(len, bytes) => unsafe { std::str::from_utf8_unchecked(&bytes[..*len as usize]) },
+            Repr::Heap(s) => s,
+        }
+    }
+}
+
+impl Deref for Text {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl From<&str> for Text {
+    fn from(s: &str) -> Text {
+        if s.len() <= INLINE {
+            let mut bytes = [0; INLINE];
+            bytes[..s.len()].copy_from_slice(s.as_bytes());
+            Text(Repr::Inline(s.len() as u8, bytes))
+        } else {
+            Text(Repr::Heap(s.into()))
+        }
+    }
+}
+
+impl From<String> for Text {
+    fn from(s: String) -> Text {
+        if s.len() <= INLINE {
+            Text::from(s.as_str())
+        } else {
+            Text(Repr::Heap(s.into_boxed_str()))
+        }
+    }
+}
+
+impl From<Text> for String {
+    fn from(t: Text) -> String {
+        match t.0 {
+            Repr::Heap(s) => s.into_string(),
+            Repr::Inline(..) => t.as_str().to_owned(),
+        }
+    }
+}
+
+impl PartialEq for Text {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl Eq for Text {}
+
+impl PartialOrd for Text {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Text {
+    // Not inlined: inlined into the searches of the trees of rows and
+    // indexes, the two forms of `as_str` made inserts 11-15% slower.
+    #[inline(never)]
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_str().cmp(other.as_str())
+    }
+}
+
+impl Hash for Text {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
+}
+
+impl fmt::Debug for Text {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
+impl fmt::Display for Text {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 impl Value {
@@ -274,13 +387,13 @@ impl From<f64> for Value {
 
 impl From<&str> for Value {
     fn from(v: &str) -> Self {
-        Value::Text(v.to_string())
+        Value::Text(v.into())
     }
 }
 
 impl From<String> for Value {
     fn from(v: String) -> Self {
-        Value::Text(v)
+        Value::Text(v.into())
     }
 }
 
@@ -320,6 +433,26 @@ mod tests {
         assert!(Value::Text("x".into()).coerce(DataType::Int).is_err());
         assert_eq!(Value::Int(1).coerce(DataType::Bool).unwrap(), Value::Bool(true));
         assert!(Value::Null.coerce(DataType::Text).unwrap().is_null());
+    }
+
+    #[test]
+    fn text_is_kept_in_place_up_to_the_size_of_a_value() {
+        assert_eq!(std::mem::size_of::<Value>(), if cfg!(target_pointer_width = "64") { 24 } else { 16 });
+        for s in ["", "a", "ż", "0123456789abcdefghijkl", "0123456789abcdefghijklm", "zażółć gęślą jaźń 😀 i więcej"]
+        {
+            let t = Text::from(s);
+            assert_eq!(t.as_str(), s);
+            assert_eq!(Text::from(s.to_string()), t);
+            assert_eq!(String::from(t.clone()), s);
+            assert_eq!(matches!(t.0, Repr::Inline(..)), s.len() <= INLINE, "{s}");
+        }
+        // Order and equality are those of the text, whichever form it has.
+        let long = "a".repeat(INLINE + 8);
+        assert!(Text::from("ab") < Text::from("abc"));
+        assert!(Text::from("b") > Text::from(long.as_str()));
+        assert!(Value::from("b") > Value::from(long.as_str()));
+        assert_eq!(Value::from(long.clone()), Value::from(long.as_str()));
+        assert_eq!(format!("{:?}", Value::from("x")), "Text(\"x\")");
     }
 
     #[test]

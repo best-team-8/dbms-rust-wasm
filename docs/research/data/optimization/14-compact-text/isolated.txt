@@ -1,0 +1,19 @@
+isolated/ (best of 7 rounds of 20 executions, ms), two alternating pairs of processes, 28.10.2026
+query          | before | text (cmp inlined) | before | text
+top_k          | 5.66 | 6.75 | 5.73 | 6.76
+order by text  | 6.42 | 6.35 | 6.41 | 6.34
+group_by       | 10.24 | 11.06 | 10.32 | 11.32
+group_by int   | 7.76 | 8.04 | 7.69 | 8.01
+full_scan      | 5.57 | 5.66 | 5.58 | 5.64
+
+With Text::cmp and Text::eq not inlined (two pairs):
+query          | before | noinline cmp+eq | before | noinline cmp+eq
+top_k          | 6.00 | 6.85 | 5.70 | 7.06
+order by text  | 6.85 | 6.62 | 6.50 | 6.65
+group_by       | 10.29 | 11.22 | 10.36 | 11.32
+group_by int   | 7.72 | 8.02 | 7.98 | 8.17
+full_scan      | 5.55 | 5.72 | 5.63 | 6.21
+
+Sizes (64-bit, both versions): Value 24 B, Option<Value> 24 B, Cow<Value> 24 B, Result<Cow<Value>, Error> 40 B.
+The machine code of Value::cmp has the same shape in both versions (jump table on the variant, the variant
+read from a byte instead of the capacity field of a String).

@@ -176,7 +176,7 @@ fn main() {
 
     // COUNT(*) by the secondary index: the engine vs. reading only the index.
     let count = db.prepare("SELECT COUNT(*) FROM items WHERE category = ?").unwrap();
-    let cats: Vec<Value> = (0..2000).map(|_| Value::Text(format!("c{}", rng.below(100)))).collect();
+    let cats: Vec<Value> = (0..2000).map(|_| Value::Text(format!("c{}", rng.below(100)).into())).collect();
     let ix = &t.indexes[0];
     println!("COUNT(*) by index, ns per call (engine | index set length | index keys + row lookups | + filter on each row)");
     for round in 1..=ROUNDS {
