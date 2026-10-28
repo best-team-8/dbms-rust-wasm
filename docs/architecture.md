@@ -81,7 +81,7 @@ flowchart LR
 
 | Backend | Gdzie | Zapis WAL | Checkpoint |
 |---|---|---|---|
-| `IndexedDbStore` | przeglądarka | `add()` do magazynu `wal` (klucze rosnące) | `put` snapshotu i `clear()` WAL w **jednej** transakcji IndexedDB |
+| `IndexedDbStore` | przeglądarka | `add()` do magazynu `wal` (klucze rosnące) | `put` snapshotu (jako `Blob`) i `clear()` WAL w **jednej** transakcji IndexedDB |
 | `MemoryStore` | przeglądarka / testy | tablica fragmentów | podmiana |
 | `FileStorage` (Rust) | natywnie (CLI) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `--no-fsync`) | `snapshot.fsql.tmp` i `fsync` → `rename` → `fsync` katalogu → obcięcie WAL i `fsync`; zawsze synchronizowany |
 | `FsStore` (JS) | Node.js (serwer) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `new FsStore(dir, { fsync: false })`) | jak `FileStorage`; `meta.json` (identyfikator węzła, kursor synchronizacji) przez plik tymczasowy, `fsync` i `rename` |
@@ -97,6 +97,8 @@ Wyłączenie `fsync` (`--no-fsync`, `fsync: false`) dotyczy tylko zatwierdzeń: 
 ### 4.3 Group commit w przeglądarce
 
 `FlatDB.exec()` zwraca wynik synchronicznie. Jeśli transakcja wyprodukowała bajty WAL, `FlatDB` planuje `flush()` w najbliższym mikrozadaniu. Wszystkie zatwierdzenia wykonane w jednym „tiku” pętli zdarzeń trafiają więc do IndexedDB jednym zapisem (test: 101 zatwierdzeń → 1 zapis). `await db.flush()` gwarantuje, że wszystko zatwierdzone do tej chwili jest trwałe. Operacje na magazynie są serializowane w jednej kolejce, a checkpoint jest bezpieczny wobec zapisów wykonywanych w trakcie (rozstrzyga LSN).
+
+Checkpoint nie blokuje strony na czas kodowania snapshotu: `FlatDB` koduje go krokami po `checkpointStepRows` wierszy (domyślnie 4096) z obrotem pętli zdarzeń między krokami (`snapshotBegin`, `snapshotStep`, `snapshotFinish`). Snapshot jest stanem z chwili rozpoczęcia: zanim zapis zmieni wiersz, do którego kroki jeszcze nie doszły, rdzeń zachowuje jego dotychczasowy stan, a zmiany z czasu checkpointu trafiają do WAL zapisywanego po nim. Zmiana schematu albo przestawienie zegara rozpoczyna kodowanie od nowa.
 
 Semantyka trwałości jest więc analogiczna do `synchronous=NORMAL` w SQLite: po `await flush()` dane są trwałe; zatwierdzenia z ostatnich milisekund mogą przepaść przy nagłym zamknięciu karty, ale baza zawsze wraca do spójnego stanu.
 

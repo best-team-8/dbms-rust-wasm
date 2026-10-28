@@ -315,3 +315,42 @@ test('FlatDB.executeMany is a write: its WAL is stored and survives a reopen', a
   assert.deepEqual(again.query('SELECT COUNT(*) AS n, MAX(v) AS v FROM t')[0], { n: 1000, v: 'v999' });
   await again.close();
 });
+
+test('a checkpoint is encoded in steps while writes go on, and the store gets their state', async () => {
+  const store = new MemoryStore();
+  const db = await FlatDB.open({ store, checkpointBytes: Infinity, checkpointStepRows: 1000 });
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT, n INT)');
+  db.exec('CREATE INDEX t_v ON t (v)');
+  const ins = db.prepare('INSERT INTO t VALUES (?, ?, ?)');
+  db.executeMany(ins, Array.from({ length: 20_000 }, (_, i) => [i, `v${i % 37}`, i]));
+  await db.flush();
+  let checkpoints = 0;
+  db.addEventListener('checkpoint', () => checkpoints++);
+  let done = false;
+  const checkpoint = db.checkpoint().then(() => (done = true));
+  // Writes on later turns of the event loop, while the snapshot is encoded.
+  let writes = 0;
+  while (!done) {
+    await new Promise((resolve) => setImmediate(resolve));
+    if (done) break;
+    const k = writes * 211;
+    db.exec(`UPDATE t SET v = 'changed ${writes}', n = -n WHERE id BETWEEN ${k % 20_000} AND ${(k % 20_000) + 50}`);
+    db.exec(`DELETE FROM t WHERE id = ${(k * 7) % 20_000}`);
+    db.run(ins, [100_000 + writes, 'new', writes]);
+    db.exec('BEGIN');
+    db.exec(`UPDATE t SET n = 0 WHERE id < ${k % 1000}`);
+    db.exec('ROLLBACK');
+    writes++;
+  }
+  await checkpoint;
+  assert.ok(writes >= 5, `writes made during the checkpoint: ${writes}`);
+  assert.equal(checkpoints, 1);
+  const want = db.exec('SELECT * FROM t ORDER BY id').rows;
+  const byIndex = db.query("SELECT COUNT(*) AS n FROM t WHERE v = 'new'")[0].n;
+  await db.close();
+  const again = await FlatDB.open({ store });
+  assert.deepEqual(again.exec('SELECT * FROM t ORDER BY id').rows, want);
+  assert.equal(again.query("SELECT COUNT(*) AS n FROM t WHERE v = 'new'")[0].n, byIndex);
+  assert.ok(again.recovery.framesReplayed > 0, 'writes made during the checkpoint come from the WAL');
+  await again.close();
+});

@@ -41,6 +41,25 @@ function rowsToObjects(result) {
   });
 }
 
+/**
+ * Resolves in a new task at the end of the task queue, so every task queued
+ * meanwhile (input, timers, messages, rendering) runs first: a message to
+ * itself in the browser, setImmediate in Node.js. Not scheduler.yield(): its
+ * continuation goes before other tasks of the page. Not setTimeout: nested
+ * timeouts are clamped to 4 ms.
+ */
+function nextTask() {
+  if (typeof setImmediate === 'function') return new Promise((resolve) => setImmediate(resolve));
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
 export class FlatDB extends EventTarget {
   #db;
   #store;
@@ -67,6 +86,9 @@ export class FlatDB extends EventTarget {
    * @param {string} [options.name] name of the default IndexedDB store ('default')
    * @param {number} [options.nodeId] replica id (generated and remembered by default)
    * @param {number} [options.checkpointBytes] WAL size that triggers a snapshot
+   * @param {number} [options.checkpointStepRows] rows encoded between two
+   *   turns of the event loop while a snapshot is written (default 4096;
+   *   Infinity encodes it at once)
    * @param {'auto'|'manual'} [options.flush] flush WAL automatically after writes
    * @param {'default'|'strict'|'relaxed'} [options.durability] durability of
    *   IndexedDB writes: 'strict' completes a flush only after the data reached
@@ -80,7 +102,7 @@ export class FlatDB extends EventTarget {
    *   turns the cache off)
    */
   static async open(options = {}) {
-    const { name, nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability, persist = true, statementCache = 64 } = options;
+    const { name, nodeId, checkpointBytes = 1 << 20, checkpointStepRows = 4096, flush = 'auto', durability, persist = true, statementCache = 64 } = options;
     if (name !== undefined && options.store) throw new TypeError('name applies to the default IndexedDB store only');
     const store = options.store ?? defaultStore(name ?? 'default');
     if (durability !== undefined) {
@@ -97,7 +119,7 @@ export class FlatDB extends EventTarget {
     const db = Database.restore(state.snapshot ?? undefined, state.wal ?? undefined, node);
     const recoveryMs = performance.now() - t0;
     if (state.meta.nodeId === undefined) await store.setMeta('nodeId', db.nodeId);
-    const fdb = new FlatDB(db, store, { checkpointBytes, flush, statementCache });
+    const fdb = new FlatDB(db, store, { checkpointBytes, checkpointStepRows, flush, statementCache });
     fdb.recovery = { ...db.recoveryReport(), ms: recoveryMs };
     // A torn tail must not stay in front of frames appended later.
     if (fdb.recovery.tornBytes > 0) await fdb.checkpoint();
@@ -107,12 +129,13 @@ export class FlatDB extends EventTarget {
     return fdb;
   }
 
-  constructor(db, store, { checkpointBytes, flush, statementCache = 64 }) {
+  constructor(db, store, { checkpointBytes, checkpointStepRows = 4096, flush, statementCache = 64 }) {
     super();
     this.#db = db;
     this.#store = store;
     this.#cacheSize = statementCache;
     this.checkpointBytes = checkpointBytes;
+    this.checkpointStepRows = checkpointStepRows;
     this.autoFlush = flush === 'auto';
     /** true: the browser will not evict the data; false: it may; null: unknown or not applicable. */
     this.persisted = null;
@@ -320,9 +343,28 @@ export class FlatDB extends EventTarget {
   }
 
   async #writeSnapshot() {
-    const snapshot = this.#db.snapshot();
+    const snapshot = await this.#encodeSnapshot();
     await this.#store.writeSnapshot(snapshot);
     this.dispatchEvent(new CustomEvent('checkpoint', { detail: { bytes: snapshot.length } }));
+  }
+
+  /**
+   * The snapshot encoded in steps of `checkpointStepRows` rows with a turn
+   * of the event loop between them, so the page keeps responding while a
+   * large database is encoded. Writes made meanwhile are not in the snapshot
+   * (it is the state at its start); their WAL is appended after it.
+   */
+  async #encodeSnapshot() {
+    const rows = this.checkpointStepRows;
+    if (!(rows < Infinity)) return this.#db.snapshot();
+    this.#db.snapshotBegin();
+    while (!this.#db.snapshotStep(rows)) await nextTask();
+    // Copying the bytes out and handing them to the store are turns of
+    // their own as well.
+    await nextTask();
+    const snapshot = this.#db.snapshotFinish();
+    await nextTask();
+    return snapshot;
   }
 
   // ---- synchronisation primitives (used by SyncClient) -----------------

@@ -1,0 +1,7 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm, 4096 rows per step
+snapshot  19.28 ms
+begin     0.01 ms
+maxStep   0.81 ms
+steps     18.67 ms
+finish    0.71 ms
+count     25.00

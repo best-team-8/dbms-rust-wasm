@@ -120,3 +120,58 @@ test('durability is validated and needs a store that supports it', async () => {
     idb.uninstall();
   }
 });
+
+test('IndexedDbStore keeps the snapshot as a Blob and still reads one stored as bytes', async () => {
+  const idb = installFakeIndexedDB();
+  try {
+    const store = new IndexedDbStore('blob-snapshot');
+    const db = await FlatDB.open({ store, checkpointStepRows: 7 });
+    db.exec("CREATE TABLE t (id INT PRIMARY KEY, v TEXT); INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c');");
+    await db.checkpoint();
+    await db.close();
+    const raw = await rawSnapshot('blob-snapshot');
+    assert.ok(raw instanceof Blob, 'stored as a Blob');
+    const again = await FlatDB.open({ store: new IndexedDbStore('blob-snapshot') });
+    assert.deepEqual(again.exec('SELECT v FROM t ORDER BY id').rows, [['a'], ['b'], ['c']]);
+    assert.equal(again.stats().snapshotBytes, raw.size);
+    await again.close();
+    // A snapshot written as bytes by an older version.
+    await putRawSnapshot('blob-snapshot', new Uint8Array(await raw.arrayBuffer()));
+    const old = await FlatDB.open({ store: new IndexedDbStore('blob-snapshot') });
+    assert.deepEqual(old.exec('SELECT v FROM t ORDER BY id').rows, [['a'], ['b'], ['c']]);
+    await old.close();
+  } finally {
+    idb.uninstall();
+  }
+});
+
+/** The stored snapshot value of IndexedDB database `name` (IndexedDbStore layout). */
+async function rawSnapshot(name) {
+  const db = await openRaw(name);
+  const value = await new Promise((resolve, reject) => {
+    const r = db.transaction(['snapshot'], 'readonly').objectStore('snapshot').get('main');
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+  db.close();
+  return value;
+}
+
+async function putRawSnapshot(name, value) {
+  const db = await openRaw(name);
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(['snapshot'], 'readwrite');
+    tx.objectStore('snapshot').put(value, 'main');
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+function openRaw(name) {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open(new IndexedDbStore(name).dbName);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}

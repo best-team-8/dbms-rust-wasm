@@ -188,6 +188,9 @@ pub struct Database {
     wal_out: Vec<u8>,
     txn: Option<Txn>,
     recovery: Option<RecoveryReport>,
+    /// Snapshot being encoded in steps, with the catalog version it began
+    /// on (0 after a clock rebase: the job starts again).
+    snapshot_job: Option<(u64, snapshot::Job)>,
 }
 
 fn check_params(p: &Prepared, params: &[Value]) -> Result<()> {
@@ -214,6 +217,7 @@ impl Database {
             wal_out: Vec::new(),
             txn: None,
             recovery: None,
+            snapshot_job: None,
         }
     }
 
@@ -481,7 +485,9 @@ impl Database {
         let mut schema = false;
         while txn.undo.len() > m.undo {
             let undo = txn.undo.pop().unwrap();
-            schema |= !matches!(undo, Undo::Row { .. });
+            // A snapshot in progress already kept every row an undo touches:
+            // the write being undone changed it after the snapshot began.
+            schema |= !matches!(undo, Undo::Row { .. } | Undo::Update { .. });
             apply_undo(tables, undo);
         }
         if schema {
@@ -534,6 +540,11 @@ impl Database {
 
     /// Stores a validated row. `local == false` for changes from other replicas.
     pub(crate) fn write_put(&mut self, tkey: &str, values: Vec<Value>, stamp: Stamp, local: bool) -> Result<()> {
+        if self.snapshot_job.is_some() {
+            if let Some(pk) = self.tables.get(tkey).map(|t| t.schema.pk) {
+                self.keep_for_snapshot(tkey, &values[pk]);
+            }
+        }
         let seq = self.next_seq_for(local);
         let Database { tables, txn, sync, .. } = self;
         let txn = txn.as_mut().expect("write outside of a transaction");
@@ -564,6 +575,7 @@ impl Database {
         changes: Vec<(usize, Value)>,
         stamp: Stamp,
     ) -> Result<()> {
+        self.keep_for_snapshot(tkey, &key);
         let seq = self.next_seq_for(true);
         let Database { tables, txn, sync, .. } = self;
         let txn = txn.as_mut().expect("write outside of a transaction");
@@ -595,6 +607,7 @@ impl Database {
     }
 
     pub(crate) fn write_delete(&mut self, tkey: &str, key: Value, stamp: Stamp, local: bool) -> Result<()> {
+        self.keep_for_snapshot(tkey, &key);
         let seq = self.next_seq_for(local);
         let Database { tables, txn, sync, .. } = self;
         let txn = txn.as_mut().expect("write outside of a transaction");
@@ -663,6 +676,59 @@ impl Database {
             return Err(Error::Transaction("cannot take a snapshot inside an open transaction".into()));
         }
         Ok(snapshot::encode(self))
+    }
+
+    /// Starts a snapshot encoded in steps ([`snapshot_step`](Self::snapshot_step)),
+    /// so a host can encode a large database between other work. The
+    /// snapshot is the state at this call even if the database changes
+    /// between the steps; it replaces a snapshot begun earlier.
+    pub fn snapshot_begin(&mut self) -> Result<()> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot take a snapshot inside an open transaction".into()));
+        }
+        self.snapshot_job = Some((self.catalog_version, snapshot::Job::begin(self)));
+        Ok(())
+    }
+
+    /// Encodes up to `rows` more rows of the snapshot begun with
+    /// [`snapshot_begin`](Self::snapshot_begin); returns whether it is
+    /// complete. After a schema change or a clock rebase the snapshot starts
+    /// again from the current state (waiting while a transaction is open),
+    /// which is still a correct snapshot: its WAL position moves with it.
+    pub fn snapshot_step(&mut self, rows: usize) -> Result<bool> {
+        let Some((version, mut job)) = self.snapshot_job.take() else {
+            return Err(Error::Storage("no snapshot in progress".into()));
+        };
+        if version != self.catalog_version {
+            if self.txn.is_some() {
+                self.snapshot_job = Some((version, job));
+                return Ok(false);
+            }
+            job = snapshot::Job::begin(self);
+        }
+        let done = job.step(self, rows);
+        self.snapshot_job = Some((self.catalog_version, job));
+        Ok(done)
+    }
+
+    /// The snapshot once [`snapshot_step`](Self::snapshot_step) returned
+    /// true; ends the job.
+    pub fn snapshot_finish(&mut self) -> Result<Vec<u8>> {
+        match self.snapshot_job.take() {
+            Some((version, job)) if version == self.catalog_version && job.done() => Ok(job.finish()),
+            other => {
+                self.snapshot_job = other;
+                Err(Error::Storage("the snapshot is not complete".into()))
+            }
+        }
+    }
+
+    /// Keeps row `key` of table `tkey` for the snapshot in progress, before
+    /// it changes.
+    fn keep_for_snapshot(&mut self, tkey: &str, key: &Value) {
+        if let Some((_, job)) = &mut self.snapshot_job {
+            job.keep(&self.tables, tkey, key);
+        }
     }
 
     /// Opens a database from an optional snapshot and a WAL. A torn or
@@ -902,6 +968,10 @@ impl Database {
             }
         }
         self.clock.reset(keep);
+        // Stamps change without a WAL record: a snapshot in progress starts again.
+        if let Some((version, _)) = &mut self.snapshot_job {
+            *version = 0;
+        }
         for seq in targets {
             let new = self.new_stamp();
             let Database { tables, outbox, .. } = self;

@@ -121,9 +121,12 @@ function metrics(r) {
   } else if (r.kind === 'network') {
     for (const mode of res.modes ?? []) if (Number.isFinite(mode.meanMs)) m[mode.mode] = mode.meanMs * 1000;
   } else if (r.kind === 'checkpoint') {
+    // Fields of bench/browser/page.js: the longest gap of the event loop
+    // probe and the time of the whole checkpoint, per table size.
+    if (Number.isFinite(res.idle?.maxGapMs)) m['pause idle'] = res.idle.maxGapMs * 1000;
     for (const s of res.sizes ?? []) {
-      if (Number.isFinite(s.maxPauseMs)) m[`pause ${s.rows}`] = s.maxPauseMs * 1000;
-      if (Number.isFinite(s.checkpointMs)) m[`checkpoint ${s.rows}`] = s.checkpointMs * 1000;
+      if (Number.isFinite(s.maxGapMs)) m[`pause ${s.rows}`] = s.maxGapMs * 1000;
+      if (Number.isFinite(s.totalMs)) m[`checkpoint ${s.rows}`] = s.totalMs * 1000;
     }
   }
   return m;

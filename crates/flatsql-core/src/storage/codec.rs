@@ -260,7 +260,13 @@ const fn crc_table() -> [u32; 256] {
 
 /// CRC-32 (IEEE 802.3), used to detect torn or corrupted records.
 pub fn crc32(data: &[u8]) -> u32 {
-    let mut c = !0u32;
+    crc32_update(0, data)
+}
+
+/// The CRC-32 of the data `crc` was computed over, continued with `data`:
+/// `crc32_update(crc32(a), b) == crc32(a ++ b)`.
+pub fn crc32_update(crc: u32, data: &[u8]) -> u32 {
+    let mut c = !crc;
     for &b in data {
         c = CRC_TABLE[((c ^ b as u32) & 0xff) as usize] ^ (c >> 8);
     }
@@ -274,6 +280,8 @@ mod tests {
     #[test]
     fn crc32_reference_value() {
         assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
+        assert_eq!(crc32_update(crc32(b"1234"), b"56789"), 0xCBF4_3926);
+        assert_eq!(crc32_update(crc32(b""), b"123456789"), 0xCBF4_3926);
     }
 
     #[test]

@@ -495,6 +495,26 @@ impl Database {
         self.inner.snapshot().map_err(js_error)
     }
 
+    /// Starts a snapshot encoded in steps (`snapshotStep`), so the host can
+    /// let other work run between them; the snapshot is the state at this
+    /// call even if the database changes before it is complete.
+    #[wasm_bindgen(js_name = snapshotBegin)]
+    pub fn snapshot_begin(&mut self) -> Result<(), JsValue> {
+        self.inner.snapshot_begin().map_err(js_error)
+    }
+
+    /// Encodes up to `rows` more rows of the snapshot; true when complete.
+    #[wasm_bindgen(js_name = snapshotStep)]
+    pub fn snapshot_step(&mut self, rows: u32) -> Result<bool, JsValue> {
+        self.inner.snapshot_step(rows as usize).map_err(js_error)
+    }
+
+    /// The snapshot once `snapshotStep` returned true.
+    #[wasm_bindgen(js_name = snapshotFinish)]
+    pub fn snapshot_finish(&mut self) -> Result<Vec<u8>, JsValue> {
+        self.inner.snapshot_finish().map_err(js_error)
+    }
+
     #[wasm_bindgen(js_name = inTransaction)]
     pub fn in_transaction(&self) -> bool {
         self.inner.in_transaction()

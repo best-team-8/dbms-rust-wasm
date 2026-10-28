@@ -133,6 +133,11 @@ export interface FlatDBOptions {
   nodeId?: number;
   /** WAL size that triggers a checkpoint (default 1 MiB). */
   checkpointBytes?: number;
+  /**
+   * Rows of the snapshot encoded between two turns of the event loop during
+   * a checkpoint (default 4096); `Infinity` encodes the snapshot at once.
+   */
+  checkpointStepRows?: number;
   /** 'auto' (default) flushes the WAL on the next microtask after a write. */
   flush?: 'auto' | 'manual';
   /** Durability of IndexedDB writes (only for IndexedDbStore; default: 'default'). */
@@ -189,6 +194,7 @@ export class FlatDB extends EventTarget {
   readonly nodeId: number;
   recovery: RecoveryReport;
   checkpointBytes: number;
+  checkpointStepRows: number;
   autoFlush: boolean;
   /**
    * true: the browser will not evict the IndexedDB data; false: it may evict
