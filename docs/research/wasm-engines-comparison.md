@@ -58,7 +58,7 @@ Silnik SQL napisany w czystym JavaScripcie, bez WebAssembly: tabele są tablicam
 ### 2.10 Bazy na IndexedDB i warstwy synchronizacji
 
 - **Dexie.js, RxDB, PouchDB** – bazy dokumentowe / nakładki na IndexedDB w JavaScript, bez modułu WASM i bez SQL. RxDB i PouchDB mają wbudowaną replikację (PouchDB – protokół CouchDB, np. w Community Health Toolkit).
-- **cr-sqlite, ElectricSQL, PowerSync** – warstwy synchronizacji dla SQLite/PostgreSQL (CRDT na poziomie kolumn w cr-sqlite, replikacja strumieniowa w Electric i PowerSync). Uzupełniają silniki z punktów 2.1–2.4, które same synchronizacji nie mają. W literaturze odpowiadają im CRR [L24] (rejestr LWW per atrybut nad bazą relacyjną) i Simba [L27] (usługa synchronizacji tabel z atomowością per wiersz).
+- **cr-sqlite, ElectricSQL, PowerSync** – warstwy synchronizacji dla SQLite/PostgreSQL (CRDT na poziomie kolumn w cr-sqlite, replikacja strumieniowa w Electric i PowerSync). Uzupełniają silniki z punktów 2.1–2.4, które same synchronizacji nie mają. W literaturze odpowiadają im relacje replikowane bez konfliktów Yu i Ignat (rejestr LWW per atrybut nad bazą relacyjną) i Simba [L27] (usługa synchronizacji tabel z atomowością per wiersz).
 
 ## 3. Zestawienie
 
@@ -113,7 +113,7 @@ Porównanie wersji Flat-SQL po optymalizacjach z innymi silnikami ([benchmark-re
 
 ## Źródła
 
-- Literatura: [D1] DuckDB-Wasm, [D2] SQLite, [D5] Zeta-Lite, [L24] CRR, [L27] Simba, [S10] checkpointy, [B3] metodyka – [references/README.md](../references/README.md).
+- Literatura: [D1] DuckDB-Wasm, [D2] SQLite, [D5] Zeta-Lite, [L27] Simba, [S10] checkpointy, [B3] metodyka – [references/README.md](../references/README.md).
 - SQLite WASM – trwałość i VFS OPFS: <https://sqlite.org/wasm/doc/tip/persistence.md> ([Q7])
 - SQLite w przeglądarce z OPFS (`opfs` vs `opfs-sahpool`): <https://blog.openreplay.com/sqlite-browser-opfs/>
 - sql.js: <https://github.com/sql-js/sql.js>

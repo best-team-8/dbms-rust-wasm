@@ -44,7 +44,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0028](0028-kursor-jako-numer-przyjecia.md) | Kursor synchronizacji jako numer przyjęcia nadany przez serwer | architektura | przyjęta |
 | [0029](0029-listy-zadan-wedlug-zakresu-pracy.md) | Listy zadań według zakresu pracy inżynierskiej | proces | przyjęta; podział zadań na wymagane i dodatkowe zastąpiony przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | [0030](0030-zlaczenia-postgresql-i-edycja-na-zywo-poza-zakresem.md) | Złączenia, integracja z PostgreSQL i wspólna edycja na żywo poza zakresem | proces | przyjęta |
-| [0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) | Rdzeń literatury według cytowań w pracy dyplomowej | proces | przyjęta |
+| [0031](0031-rdzen-literatury-wedlug-cytowan-w-pracy.md) | Rdzeń literatury według cytowań w pracy dyplomowej | proces | przyjęta; kryterium i skład rdzenia zastąpione przez [ADR-0052](0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md) |
 | [0032](0032-metodyka-testow-poprawnosci.md) | Metodyka testów poprawności oddzielna od metodyki benchmarków | proces | przyjęta |
 | [0033](0033-checkpoint-plikowy-fsync-katalogu.md) | Checkpoint na plikach: synchronizacja katalogu przed obcięciem WAL | architektura | przyjęta |
 | [0034](0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md) | Magazyn domyślny: IndexedDB w przeglądarce, jawny wybór poza nią | architektura | przyjęta |
@@ -65,6 +65,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0049](0049-checkpoint-krokami.md) | Checkpoint kodowany krokami z zachowaniem wierszy zmienianych w trakcie, snapshot w IndexedDB jako Blob | architektura | przyjęta |
 | [0050](0050-konfiguracja-kompilacji-bez-zmian.md) | Kompilacja modułu WebAssembly bez zmian: opt-level 3, wasm-opt -O3, alokator domyślny, bez SIMD | badania | przyjęta |
 | [0051](0051-porownanie-z-silnikami-z-benchmarku-1.md) | Wersja po optymalizacjach porównywana z silnikami odniesienia z Benchmarku 1, silniki oznaczone według roli | proces | przyjęta |
+| [0052](0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md) | Rdzeń literatury według zastosowania i wyniku weryfikacji: katalogi zastosowane, potwierdzone, niepotwierdzone | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

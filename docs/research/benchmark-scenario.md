@@ -235,7 +235,7 @@ Przeglądarka działa w trybie bez okna (headless). Silnik JavaScript, IndexedDB
 
 Wszystkie pomiary wykonano na jednym laptopie z Windows. Wartości bezwzględne nie przenoszą się na inne urządzenia, a zwłaszcza na telefony; przenoszą się proporcje między silnikami w tej samej grupie. Koszt `fsync` i trybu `strict` zależy od systemu plików i dysku.
 
-Obciążenie jest syntetyczne: jedna tabela, równomierny rozkład kluczy i stały zestaw zapytań. Rzeczywiste aplikacje mają rozkład dostępu skośny (np. rozkład Zipfa w YCSB [B5]), wiele tabel i zapytania zależne od interfejsu. Wynik opisuje więc zachowanie silników w typowych operacjach niszy Flat-SQL; wydajność konkretnej aplikacji trzeba zmierzyć na jej obciążeniu.
+Obciążenie jest syntetyczne: jedna tabela, równomierny rozkład kluczy i stały zestaw zapytań. Rzeczywiste aplikacje mają rozkład dostępu skośny (np. rozkład Zipfa, który przyjmuje benchmark magazynów adresowanych kluczem YCSB), wiele tabel i zapytania zależne od interfejsu. Wynik opisuje więc zachowanie silników w typowych operacjach niszy Flat-SQL; wydajność konkretnej aplikacji trzeba zmierzyć na jej obciążeniu.
 
 Symulowana sieć pomija zmienność opóźnień, utratę pakietów, TLS i ustanawianie połączeń, więc przewaga modelu Local-First jest w niej zaniżona.
 

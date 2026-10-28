@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; kryterium i skład rdzenia zastąpione przez [ADR-0052](0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md) |
 | Data | 2026-10-22 |
 | Rodzaj | proces |
 | Powiązane | ADR-0021 (zastępuje kryterium włączenia i skład rdzenia), ADR-0029, ADR-0007; zadania todo 1.7, 2.7, future 2.5, 3.2, 4.3, 5.1, 12.7 |
