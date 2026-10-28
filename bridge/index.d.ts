@@ -13,7 +13,7 @@ export interface QueryResult {
   rows: SqlValue[][];
   rowsAffected: number;
   rowsScanned: number;
-  /** Command tag, e.g. "SELECT 3", "INSERT 2", "CREATE TABLE". */
+  /** Command tag of statements that change data or the schema, e.g. "INSERT 2", "CREATE TABLE"; empty for SELECT. */
   message: string;
 }
 
@@ -133,6 +133,11 @@ export interface FlatDBOptions {
   nodeId?: number;
   /** WAL size that triggers a checkpoint (default 1 MiB). */
   checkpointBytes?: number;
+  /**
+   * Rows of the snapshot encoded between two turns of the event loop during
+   * a checkpoint (default 4096); `Infinity` encodes the snapshot at once.
+   */
+  checkpointStepRows?: number;
   /** 'auto' (default) flushes the WAL on the next microtask after a write. */
   flush?: 'auto' | 'manual';
   /** Durability of IndexedDB writes (only for IndexedDbStore; default: 'default'). */
@@ -143,6 +148,13 @@ export interface FlatDBOptions {
    * `requestPersistence()`.
    */
   persist?: boolean;
+  /**
+   * Prepared statements kept for `exec(sql)` and `query(sql, params)` by SQL
+   * text (default 64, 0 turns the cache off). `exec` keeps a statement from
+   * the second execution of the same text; SQL with values written into the
+   * text is better run with parameters.
+   */
+  statementCache?: number;
 }
 
 export interface DbStats {
@@ -182,6 +194,7 @@ export class FlatDB extends EventTarget {
   readonly nodeId: number;
   recovery: RecoveryReport;
   checkpointBytes: number;
+  checkpointStepRows: number;
   autoFlush: boolean;
   /**
    * true: the browser will not evict the IndexedDB data; false: it may evict
@@ -203,6 +216,12 @@ export class FlatDB extends EventTarget {
   runJson(statement: PreparedStatement, params?: SqlValue[]): string;
   /** Executes a prepared write and returns the number of affected rows. */
   execute(statement: PreparedStatement, params?: SqlValue[]): number;
+  /**
+   * Executes a prepared INSERT, UPDATE or DELETE once for every array of
+   * parameters, as one statement (all rows or none); returns the number of
+   * affected rows. The parameters cross into WebAssembly in one buffer.
+   */
+  executeMany(statement: PreparedStatement, rows: SqlValue[][]): number;
   inTransaction(): boolean;
   tableNames(): string[];
   stats(): DbStats;

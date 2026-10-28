@@ -1,0 +1,45 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm
+query: 10 000 rows (materialize_10k)
+
+variant | median of 7 rounds, µs per query | rounds
+call | 0.13 | 0.18 0.38 0.13 0.83 0.04 0.05 0.04
+execute | 3011.83 | 2950.10 3163.84 3090.71 2988.98 3011.83 2968.90 3024.81
+run | 9983.46 | 9850.13 10125.03 9983.46 10039.01 10230.04 9934.31 9934.17
+json | 7376.27 | 7206.22 7324.28 7376.27 7424.00 7291.42 7476.94 7464.75
+json+p | 11065.85 | 11248.60 11335.50 11104.01 11051.76 11020.92 11065.85 11036.65
+
+profile of `run` (6937 samples, includes loading the table)
+   36.2%  UTF-8 decoding
+   11.4%  glue code and transitions
+   50.4%  engine (WebAssembly)
+    1.0%  garbage collection
+    0.0%  JSON.parse
+    0.1%  measuring loop
+    0.9%  other
+  top functions:
+   18.0%  decodeUTF8
+   11.2%  wasm-function[262] 002a214a
+    9.5%  decodeText flatsql.js
+    8.7%  decode encoding
+    6.1%  wasm-function[188] 002a214a
+    6.0%  wasm-to-js
+    4.6%  wasm-function[199] 002a214a
+    3.3%  wasm-function[354] 002a214a
+
+profile of `json+p` (7237 samples, includes loading the table)
+    1.5%  UTF-8 decoding
+    0.8%  glue code and transitions
+   66.0%  engine (WebAssembly)
+    0.9%  garbage collection
+    0.0%  JSON.parse
+   30.0%  measuring loop
+    0.8%  other
+  top functions:
+   29.8%  json+p boundary.mjs
+    8.6%  wasm-function[248] 002a214a
+    5.9%  wasm-function[188] 002a214a
+    4.9%  wasm-function[48] 002a214a
+    4.6%  wasm-function[116] 002a214a
+    4.4%  wasm-function[171] 002a214a
+    4.2%  wasm-function[88] 002a214a
+    3.2%  wasm-function[354] 002a214a

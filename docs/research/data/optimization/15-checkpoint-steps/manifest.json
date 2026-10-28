@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-28T00:17:38.257Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload,fsync",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.7",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\15-checkpoint-steps"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.7",
+    "describe": "po-2.7",
+    "commit": "140836bb695604178bd0d6231ea7344af8bb8dab",
+    "subject": "core: keep short texts inside the value",
+    "codeTreeSha256": "2473655ede6c6beaff9acb1108efdc534e56bd4cdaaf35768b7c72bed56cdace",
+    "module": {
+      "bytes": 711549,
+      "gzipBytes": 268907
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.7-dirty",
+    "commit": "140836bb695604178bd0d6231ea7344af8bb8dab",
+    "subject": "core: keep short texts inside the value",
+    "codeTreeSha256": "978ee6dcd9ba353b60b6be9975cb262eb89155a138a02e55becd16e75562f7a9",
+    "module": {
+      "bytes": 724082,
+      "gzipBytes": 274096
+    }
+  },
+  "cpuLoadBefore": 0.07950447350309704,
+  "finished": "2026-10-28T01:53:46.522Z"
+}

@@ -20,6 +20,7 @@ Najmocniej potwierdzone zastosowania ([real-world-usage.md §4](research/real-wo
 | Kasy i sprzedaż offline | średnie | 2.1, 2.4, 4.1 |
 | Repliki konfiguracji na edge (flagi, personalizacja) | średnie | 7.1–7.3, 2.1 |
 | Zapisy gier w chmurze | słabe–średnie | 3.1, 4.1, 1.3, 2.5, 5.4 |
+| Pamięć asystentów i agentów programowych | średnie (PGlite + pgvector, Zeta-Lite [D5]) | 5.6, 5.5, 5.7, 4.3, 4.4, 12.11, 12.15 |
 
 Jeśli scenariusze edge z prezentacji mają zostać pokazane na obronie, 7.1 warto zrobić zaraz po sekcji 1 z [todo.md](todo.md) – bez niego pozostają zapowiedzią.
 
@@ -40,6 +41,7 @@ Jeśli scenariusze edge z prezentacji mają zostać pokazane na obronie, 7.1 war
 | Interfejs C, aplikacje natywne | PowerSync, Turso (aplikacje mobilne) | 9.1, 9.5 |
 | Eksport bazy do pliku, punkty przywracania | gry, kasy, Logseq | 1.3, 5.4 |
 | Wyszukiwanie pełnotekstowe, wektory | rozszerzenia przeglądarki, notatki, pamięć asystentów | 5.5, 5.6 |
+| Rozgałęzianie bazy i scalanie gałęzi | Zeta-Lite, pamięć agentów, sloty zapisu w grach | 5.4, 5.7, 12.13, 12.14 |
 
 ## 1. Platforma przeglądarki
 
@@ -125,6 +127,15 @@ Dziś serwer ma jedną bazę dla wszystkich: każdy klient wysyła do niej swoje
 - [ ] **5.4 Punkty przywracania i sloty** (średni) – nazwany punkt przywracania zapamiętujący LSN; przywrócenie stanu (snapshot + odtworzenie WAL do LSN) albo kopia bazy do osobnego slotu; zastosowania: sloty zapisu w grach, „spróbuj i cofnij”. Pliki: `crates/flatsql-core/src/db.rs`, `storage/`, `bridge/flatdb.js`.
 - [ ] **5.5 Wyszukiwanie pełnotekstowe** (średni) – indeks słów dla kolumny `TEXT`, operator wyszukiwania, podział na słowa z obsługą Unicode i wielkości liter, proste ustalanie trafności; limit wzrostu modułu: kilkadziesiąt KiB. Literatury nie zebrano – przy rozpoczęciu zadania: indeks odwrócony (np. Zobel i Moffat, *Inverted files for text search engines*, ACM CSUR 2006).
 - [ ] **5.6 Typ wektorowy i wyszukiwanie podobieństwa** (średni–duży) – `VECTOR(n)` przechowywany zwarcie (`f32`), funkcje odległości, `ORDER BY odległość LIMIT k` przez istniejące top-k; najpierw porównanie ze wszystkimi wierszami (do kilkudziesięciu tysięcy wpisów), później indeks przybliżony (np. HNSW – Malkov i Yashunin, IEEE TPAMI 2020; literatury nie zebrano). Zasada przejrzystości: źródło każdego wpisu zapisywane i widoczne dla użytkownika [V1].
+- [ ] **5.7 Gałęzie bazy jako repliki** (średni) – kopia bazy, na której agent albo użytkownik pracuje osobno, a potem ją scala albo porzuca; izolacja pracy bez wielu wersji wierszy ([ADR-0053](adr/0053-galezie-bazy-zamiast-mvcc.md)). Rozwija 5.4. Pliki: `crates/flatsql-core/src/db.rs`, `sync.rs`, `bridge/flatdb.js`.
+  - [ ] utworzenie gałęzi: snapshot i odtworzenie do drugiej instancji z własnym identyfikatorem węzła, żeby znaczniki HLC były unikalne; koszt to kopia bazy (przy 100 000 wierszy około 70 ms i podwójna pamięć w Benchmarku 2);
+  - [ ] gałąź zbiera klucze zmienione od chwili utworzenia osobno od outboxa, bo włączenie synchronizacji oznacza cały stan jako oczekujący (ADR-0043);
+  - [ ] scalanie: zmiany gałęzi nakładane na bazę główną tą samą ścieżką co zmiany z serwera (`apply_changes`, LWW per wiersz);
+  - [ ] scalanie warunkowe: gałąź zapamiętuje znaczniki wierszy przeczytanych i zmienionych, baza główna sprawdza przed scaleniem, czy się nie zmieniły; przy zmianie odrzuca całe scalenie, w innym wypadku scala w jednej lokalnej transakcji (wszystko albo nic) – sterowanie optymistyczne wykonywane raz, przy scaleniu;
+  - [ ] odświeżenie gałęzi zmianami z bazy głównej;
+  - [ ] testy: dwie gałęzie zmieniające ten sam wiersz, odrzucone scalenie warunkowe, porzucenie gałęzi bez śladu w WAL bazy głównej, losowe przeploty jak w testach synchronizacji.
+  Gwarancje scalania warunkowego dotyczą jednego urządzenia; między replikami atomowy pozostaje wiersz (ADR-0018).
+- [ ] **5.8 Przykład pamięci asystenta** (średni) – aplikacja przykładowa według [use-cases.md §10](use-cases.md): tabela wpisów pamięci ze źródłem każdego wpisu, podgląd i usuwanie przez użytkownika (treść z obcej strony zapisana jako wspomnienie może później sterować asystentem), wyszukiwanie z 5.5 i 5.6, gałęzie z 5.7, synchronizacja z 4.3. Pomiar czasu otwarcia bazy z wektorami: 10 000 wpisów z wektorem 384 liczb `f32` to około 15 MB snapshotu więcej (zob. 12.11).
 
 ## 6. Ewolucja schematu, protokół i współpraca
 
@@ -194,10 +205,17 @@ Zadania przeniesione z [todo.md](todo.md) ([ADR-0029](adr/0029-listy-zadan-wedlu
 - [ ] **12.8 Realistyczne obciążenie** (średni; dawne todo 4.5) – YCSB z rozkładem Zipfa (np. 95% odczytów) i scenariusz z aplikacji demo. [B5].
 - [ ] **12.9 Dokładniejszy zegar w przeglądarce** (mały; dawne todo 4.8) – strona benchmarku z nagłówkami COOP/COEP (5 µs zamiast 100 µs); dotyczy tylko strony pomiarowej, nie biblioteki. [Q5].
 - [ ] **12.10 Koszt LWW per kolumna** (mały; dawne todo 4.11) – rozmiar snapshotu, paczek i czas insertów przed i po 12.3.
+- [ ] **12.11 Odtwarzanie bazy krokami** (średni) – `Database.restore` w `FlatDB.open` to jedno synchroniczne wywołanie: 46 ms w wątku głównym przy 100 000 wierszy (Benchmark 2), czyli więcej niż budżet jednej klatki. Dekodowanie snapshotu, budowa indeksów i odtworzenie WAL porcjami z obrotem pętli zdarzeń między nimi, jak checkpoint krokami ([optimization-results.md §15](research/optimization-results.md#15-checkpoint-krokami)); baza dostępna dopiero po ostatnim kroku. Pomiar: najdłuższa pauza i cały czas otwarcia przy 10, 50 i 100 tys. wierszy. Zyskuje na znaczeniu przy 5.6 (większy snapshot).
+- [ ] **12.12 Szybsza suma CRC32** (mały) – `crc32_update` w `storage/codec.rs` liczy bajt po bajcie z jedną tablicą; przy 100 000 wierszy to około 9 ms snapshotu (4,5 MB, [optimization-results.md §15](research/optimization-results.md#15-checkpoint-krokami)) i drugie tyle na początku odtworzenia. Wariant slicing-by-8 (osiem tablic, 8 bajtów na krok) daje te same wartości i nie zmienia formatu. Pomiar snapshotu, odtworzenia i ponownego otwarcia przed i po.
+- [ ] **12.13 Port warstwy wierszy** (średni) – cecha `Storage` w rdzeniu (odczyt po kluczu, zakres, skan, indeksy, zapis, zatwierdzenie) z dzisiejszą implementacją jako jedynym adapterem i silnikiem generycznym po niej, więc kompilator usuwa abstrakcję. Odczyty przechodzą dziś przez ścieżki dostępu w `plan.rs`, zapisy przez `Table` (`table.rs`) i `db.rs`. Warunek: Benchmark 2 bez pogorszenia. Podstawa dla 12.14 i dla wariantu z wieloma wersjami wierszy (kierunki na później).
+- [ ] **12.14 Drzewo trwałe jako adapter** (duży, warunkowo) – drzewo współdzielące niezmienione węzły, w którym gałąź z 5.7 powstaje bez kopii bazy. Tylko jako adapter z 12.13 wybierany przy budowie, bo kopiowanie ścieżek spowalnia zapisy; tylko jeśli kopia przez snapshot okaże się za droga w 5.8.
+- [ ] **12.15 Warianty modułu** (mały–średni) – flagi kompilacji (`cargo` features) dla 5.5, 5.6 i 5.7, np. moduł podstawowy i moduł z dodatkami dla pamięci asystentów, żeby moduł podstawowy nie rósł; most JavaScript wczytuje wskazany wariant. Pomiar rozmiaru i zimnego startu obu wariantów.
 
 ## Kierunki na później (bez zadań)
 
 Możliwości zgodne z koncepcją, na które nie ma jeszcze zadań ani terminu.
+
+- **Wiele wersji wierszy (MVCC) jako wariant kompilacji** – adapter z 12.13 z łańcuchami wersji, wykrywaniem konfliktów przy zatwierdzeniu i usuwaniem starych wersji, dla wielu długich transakcji otwartych naraz (np. agenci czekający na odpowiedź modelu wewnątrz transakcji). Format WAL i snapshotu oraz protokół synchronizacji zostają, bo zawierają tylko zatwierdzony stan; API dostaje obiekt transakcji, a zatwierdzenie może zostać odrzucone. Zmiana objęłaby około 25–35% rdzenia (szacunek z kodu: `table.rs`, `db.rs`, część `plan.rs`, `exec.rs`, `snapshot.rs`). Tylko przy potrzebie, której nie pokrywa 5.7; silnik domyślny zostaje szeregowy ([ADR-0008](adr/0008-transakcje-undo-log-wykonanie-szeregowe.md), [ADR-0053](adr/0053-galezie-bazy-zamiast-mvcc.md)).
 
 - **Weryfikacja przepustek JWT przez serwer synchronizacji** – dla aplikacji bez backendu (aplikacje osobiste, gry indie), w których nie ma kto postawić bramki z [ADR-0025](adr/0025-serwer-synchronizacji-za-bramka-backendu.md). Serwer sprawdza podpis przepustki kluczem publicznym wydawcy (np. usługi logowania) i bierze przestrzeń z jej treści (`sub`); w serwerze to drugie źródło tego samego identyfikatora przestrzeni, więc nie wymaga przebudowy. Wymaga publicznego wystawienia serwera (HTTPS, CORS, limity żądań).
 

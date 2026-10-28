@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta; zdanie o zmianach schematu w pkt 1 zastąpione przez [ADR-0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md) |
+| Status | przyjęta; zdanie o zmianach schematu w pkt 1 zastąpione przez [ADR-0027](0027-struktura-w-kodzie-aplikacji-tylko-dokladanie.md); moment prowadzenia outboxa wierszy i zapis outboxa w snapshocie zastąpione przez [ADR-0043](0043-outbox-po-wlaczeniu-synchronizacji.md) |
 | Data | 2026-10-06 (silnik, [architecture.md §5.2](../architecture.md)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0009, ADR-0015, ADR-0017 |

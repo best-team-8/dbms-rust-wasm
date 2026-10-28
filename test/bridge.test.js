@@ -140,3 +140,217 @@ test('low level Database API: snapshot + WAL restore', () => {
   db.free();
   restored.free();
 });
+
+test('statements kept by exec and query follow schema changes and are freed on close', async () => {
+  for (const statementCache of [64, 1, 0]) {
+    const db = await FlatDB.open({ store: new MemoryStore(), statementCache });
+    db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT)');
+    db.exec("INSERT INTO t VALUES (1, 'a'), (2, 'b')");
+    for (let i = 0; i < 3; i++) {
+      assert.deepEqual(db.exec('SELECT v FROM t ORDER BY id').rows, [['a'], ['b']]);
+      assert.deepEqual(db.query('SELECT v FROM t WHERE id = ?', [2]), [{ v: 'b' }]);
+    }
+    // The cached statements are compiled again for the new definition.
+    db.exec('DROP TABLE t; CREATE TABLE t (v TEXT, id INT PRIMARY KEY)');
+    db.exec("INSERT INTO t VALUES ('x', 2)");
+    assert.deepEqual(db.exec('SELECT v FROM t ORDER BY id').rows, [['x']]);
+    assert.deepEqual(db.query('SELECT v FROM t WHERE id = ?', [2]), [{ v: 'x' }]);
+    // Scripts and errors still go through exec.
+    assert.equal(db.exec("INSERT INTO t VALUES ('y', 3); SELECT COUNT(*) FROM t").rows[0][0], 2);
+    assert.throws(() => db.exec('SELEC 1'), (e) => e.kind === 'parse');
+    assert.throws(() => db.exec('SELEC 1'), (e) => e.kind === 'parse');
+    await db.close();
+  }
+});
+
+test('reads do not look for WAL bytes, writes do', async () => {
+  const db = await FlatDB.open({ store: new MemoryStore(), flush: 'manual' });
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v INT)');
+  let changes = 0;
+  db.addEventListener('change', () => changes++);
+  const read = db.prepare('SELECT v FROM t WHERE id = ?');
+  const write = db.prepare('INSERT INTO t VALUES (?, ?)');
+  assert.equal(read.readOnly, true);
+  assert.equal(write.readOnly, false);
+  db.run(write, [1, 10]);
+  assert.equal(changes, 1);
+  assert.deepEqual(db.run(read, [1]).rows, [[10]]);
+  db.query('SELECT v FROM t WHERE id = ?', [1]);
+  assert.equal(changes, 1);
+  db.query('INSERT INTO t VALUES (?, ?)', [2, 20]);
+  assert.equal(changes, 2);
+  await db.close();
+});
+
+test('results of a prepared statement get their own column names and follow schema changes', () => {
+  const db = new Database(1);
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT)');
+  db.exec("INSERT INTO t VALUES (1, 'a')");
+  const st = db.prepare('SELECT * FROM t');
+  const first = db.run(st, []);
+  first.columns.push('changed by the application');
+  const second = db.run(st, []);
+  assert.deepEqual(second.columns, ['id', 'v'], 'the names are copied for every result');
+  assert.deepEqual(Object.keys(second), ['columns', 'rows', 'rowsAffected', 'rowsScanned', 'message']);
+  assert.equal(second.message, '');
+  db.exec('DROP TABLE t; CREATE TABLE t (k INT PRIMARY KEY, a TEXT, b TEXT)');
+  db.exec("INSERT INTO t VALUES (1, 'x', 'y')");
+  assert.deepEqual(db.run(st, []).columns, ['k', 'a', 'b'], 'names of the new definition');
+  const insert = db.prepare('INSERT INTO t VALUES (?, ?, ?)');
+  assert.equal(db.run(insert, [2, 'p', 'q']).message, 'INSERT 1');
+  insert.free();
+  st.free();
+  db.free();
+});
+
+test('values of every type come through the binary result format unchanged', () => {
+  const db = new Database(1);
+  db.exec('CREATE TABLE v (id INT PRIMARY KEY, t TEXT, f FLOAT, b BOOL, i INT)');
+  const rows = [
+    [1, '', 0.5, true, 0],
+    // The first text of the result starts with U+FEFF, which a decoder
+    // could take for a byte order mark.
+    [2, '﻿zażółć gęślą jaźń', 0.25, false, -7],
+    [3, 'emoji 😀 and 𝄞 outside the basic plane', Number.NaN, null, 9007199254740991],
+    [4, null, Number.POSITIVE_INFINITY, true, null],
+    [5, 'a\u0000b"\\', Number.NEGATIVE_INFINITY, false, 1],
+  ];
+  const ins = db.prepare('INSERT INTO v VALUES (?, ?, ?, ?, ?)');
+  for (const r of rows) db.run(ins, r);
+  const st = db.prepare('SELECT * FROM v ORDER BY id');
+  for (const result of [db.run(st, []), db.exec('SELECT * FROM v ORDER BY id')]) {
+    assert.equal(result.rows.length, rows.length);
+    result.rows.forEach((got, i) => {
+      rows[i].forEach((want, j) => assert.ok(Object.is(got[j], want), `row ${i} column ${j}: ${got[j]} != ${want}`));
+    });
+    assert.deepEqual(result.columns, ['id', 't', 'f', 'b', 'i']);
+    assert.equal(result.rowsScanned, 5);
+  }
+  // A larger result compared with the JSON path.
+  db.exec('BEGIN');
+  for (let i = 10; i < 3000; i++) db.run(ins, [i, `name ${i} ł`, i / 7, i % 3 === 0, i % 11 === 0 ? null : i]);
+  db.exec('COMMIT');
+  const many = db.prepare('SELECT * FROM v WHERE id >= 10 ORDER BY id DESC');
+  assert.deepEqual(db.run(many, []).rows, JSON.parse(db.runJson(many, [])).rows);
+  const update = db.run(db.prepare('UPDATE v SET i = ? WHERE id < ?'), [3, 100]);
+  assert.deepEqual([update.rowsAffected, update.message, update.rows], [95, 'UPDATE 95', []]);
+  // execAll gives every result; a result larger than the kept buffer.
+  const all = db.execAll("SELECT t FROM v WHERE id = 2; SELECT COUNT(*) FROM v");
+  assert.deepEqual(all.map((r) => r.rows), [[[rows[1][1]]], [[2995]]]);
+  const long = 'ą'.repeat(700_000);
+  db.run(ins, [9000, long, 0, true, 0]);
+  assert.equal(db.run(db.prepare('SELECT t FROM v WHERE id = ?'), [9000]).rows[0][0], long);
+  assert.equal(db.exec('SELECT t FROM v WHERE id = 2').rows[0][0], rows[1][1]);
+  db.free();
+});
+
+test('executeMany writes the rows of every parameter array as one statement', () => {
+  const schema = 'CREATE TABLE m (id INT PRIMARY KEY, t TEXT, f FLOAT, b BOOL, i INT)';
+  const sql = 'INSERT INTO m VALUES (?, ?, ?, ?, ?)';
+  const db = new Database(1);
+  const ref = new Database(1);
+  db.exec(schema);
+  ref.exec(schema);
+  const ins = db.prepare(sql);
+  // Enough rows for several chunks of encoded parameters, with every type.
+  const rows = [];
+  for (let i = 0; i < 6000; i++) {
+    const t = i % 9 === 0 ? null : `wiersz ${i} żółć 😀 ${'x'.repeat(i % 60)}`;
+    rows.push([i, t, i % 13 === 0 ? Number.NaN : i / 3, i % 2 === 0, i % 11 === 0 ? undefined : BigInt(i) * 3n]);
+  }
+  rows.push([6000, 'lone \uD800 surrogate', Number.POSITIVE_INFINITY, false, -5]);
+  rows.push([6001, 'x'.repeat(100_000), 2 ** 53, true, 9007199254740991n]);
+  assert.equal(db.executeMany(ins, rows), rows.length);
+  const one = ref.prepare(sql);
+  for (const r of rows) ref.execute(one, r);
+  assert.deepEqual(db.exec('SELECT * FROM m ORDER BY id').rows, ref.exec('SELECT * FROM m ORDER BY id').rows);
+
+  // Errors are those of execute, and none of the rows is written.
+  const count = () => db.exec('SELECT COUNT(*) FROM m').rows[0][0];
+  const n = count();
+  const thrown = (f) => {
+    try {
+      f();
+    } catch (e) {
+      return e;
+    }
+    assert.fail('no error');
+  };
+  const sameError = (bad) => {
+    const many = thrown(() => db.executeMany(ins, [[9000, 'a', 1, true, 1], bad]));
+    const single = thrown(() => db.execute(ins, bad));
+    assert.equal(String(many), String(single));
+    assert.equal(many?.kind, single?.kind);
+    assert.equal(many?.constructor, single?.constructor);
+  };
+  sameError([9001, {}, 1, true, 1]);
+  sameError([9001, 'a', 1, true, 2n ** 64n]);
+  sameError([1, 'duplicate', 1, true, 1]);
+  sameError([9001, 'a', 1, true]);
+  assert.throws(() => db.executeMany(ins, 'not rows'), TypeError);
+  assert.throws(() => db.executeMany(ins, [[9002, 'a', 1, true, 1], 'not a row']), TypeError);
+  assert.throws(() => db.executeMany(db.prepare('SELECT * FROM m'), [[]]), (e) => e.kind === 'unsupported');
+  assert.equal(count(), n);
+
+  assert.equal(db.executeMany(db.prepare('UPDATE m SET t = ? WHERE id = ?'), [['a', 1], ['b', 2], ['c', 99999]]), 2);
+  assert.equal(db.executeMany(db.prepare('DELETE FROM m WHERE id = ?'), [[1], [2]]), 2);
+  assert.equal(db.executeMany(ins, []), 0);
+  assert.equal(count(), n - 2);
+  db.free();
+  ref.free();
+});
+
+test('FlatDB.executeMany is a write: its WAL is stored and survives a reopen', async () => {
+  const store = new MemoryStore();
+  const db = await FlatDB.open({ store, flush: 'manual' });
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT)');
+  let changes = 0;
+  db.addEventListener('change', () => changes++);
+  const rows = Array.from({ length: 1000 }, (_, i) => [i, `v${i}`]);
+  assert.equal(db.executeMany(db.prepare('INSERT INTO t VALUES (?, ?)'), rows), 1000);
+  assert.equal(changes, 1);
+  await db.flush();
+  await db.close();
+  const again = await FlatDB.open({ store });
+  assert.deepEqual(again.query('SELECT COUNT(*) AS n, MAX(v) AS v FROM t')[0], { n: 1000, v: 'v999' });
+  await again.close();
+});
+
+test('a checkpoint is encoded in steps while writes go on, and the store gets their state', async () => {
+  const store = new MemoryStore();
+  const db = await FlatDB.open({ store, checkpointBytes: Infinity, checkpointStepRows: 1000 });
+  db.exec('CREATE TABLE t (id INT PRIMARY KEY, v TEXT, n INT)');
+  db.exec('CREATE INDEX t_v ON t (v)');
+  const ins = db.prepare('INSERT INTO t VALUES (?, ?, ?)');
+  db.executeMany(ins, Array.from({ length: 20_000 }, (_, i) => [i, `v${i % 37}`, i]));
+  await db.flush();
+  let checkpoints = 0;
+  db.addEventListener('checkpoint', () => checkpoints++);
+  let done = false;
+  const checkpoint = db.checkpoint().then(() => (done = true));
+  // Writes on later turns of the event loop, while the snapshot is encoded.
+  let writes = 0;
+  while (!done) {
+    await new Promise((resolve) => setImmediate(resolve));
+    if (done) break;
+    const k = writes * 211;
+    db.exec(`UPDATE t SET v = 'changed ${writes}', n = -n WHERE id BETWEEN ${k % 20_000} AND ${(k % 20_000) + 50}`);
+    db.exec(`DELETE FROM t WHERE id = ${(k * 7) % 20_000}`);
+    db.run(ins, [100_000 + writes, 'new', writes]);
+    db.exec('BEGIN');
+    db.exec(`UPDATE t SET n = 0 WHERE id < ${k % 1000}`);
+    db.exec('ROLLBACK');
+    writes++;
+  }
+  await checkpoint;
+  assert.ok(writes >= 5, `writes made during the checkpoint: ${writes}`);
+  assert.equal(checkpoints, 1);
+  const want = db.exec('SELECT * FROM t ORDER BY id').rows;
+  const byIndex = db.query("SELECT COUNT(*) AS n FROM t WHERE v = 'new'")[0].n;
+  await db.close();
+  const again = await FlatDB.open({ store });
+  assert.deepEqual(again.exec('SELECT * FROM t ORDER BY id').rows, want);
+  assert.equal(again.query("SELECT COUNT(*) AS n FROM t WHERE v = 'new'")[0].n, byIndex);
+  assert.ok(again.recovery.framesReplayed > 0, 'writes made during the checkpoint come from the WAL');
+  await again.close();
+});

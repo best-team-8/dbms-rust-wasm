@@ -58,7 +58,7 @@ Silnik SQL napisany w czystym JavaScripcie, bez WebAssembly: tabele są tablicam
 ### 2.10 Bazy na IndexedDB i warstwy synchronizacji
 
 - **Dexie.js, RxDB, PouchDB** – bazy dokumentowe / nakładki na IndexedDB w JavaScript, bez modułu WASM i bez SQL. RxDB i PouchDB mają wbudowaną replikację (PouchDB – protokół CouchDB, np. w Community Health Toolkit).
-- **cr-sqlite, ElectricSQL, PowerSync** – warstwy synchronizacji dla SQLite/PostgreSQL (CRDT na poziomie kolumn w cr-sqlite, replikacja strumieniowa w Electric i PowerSync). Uzupełniają silniki z punktów 2.1–2.4, które same synchronizacji nie mają. W literaturze odpowiadają im CRR [L24] (rejestr LWW per atrybut nad bazą relacyjną) i Simba [L27] (usługa synchronizacji tabel z atomowością per wiersz).
+- **cr-sqlite, ElectricSQL, PowerSync** – warstwy synchronizacji dla SQLite/PostgreSQL (CRDT na poziomie kolumn w cr-sqlite, replikacja strumieniowa w Electric i PowerSync). Uzupełniają silniki z punktów 2.1–2.4, które same synchronizacji nie mają. W literaturze odpowiadają im relacje replikowane bez konfliktów Yu i Ignat (rejestr LWW per atrybut nad bazą relacyjną) i Simba [L27] (usługa synchronizacji tabel z atomowością per wiersz).
 
 ## 3. Zestawienie
 
@@ -109,9 +109,11 @@ Benchmark porównuje silniki w grupach o tych samych warunkach uruchomienia ([be
 
 Niemierzone: Zeta-Lite [D5], bo kod jest zamknięty i nie ma modułu do pobrania (porównanie opiera się na deklaracjach z preprintu); absurd-sql, bo projekt nie jest rozwijany, a jego podejście reprezentują wa-sqlite i `opfs-sahpool`; GlueSQL i Turso są opisane w przeglądzie, ale nie należą do zestawu punktów odniesienia tej wersji benchmarku (Turso w przeglądarce jest w fazie beta).
 
+Porównanie wersji Flat-SQL po optymalizacjach z innymi silnikami ([benchmark-results.md §3.9](benchmark-results.md#39-flat-sql-po-optymalizacjach-na-tle-innych-silników)) dzieli je według roli z tej tabeli i z punktu 4. Pokrewne są silniki, które rozwiązują to samo zadanie co Flat-SQL: SQLite w WebAssembly dla danych operacyjnych aplikacji (sql.js, SQLite WASM, wa-sqlite) i bazy local-first z synchronizacją (PouchDB, RxDB), a z niemierzonych Zeta-Lite. PGlite i DuckDB-Wasm mają inne zastosowanie (punkt 4.2), a AlaSQL, Dexie.js i czysty JavaScript są punktami odniesienia.
+
 ## Źródła
 
-- Literatura: [D1] DuckDB-Wasm, [D2] SQLite, [D5] Zeta-Lite, [L24] CRR, [L27] Simba, [S10] checkpointy, [B3] metodyka – [references/README.md](../references/README.md).
+- Literatura: [D1] DuckDB-Wasm, [D2] SQLite, [D5] Zeta-Lite, [L27] Simba, [S10] checkpointy, [B3] metodyka – [references/README.md](../references/README.md).
 - SQLite WASM – trwałość i VFS OPFS: <https://sqlite.org/wasm/doc/tip/persistence.md> ([Q7])
 - SQLite w przeglądarce z OPFS (`opfs` vs `opfs-sahpool`): <https://blog.openreplay.com/sqlite-browser-opfs/>
 - sql.js: <https://github.com/sql-js/sql.js>

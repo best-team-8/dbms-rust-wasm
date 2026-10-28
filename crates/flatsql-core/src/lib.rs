@@ -20,10 +20,12 @@
 //! assert_eq!(r.rows[0][0].to_string(), "potion");
 //! ```
 
+pub mod compile;
 pub mod db;
 pub mod error;
 mod exec;
 pub mod expr;
+mod hash;
 pub mod plan;
 pub mod result;
 pub mod sql;

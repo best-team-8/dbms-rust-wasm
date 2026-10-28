@@ -1,0 +1,37 @@
+point lookup, ns per call (SELECT * | SELECT id | binding + access path | tree lookup | lookup + row copy | names + message)
+  round 1: 983 | 596 | 22 | 200 | 676 | 10
+  round 2: 1009 | 592 | 22 | 191 | 666 | 15
+  round 3: 1000 | 588 | 22 | 194 | 679 | 10
+COUNT(*) by index, ns per call (engine | index set length | index keys + row lookups | + filter on each row)
+  round 1: 617 | 61 | 195434 | 411641
+  round 2: 621 | 61 | 198187 | 412197
+  round 3: 633 | 62 | 201220 | 421269
+key range (1000 rows) + SUM, ns per call (engine | range walk + SUM | + WHERE evaluated on each row)
+  round 1: 49828 | 16659 | 71350
+  round 2: 49439 | 16382 | 70224
+  round 3: 50055 | 17371 | 71427
+prepare, ns per statement (point | count | range | scan | group | top-k | 10k rows | insert)
+  round 1: 2713 | 3129 | 4260 | 4539 | 6098 | 5506 | 2826 | 2256
+  round 2: 2757 | 3217 | 4313 | 4296 | 5953 | 4121 | 2886 | 2273
+  round 3: 2706 | 3163 | 4299 | 4335 | 6106 | 4144 | 2699 | 2242
+one-shot point lookup from SQL text, ns per call
+  round 1: 3912
+  round 2: 3992
+  round 3: 4004
+full scan and GROUP BY, ms (engine scan | hand loop, same filter | tree walk only | engine GROUP BY)
+  round 1: 5.53 | 2.63 | 1.51 | 15.79
+  round 2: 5.43 | 2.52 | 1.47 | 15.74
+  round 3: 5.42 | 2.55 | 1.42 | 15.91
+full scan, ms (hand loop calling the compiled conjuncts)
+  round 1: 3.71
+  round 2: 3.63
+  round 3: 3.74
+UPDATE parts, ms for 10 000 rows (row copy + validation | write back with index | without index | key lookup | clock reading)
+  round 1: 6.32 | 10.59 | 5.36 | 2.13 | 0.33
+  round 2: 6.11 | 10.48 | 5.22 | 2.99 | 0.33
+  round 3: 5.88 | 10.08 | 5.45 | 2.23 | 0.34
+outbox entries 100002 -> 0; snapshot 4862594 bytes with the outbox, 4170744 without; the benchmark database: outbox 2, snapshot 4170841 bytes
+snapshot, restore, index rebuild and UPDATE 10%, ms (with outbox / without)
+  round 1: snapshot 19.2 / 19.5 | restore 84.0 / 58.3 | index rebuild 21.1 | UPDATE 19.5 / 16.4 (its WHERE alone 5.2)
+  round 2: snapshot 18.9 / 20.8 | restore 85.6 / 59.5 | index rebuild 22.1 | UPDATE 20.1 / 15.5 (its WHERE alone 5.1)
+  round 3: snapshot 19.1 / 19.3 | restore 80.1 / 71.4 | index rebuild 22.0 | UPDATE 19.4 / 15.8 (its WHERE alone 5.2)

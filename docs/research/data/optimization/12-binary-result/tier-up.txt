@@ -1,0 +1,5 @@
+JSON path, Node.js 24.21.0, workload of bench/suite.js, 5 processes per version, medians
+(default) before range_scan µs 53.3 group_by ms 12.45 index_lookup µs 3.00
+(default) after range_scan µs 66.2 group_by ms 11.23 index_lookup µs 3.21
+--no-liftoff before range_scan µs 57.4 group_by ms 11.24 index_lookup µs 4.19
+--no-liftoff after range_scan µs 53.9 group_by ms 11.19 index_lookup µs 3.52

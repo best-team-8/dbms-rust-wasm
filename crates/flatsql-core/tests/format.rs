@@ -16,6 +16,7 @@ const NANS: [u64; 4] = [0x7FF8_0000_0000_0000, 0xFFF8_0000_0000_0000, 0x7FF0_000
 fn images(nan: f64) -> Vec<(&'static str, Vec<u8>)> {
     let mut db = Database::new(7);
     db.set_clock(logical);
+    db.enable_sync().unwrap();
     db.execute("CREATE TABLE m (id INT PRIMARY KEY, x FLOAT)").unwrap();
     let insert = db.prepare("INSERT INTO m VALUES (?, ?)").unwrap();
     db.execute_prepared(&insert, &[Value::Int(1), Value::Float(nan)]).unwrap();

@@ -1,0 +1,4 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm\bench\versions\po-2.10
+query | inserted in one transaction, µs | restored from a snapshot, µs (median of 5 rounds)
+fetch 10 000 rows | 9130.3 | 8498.4
+key range 1000 rows + SUM | 31.9 | 31.3

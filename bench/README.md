@@ -6,7 +6,7 @@ Kod benchmarku Flat-SQL i silników odniesienia. Metodyka, procedura i zagrożen
 
 | Plik | Rola |
 |---|---|
-| `suite.js` | obciążenie (`WORKLOAD = 'benchmark-1'`): dane, zapytania, ziarna parametrów, suma kontrolna wyników, przebieg jednego silnika |
+| `suite.js` | obciążenie (`WORKLOAD = 'benchmark-2'`, zgodne z `benchmark-1`, do którego dodaje na końcu operację `insert_many`): dane, zapytania, ziarna parametrów, suma kontrolna wyników, przebieg jednego silnika |
 | `stats.js` | mediana, kwartyle, średnia z 95% przedziałem ufności |
 | `engines/` | adaptery silników o wspólnym interfejsie; rejestr konfiguracji i grup warunków w `engines/index.js` |
 | `node/child.js` | jeden mierzony proces Node.js (obciążenie, zimny start, pamięć, sieć, `fsync`) |
@@ -15,6 +15,8 @@ Kod benchmarku Flat-SQL i silników odniesienia. Metodyka, procedura i zagrożen
 | `wasm-memory.js` | sonda rozmiaru pamięci liniowej WebAssembly dowolnego silnika |
 | `run.js` | runner: powtarza pomiary w nowych procesach, zapisuje surowe wyniki |
 | `build-version.js` | worktree wskazanej wersji Flat-SQL z gotowym `pkg/` i CLI |
+| `compare.js` | pomiar optymalizacji: dwie wersje silnika na przemian tym samym runnerem, tabela przed i po z kryterium przedziałów ufności, zgodność wyników ([docs/research/data/optimization/](../docs/research/data/optimization/)) |
+| `code-tree.js` | skrót plików kodu silnika (`crates/`, `bridge/`, `server/`) katalogu roboczego albo commita; identyfikuje mierzoną wersję przed zatwierdzeniem |
 | `../crates/flatsql-cli/src/bench.rs` | to samo obciążenie natywnie (`flatsql bench`), ta sama suma kontrolna |
 
 ## Uruchomienie
@@ -41,7 +43,7 @@ node bench/run.js --flatsql bench/versions/prototyp --label prototyp --runs 10
 node bench/run.js --label biezacy --runs 10
 ```
 
-Adaptery Flat-SQL używają tylko API obecnego w wersji `prototyp`. Natywny benchmark jest częścią mierzonej wersji (`flatsql bench` z jej `target/release`), więc jego obciążenie musi pozostać zgodne: runner przerywa pomiar, gdy CLI zgłasza inne `workload` niż `suite.js`.
+Adaptery Flat-SQL używają tylko API obecnego w wersji `prototyp`, z wyjątkiem operacji `insert_many`, która korzysta z `executeMany`, gdy mierzona wersja je ma, a w innym wypadku z pętli `execute`. Natywny benchmark jest częścią mierzonej wersji (`flatsql bench` z jej `target/release`), więc jego obciążenie musi pozostać zgodne: runner przerywa pomiar, gdy CLI zgłasza inne `workload` niż `suite.js` i spoza listy `COMPATIBLE_WORKLOADS` (natywny benchmark wersji sprzed `insert_many` zgłasza `benchmark-1` i nie ma tej operacji).
 
 ## Tryb ręczny (inna przeglądarka, telefon)
 

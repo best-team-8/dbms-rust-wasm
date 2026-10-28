@@ -53,8 +53,9 @@ Wiersz `i` powstaje deterministycznie: `(i, 'c' || (i % 100), ((i * 7919) % 1000
 | DELETE 10% | `DELETE FROM items WHERE id % 10 = 1` | 1 |
 | Snapshot | zapis całej bazy do bajtów: Flat-SQL `snapshot()`, sql.js `export()`, SQLite WASM `sqlite3_js_db_export`, PGlite `dumpDataDir`, czysty JS `JSON.stringify` | 1 |
 | Odtworzenie | baza z tych bajtów: `Database.restore`, `new SQL.Database(bytes)`, `sqlite3_deserialize`, `PGlite.create({ loadDataDir })`, `JSON.parse` z odbudową indeksu | 1 |
+| Wstawienie jednym wywołaniem (od wersji obciążenia `benchmark-2`) | te same N wierszy do tabeli `items_many` o tej samej definicji, w jednej transakcji; Flat-SQL: `executeMany`, gdy wersja je ma, w innym wypadku N × `execute` | 1 |
 
-Zapytania odczytu są przygotowywane raz i wykonywane z parametrami, a ich wyniki są w całości przenoszone do JavaScriptu jako tablice wierszy, tak jak w aplikacji. Silniki, których API nie ma przygotowanych instrukcji (PGlite), wykonują za każdym razem zapytanie z parametrami. Kryterium `id` w top-k rozstrzyga remisy cen, więc odpowiedź jest jednoznaczna w każdym silniku.
+Ostatnia operacja doszła po Benchmarku 1 i jest wykonywana na końcu, więc wcześniejsze operacje pozostają takie same jak w Benchmarku 1; mierzą ją tylko adaptery Flat-SQL i natywny benchmark. Zapytania odczytu są przygotowywane raz i wykonywane z parametrami, a ich wyniki są w całości przenoszone do JavaScriptu jako tablice wierszy, tak jak w aplikacji. Silniki, których API nie ma przygotowanych instrukcji (PGlite), wykonują za każdym razem zapytanie z parametrami. Kryterium `id` w top-k rozstrzyga remisy cen, więc odpowiedź jest jednoznaczna w każdym silniku.
 
 Parametry każdej operacji pochodzą z generatora liniowego o stałym ziarnie (osobne ziarno dla każdej operacji), są wyliczane przed pomiarem i są identyczne we wszystkich silnikach, środowiskach i uruchomieniach. Liczba wykonań rozgrzewających nie przesuwa więc ciągu kluczy mierzonych.
 
@@ -234,7 +235,7 @@ Przeglądarka działa w trybie bez okna (headless). Silnik JavaScript, IndexedDB
 
 Wszystkie pomiary wykonano na jednym laptopie z Windows. Wartości bezwzględne nie przenoszą się na inne urządzenia, a zwłaszcza na telefony; przenoszą się proporcje między silnikami w tej samej grupie. Koszt `fsync` i trybu `strict` zależy od systemu plików i dysku.
 
-Obciążenie jest syntetyczne: jedna tabela, równomierny rozkład kluczy i stały zestaw zapytań. Rzeczywiste aplikacje mają rozkład dostępu skośny (np. rozkład Zipfa w YCSB [B5]), wiele tabel i zapytania zależne od interfejsu. Wynik opisuje więc zachowanie silników w typowych operacjach niszy Flat-SQL; wydajność konkretnej aplikacji trzeba zmierzyć na jej obciążeniu.
+Obciążenie jest syntetyczne: jedna tabela, równomierny rozkład kluczy i stały zestaw zapytań. Rzeczywiste aplikacje mają rozkład dostępu skośny (np. rozkład Zipfa, który przyjmuje benchmark magazynów adresowanych kluczem YCSB), wiele tabel i zapytania zależne od interfejsu. Wynik opisuje więc zachowanie silników w typowych operacjach niszy Flat-SQL; wydajność konkretnej aplikacji trzeba zmierzyć na jej obciążeniu.
 
 Symulowana sieć pomija zmienność opóźnień, utratę pakietów, TLS i ustanawianie połączeń, więc przewaga modelu Local-First jest w niej zaniżona.
 

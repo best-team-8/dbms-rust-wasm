@@ -1,0 +1,6 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm\bench\versions\po-2.2
+mode | median of 10 rounds, µs per call | rounds
+FlatDB.run (prepared) | 9.79 | 14.66 14.88 15.04 14.00 10.52 8.52 8.81 8.84 9.06 8.33
+FlatDB.query (same text, parameter) | 24.50 | 22.76 20.36 24.53 20.61 21.27 27.80 24.47 25.62 28.65 29.02
+FlatDB.exec (same text) | 11.68 | 18.45 19.99 25.56 15.68 12.09 9.85 9.81 11.05 11.28 9.61
+FlatDB.exec (literal in the text) | 13.04 | 17.79 23.56 18.08 17.43 11.03 11.11 14.22 10.83 10.70 11.86

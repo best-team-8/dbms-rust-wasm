@@ -338,7 +338,7 @@ fn dump(p: &mut Persistent<FileStorage<SimFs>>) -> Result<Option<Rows>, String> 
         .rows
         .into_iter()
         .map(|row| match (&row[0], &row[1]) {
-            (Value::Int(k), Value::Text(v)) => (*k, v.clone()),
+            (Value::Int(k), Value::Text(v)) => (*k, v.to_string()),
             other => panic!("unexpected row {other:?}"),
         })
         .collect();

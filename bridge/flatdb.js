@@ -41,12 +41,41 @@ function rowsToObjects(result) {
   });
 }
 
+/**
+ * Resolves in a new task at the end of the task queue, so every task queued
+ * meanwhile (input, timers, messages, rendering) runs first: a message to
+ * itself in the browser, setImmediate in Node.js. Not scheduler.yield(): its
+ * continuation goes before other tasks of the page. Not setTimeout: nested
+ * timeouts are clamped to 4 ms.
+ */
+function nextTask() {
+  if (typeof setImmediate === 'function') return new Promise((resolve) => setImmediate(resolve));
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
 export class FlatDB extends EventTarget {
   #db;
   #store;
   #chain = Promise.resolve();
   #flushQueued = false;
   #closed = false;
+  // Prepared statements of exec(sql) and query(sql, params) by SQL text, the
+  // least recently used first; null for SQL that is not one statement.
+  #statements = new Map();
+  // SQL texts executed once by exec(sql): a statement is prepared and kept
+  // when its text comes again, so SQL with literals inside does not fill the
+  // cache.
+  #seen = new Map();
+  #cacheSize;
+  // Statements that only read: no WAL to look for after them.
+  #readOnly = new WeakSet();
 
   /**
    * Opens (or creates) a database persisted in `store`.
@@ -57,6 +86,9 @@ export class FlatDB extends EventTarget {
    * @param {string} [options.name] name of the default IndexedDB store ('default')
    * @param {number} [options.nodeId] replica id (generated and remembered by default)
    * @param {number} [options.checkpointBytes] WAL size that triggers a snapshot
+   * @param {number} [options.checkpointStepRows] rows encoded between two
+   *   turns of the event loop while a snapshot is written (default 4096;
+   *   Infinity encodes it at once)
    * @param {'auto'|'manual'} [options.flush] flush WAL automatically after writes
    * @param {'default'|'strict'|'relaxed'} [options.durability] durability of
    *   IndexedDB writes: 'strict' completes a flush only after the data reached
@@ -65,9 +97,12 @@ export class FlatDB extends EventTarget {
    *   IndexedDB data (navigator.storage.persist, default true); Firefox asks
    *   the user, so an application may pass false and call
    *   requestPersistence() later
+   * @param {number} [options.statementCache] number of prepared statements
+   *   kept for exec(sql) and query(sql, params) by SQL text (default 64, 0
+   *   turns the cache off)
    */
   static async open(options = {}) {
-    const { name, nodeId, checkpointBytes = 1 << 20, flush = 'auto', durability, persist = true } = options;
+    const { name, nodeId, checkpointBytes = 1 << 20, checkpointStepRows = 4096, flush = 'auto', durability, persist = true, statementCache = 64 } = options;
     if (name !== undefined && options.store) throw new TypeError('name applies to the default IndexedDB store only');
     const store = options.store ?? defaultStore(name ?? 'default');
     if (durability !== undefined) {
@@ -84,7 +119,7 @@ export class FlatDB extends EventTarget {
     const db = Database.restore(state.snapshot ?? undefined, state.wal ?? undefined, node);
     const recoveryMs = performance.now() - t0;
     if (state.meta.nodeId === undefined) await store.setMeta('nodeId', db.nodeId);
-    const fdb = new FlatDB(db, store, { checkpointBytes, flush });
+    const fdb = new FlatDB(db, store, { checkpointBytes, checkpointStepRows, flush, statementCache });
     fdb.recovery = { ...db.recoveryReport(), ms: recoveryMs };
     // A torn tail must not stay in front of frames appended later.
     if (fdb.recovery.tornBytes > 0) await fdb.checkpoint();
@@ -94,11 +129,13 @@ export class FlatDB extends EventTarget {
     return fdb;
   }
 
-  constructor(db, store, { checkpointBytes, flush }) {
+  constructor(db, store, { checkpointBytes, checkpointStepRows = 4096, flush, statementCache = 64 }) {
     super();
     this.#db = db;
     this.#store = store;
+    this.#cacheSize = statementCache;
     this.checkpointBytes = checkpointBytes;
+    this.checkpointStepRows = checkpointStepRows;
     this.autoFlush = flush === 'auto';
     /** true: the browser will not evict the data; false: it may; null: unknown or not applicable. */
     this.persisted = null;
@@ -115,6 +152,8 @@ export class FlatDB extends EventTarget {
 
   /** Executes SQL; returns `{ columns, rows, rowsAffected, rowsScanned, message }`. */
   exec(sql) {
+    const st = this.#cached(sql, false);
+    if (st) return this.run(st);
     const r = this.#db.exec(sql);
     this.#afterWrite();
     return r;
@@ -136,19 +175,57 @@ export class FlatDB extends EventTarget {
 
   /** Runs a query and returns rows as plain objects. */
   query(sql, params) {
-    const r = params === undefined ? this.#db.exec(sql) : this.run(this.prepare(sql), params);
-    this.#afterWrite();
-    return rowsToObjects(r);
+    if (params === undefined) return rowsToObjects(this.exec(sql));
+    return rowsToObjects(this.run(this.#cached(sql, true) ?? this.prepare(sql), params));
   }
 
   prepare(sql) {
-    return this.#db.prepare(sql);
+    const statement = this.#db.prepare(sql);
+    if (statement.readOnly) this.#readOnly.add(statement);
+    return statement;
   }
 
   run(statement, params = []) {
     const r = this.#db.run(statement, params);
-    this.#afterWrite();
+    if (!this.#readOnly.has(statement)) this.#afterWrite();
     return r;
+  }
+
+  /**
+   * Prepared statement of `sql` from the cache, or prepared now and kept;
+   * null when the cache is off or `sql` is not a single statement. exec(sql)
+   * keeps a statement from the second time its text is executed, query with
+   * parameters from the first.
+   */
+  #cached(sql, now) {
+    if (this.#cacheSize <= 0) return null;
+    let statement = this.#statements.get(sql);
+    if (statement !== undefined) {
+      this.#statements.delete(sql);
+      this.#statements.set(sql, statement);
+      return statement;
+    }
+    if (!now && !this.#remember(sql)) return null;
+    try {
+      statement = this.prepare(sql);
+    } catch {
+      statement = null; // several statements, or an error exec reports
+    }
+    this.#statements.set(sql, statement);
+    if (this.#statements.size > this.#cacheSize) {
+      const [oldest, evicted] = this.#statements.entries().next().value;
+      this.#statements.delete(oldest);
+      evicted?.free();
+    }
+    return statement;
+  }
+
+  /** Whether `sql` was executed before; remembers it otherwise. */
+  #remember(sql) {
+    if (this.#seen.delete(sql)) return true;
+    this.#seen.set(sql, true);
+    if (this.#seen.size > 4 * this.#cacheSize) this.#seen.delete(this.#seen.keys().next().value);
+    return false;
   }
 
   /** Executes a prepared write and returns the number of affected rows. */
@@ -158,9 +235,20 @@ export class FlatDB extends EventTarget {
     return n;
   }
 
+  /**
+   * Executes a prepared INSERT, UPDATE or DELETE once for every array of
+   * parameters in `rows`, as one statement (all rows or none); returns the
+   * number of affected rows.
+   */
+  executeMany(statement, rows) {
+    const n = this.#db.executeMany(statement, rows);
+    this.#afterWrite();
+    return n;
+  }
+
   runJson(statement, params = []) {
     const r = this.#db.runJson(statement, params);
-    this.#afterWrite();
+    if (!this.#readOnly.has(statement)) this.#afterWrite();
     return r;
   }
 
@@ -255,15 +343,49 @@ export class FlatDB extends EventTarget {
   }
 
   async #writeSnapshot() {
-    const snapshot = this.#db.snapshot();
+    const snapshot = await this.#encodeSnapshot();
     await this.#store.writeSnapshot(snapshot);
     this.dispatchEvent(new CustomEvent('checkpoint', { detail: { bytes: snapshot.length } }));
+  }
+
+  /**
+   * The snapshot encoded in steps of `checkpointStepRows` rows with a turn
+   * of the event loop between them, so the page keeps responding while a
+   * large database is encoded. Writes made meanwhile are not in the snapshot
+   * (it is the state at its start); their WAL is appended after it.
+   */
+  async #encodeSnapshot() {
+    const rows = this.checkpointStepRows;
+    if (!(rows < Infinity)) return this.#db.snapshot();
+    this.#db.snapshotBegin();
+    while (!this.#db.snapshotStep(rows)) await nextTask();
+    // Copying the bytes out and handing them to the store are turns of
+    // their own as well.
+    await nextTask();
+    const snapshot = this.#db.snapshotFinish();
+    await nextTask();
+    return snapshot;
   }
 
   // ---- synchronisation primitives (used by SyncClient) -----------------
 
   outboxLength() {
     return this.#db.outboxLength();
+  }
+
+  /**
+   * Starts keeping local changes for synchronisation (SyncClient does it);
+   * until then the outbox holds only schema changes. Every existing row
+   * becomes a pending change. Returns whether synchronisation was off.
+   */
+  enableSync() {
+    const changed = this.#db.enableSync();
+    this.#afterWrite();
+    return changed;
+  }
+
+  get syncEnabled() {
+    return this.#db.syncEnabled;
   }
 
   exportOutbox(max) {
@@ -310,6 +432,8 @@ export class FlatDB extends EventTarget {
     if (this.#closed) return;
     await this.flush();
     this.#closed = true;
+    for (const statement of this.#statements.values()) statement?.free();
+    this.#statements.clear();
     this.#db.free();
     await this.#store.close?.();
   }

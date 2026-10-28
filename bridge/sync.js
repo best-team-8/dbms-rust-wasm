@@ -63,6 +63,7 @@ export class SyncClient extends EventTarget {
     super();
     if (!url) throw new Error('SyncClient needs the server url');
     this.db = db;
+    db.enableSync();
     this.url = url.replace(/\/$/, '');
     this.intervalMs = intervalMs;
     this.debounceMs = debounceMs;

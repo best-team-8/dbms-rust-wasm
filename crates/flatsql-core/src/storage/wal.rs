@@ -18,6 +18,7 @@ use crate::sync::{decode_change, Change};
 
 pub(crate) const OP_CHANGE: u8 = 0x10;
 pub(crate) const OP_ACK: u8 = 0x20;
+pub(crate) const OP_SYNC: u8 = 0x30;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogOp {
@@ -26,6 +27,9 @@ pub enum LogOp {
     Change { seq: u64, change: Change },
     /// The sync server acknowledged outbox entries up to `seq`.
     Ack(u64),
+    /// Synchronisation was enabled: every row and tombstone became a pending
+    /// outbox entry, numbered from `seq` on in catalog and key order.
+    Sync(u64),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +62,7 @@ fn decode_payload(payload: &[u8]) -> Result<Frame> {
                 LogOp::Change { seq, change: decode_change(&mut r)? }
             }
             OP_ACK => LogOp::Ack(r.var()?),
+            OP_SYNC => LogOp::Sync(r.var()?),
             t => return Err(Error::Storage(format!("unknown WAL op {t:#x}"))),
         });
     }

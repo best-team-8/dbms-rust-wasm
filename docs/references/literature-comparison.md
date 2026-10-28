@@ -1,6 +1,6 @@
 # Flat-SQL na tle literatury
 
-Dokument zestawia założenia i wyniki prototypu (gałąź `dbms-2-engine-prototype`, dokumenty [architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)) z publikacjami z rdzenia [bazy wiedzy](README.md). Identyfikatory w nawiasach kwadratowych (np. [W1]) odsyłają do wpisów w indeksie; zadania – do [todo.md](../todo.md) (optymalizacja prototypu) i [todo_future.md](../todo_future.md) (rozszerzenia). Stan po rewizji z 20 października 2026.
+Dokument zestawia założenia i wyniki prototypu (gałąź `dbms-2-engine-prototype`, dokumenty [architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)) z publikacjami z rdzenia [bazy wiedzy](README.md). Identyfikatory w nawiasach kwadratowych (np. [W1]) odsyłają do wpisów w indeksie; zadania – do [todo.md](../todo.md) (optymalizacja prototypu) i [todo_future.md](../todo_future.md) (rozszerzenia). Stan po rewizji z 20 października 2026. Ocena wierszy 1 (H2) i 2 (H3) opiera się na wynikach wstępnych z jednym uruchomieniem; tezy literatury zestawione z Benchmarkiem 1, Benchmarkiem 2 i testami opisuje [literature-verification.md](../research/literature-verification.md), według którego teza [W1] o narzucie WebAssembly się nie potwierdziła.
 
 Ocena w tabelach:
 

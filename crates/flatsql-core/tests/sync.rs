@@ -14,6 +14,7 @@ fn logical() -> u64 {
 fn replica(node: u32) -> Database {
     let mut db = Database::new(node);
     db.set_clock(logical);
+    db.enable_sync().unwrap();
     db
 }
 
@@ -281,6 +282,7 @@ const HOUR: u64 = 3_600_000;
 fn device(node: u32, clock: fn() -> u64) -> Database {
     let mut db = Database::new(node);
     db.set_clock(clock);
+    db.enable_sync().unwrap();
     db
 }
 

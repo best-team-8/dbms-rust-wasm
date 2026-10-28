@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T01:25:55.165Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.1",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\02-guaranteed-filter"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.1",
+    "describe": "po-2.1",
+    "commit": "4845bac8cd5f233243d6128fe5a0c8ea58dce143",
+    "subject": "core: count rows by the access path when it guarantees the whole WHERE clause",
+    "codeTreeSha256": "921504289978a9110009ed22eb428959b0b13d79c24ea2206f6e29e6017d54a3",
+    "module": {
+      "bytes": 586155,
+      "gzipBytes": 221633
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.1-dirty",
+    "commit": "4845bac8cd5f233243d6128fe5a0c8ea58dce143",
+    "subject": "core: count rows by the access path when it guarantees the whole WHERE clause",
+    "codeTreeSha256": "4f0300bd8f700d3c8b55c03a9c14ecc350422530ff806710d0701b1bb3a59ba4",
+    "module": {
+      "bytes": 591036,
+      "gzipBytes": 223514
+    }
+  },
+  "cpuLoadBefore": 0.10509343476103854,
+  "finished": "2026-10-25T01:30:41.380Z"
+}

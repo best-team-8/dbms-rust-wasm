@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 400" width="860" height="400" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="860" height="400" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Najdłuższa pauza wątku głównego podczas checkpointu</text>
+<text x="16" y="42" font-size="12" fill="#52514e">przeglądarka, IndexedDB; sql.js – eksport całej bazy i zapis pliku</text>
+<circle cx="22" cy="62" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<text x="32" y="66" font-size="12" fill="#0b0b0b">Flat-SQL, prototyp</text>
+<circle cx="176.96" cy="62" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="186.96" y="66" font-size="12" fill="#0b0b0b">Flat-SQL po optymalizacjach</text>
+<path d="M392.40000000000003 56L398.40000000000003 62L392.40000000000003 68L386.40000000000003 62Z" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="402.40000000000003" y="66" font-size="12" fill="#0b0b0b">silnik pokrewny</text>
+<line x1="70" x2="577.92" y1="344" y2="344" stroke="#e4e3df"/>
+<text x="62" y="348" font-size="11" fill="#52514e" text-anchor="end">0 ms</text>
+<line x1="70" x2="577.92" y1="293.6" y2="293.6" stroke="#e4e3df"/>
+<text x="62" y="297.6" font-size="11" fill="#52514e" text-anchor="end">10 ms</text>
+<line x1="70" x2="577.92" y1="243.2" y2="243.2" stroke="#e4e3df"/>
+<text x="62" y="247.2" font-size="11" fill="#52514e" text-anchor="end">20 ms</text>
+<line x1="70" x2="577.92" y1="192.8" y2="192.8" stroke="#e4e3df"/>
+<text x="62" y="196.8" font-size="11" fill="#52514e" text-anchor="end">30 ms</text>
+<line x1="70" x2="577.92" y1="142.39999999999998" y2="142.39999999999998" stroke="#e4e3df"/>
+<text x="62" y="146.39999999999998" font-size="11" fill="#52514e" text-anchor="end">40 ms</text>
+<line x1="70" x2="577.92" y1="92" y2="92" stroke="#e4e3df"/>
+<text x="62" y="96" font-size="11" fill="#52514e" text-anchor="end">50 ms</text>
+<text x="70" y="362" font-size="11" fill="#52514e" text-anchor="middle">10 tys.</text>
+<text x="323.96" y="362" font-size="11" fill="#52514e" text-anchor="middle">50 tys.</text>
+<text x="577.92" y="362" font-size="11" fill="#52514e" text-anchor="middle">100 tys.</text>
+<text x="323.96" y="392" font-size="11" fill="#52514e" text-anchor="middle">liczba wierszy w bazie</text>
+<line x1="70" x2="577.92" y1="260" y2="260" stroke="#52514e" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="74" y="255" font-size="11" fill="#52514e">jedna klatka przy 60 Hz (16,7 ms)</text>
+<polyline points="70,310.44620000600816 323.96,238.68919994592665 577.92,140.69899996995926" fill="none" stroke="#2a78d6" stroke-width="2" stroke-dasharray="5 3"/>
+<g><title>Flat-SQL + IndexedDB, prototyp, 10 tys.: mediana 6,66 ms, Q1–Q3 5,98–6,77 ms</title>
+<line x1="70" x2="70" y1="313.83560000300406" y2="309.866599957943" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="70" cy="310.44620000600816" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB, prototyp, 50 tys.: mediana 20,9 ms, Q1–Q3 20,6–21,1 ms</title>
+<line x1="323.96" x2="323.96" y1="239.95549993991852" y2="237.78200013518335" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="323.96" cy="238.68919994592665" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB, prototyp, 100 tys.: mediana 40,3 ms, Q1–Q3 40,2–40,7 ms</title>
+<line x1="577.92" x2="577.92" y1="141.4486999309063" y2="138.72080005407332" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="577.92" cy="140.69899996995926" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/></g>
+<polyline points="70,330.4675996875763 323.96,337.87639983177183 577.92,330.90860016822813" fill="none" stroke="#2a78d6" stroke-width="2"/>
+<g><title>Flat-SQL + IndexedDB po optymalizacjach, 10 tys.: mediana 2,69 ms, Q1–Q3 2,46–2,92 ms</title>
+<line x1="70" x2="70" y1="331.60159980773926" y2="329.2895000600815" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="70" cy="330.4675996875763" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB po optymalizacjach, 50 tys.: mediana 1,22 ms, Q1–Q3 1,12–1,39 ms</title>
+<line x1="323.96" x2="323.96" y1="338.3677998137474" y2="337.0006997656822" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="323.96" cy="337.87639983177183" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>Flat-SQL + IndexedDB po optymalizacjach, 100 tys.: mediana 2,60 ms, Q1–Q3 1,50–3,29 ms</title>
+<line x1="577.92" x2="577.92" y1="336.44" y2="327.40580020427706" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="577.92" cy="330.90860016822813" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<polyline points="70,332.231599957943 323.96,310.48399996995926 577.92,284.3389999699593" fill="none" stroke="#eb6834" stroke-width="2"/>
+<g><title>sql.js + eksport do IndexedDB, 10 tys.: mediana 2,34 ms, Q1–Q3 2,05–2,53 ms</title>
+<line x1="70" x2="70" y1="333.65539995193484" y2="331.2676999008656" stroke="#eb6834" stroke-width="2"/>
+<path d="M70 326.231599957943L76 332.231599957943L70 338.231599957943L64 332.231599957943Z" fill="#eb6834" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>sql.js + eksport do IndexedDB, 50 tys.: mediana 6,65 ms, Q1–Q3 6,54–7,06 ms</title>
+<line x1="323.96" x2="323.96" y1="311.032100123167" y2="308.4365000450611" stroke="#eb6834" stroke-width="2"/>
+<path d="M323.96 304.48399996995926L329.96 310.48399996995926L323.96 316.48399996995926L317.96 310.48399996995926Z" fill="#eb6834" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>sql.js + eksport do IndexedDB, 100 tys.: mediana 11,8 ms, Q1–Q3 11,5–12,1 ms</title>
+<line x1="577.92" x2="577.92" y1="285.7943000090122" y2="283.07270005106926" stroke="#eb6834" stroke-width="2"/>
+<path d="M577.92 278.3389999699593L583.92 284.3389999699593L577.92 290.3389999699593L571.92 284.3389999699593Z" fill="#eb6834" stroke="#ffffff" stroke-width="2"/></g>
+<text x="589.92" y="144.69899996995926" font-size="12" fill="#0b0b0b">Flat-SQL + IndexedDB, prototyp</text>
+<text x="589.92" y="288.3389999699593" font-size="12" fill="#0b0b0b">sql.js + eksport do IndexedDB</text>
+<text x="589.92" y="334.90860016822813" font-size="12" fill="#0b0b0b">Flat-SQL + IndexedDB po optymalizacjach</text>
+</svg>

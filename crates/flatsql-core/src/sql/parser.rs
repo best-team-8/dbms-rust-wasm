@@ -769,7 +769,7 @@ impl Parser {
             }
             Tok::Str(s) => {
                 self.advance();
-                Ok(Expr::Literal(Value::Text(s)))
+                Ok(Expr::Literal(Value::Text(s.into())))
             }
             Tok::Param => {
                 self.advance();

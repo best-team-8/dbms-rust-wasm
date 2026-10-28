@@ -1,0 +1,45 @@
+point lookup, ns per call (SELECT * | SELECT id | binding + access path | tree lookup | lookup + row copy | names + message)
+  round 1: 999 | 603 | 23 | 202 | 685 | 10
+  round 2: 997 | 593 | 26 | 206 | 690 | 10
+  round 3: 983 | 613 | 23 | 195 | 687 | 10
+binary result, ns per lookup (collected + encoded | encoded from the table), ms per 10 000 rows (collected | collected + encoded | encoded from the table)
+  round 1: 1158 | 894 | 4.11 | 4.69 | 0.66
+  round 2: 1181 | 890 | 4.14 | 4.58 | 0.75
+  round 3: 1168 | 909 | 4.27 | 4.65 | 0.89
+COUNT(*) by index, ns per call (engine | index set length | index keys + row lookups | + filter on each row)
+  round 1: 631 | 64 | 189220 | 429776
+  round 2: 628 | 68 | 188924 | 444448
+  round 3: 617 | 65 | 181292 | 425992
+key range (1000 rows) + SUM, ns per call (engine | range walk + SUM | + WHERE evaluated on each row)
+  round 1: 49787 | 17083 | 72485
+  round 2: 48981 | 16878 | 70284
+  round 3: 50008 | 18111 | 69185
+prepare, ns per statement (point | count | range | scan | group | top-k | 10k rows | insert)
+  round 1: 2728 | 3071 | 4225 | 4278 | 5982 | 4211 | 2678 | 2282
+  round 2: 2690 | 3055 | 4314 | 4186 | 6045 | 4144 | 2713 | 2246
+  round 3: 2795 | 3159 | 4424 | 4286 | 5934 | 4034 | 2794 | 2285
+one-shot point lookup from SQL text, ns per call
+  round 1: 3981
+  round 2: 3887
+  round 3: 3959
+full scan and GROUP BY, ms (engine scan | hand loop, same filter | tree walk only | engine GROUP BY)
+  round 1: 5.72 | 2.73 | 1.47 | 10.35
+  round 2: 5.62 | 2.55 | 1.44 | 10.40
+  round 3: 5.49 | 2.56 | 1.46 | 10.57
+full scan, ms (hand loop calling the compiled conjuncts)
+  round 1: 3.70
+  round 2: 4.26
+  round 3: 4.61
+GROUP BY by hand, ms (group found in a tree | in a hash table | groups from the index, a key lookup per row)
+  round 1: 11.94 | 6.16 | 27.60
+  round 2: 11.11 | 6.10 | 27.72
+  round 3: 11.12 | 6.17 | 27.63
+UPDATE parts, ms for 10 000 rows (row copy + validation | write back with index | without index | key lookup | clock reading)
+  round 1: 6.87 | 12.16 | 5.32 | 2.18 | 0.33
+  round 2: 6.72 | 11.14 | 4.50 | 2.47 | 0.37
+  round 3: 6.09 | 10.12 | 5.01 | 2.25 | 0.38
+outbox entries 100002 -> 0; snapshot 4862594 bytes with the outbox, 4170744 without; the benchmark database: outbox 2, snapshot 4170841 bytes
+snapshot, restore, index rebuild and UPDATE 10%, ms (with outbox / without)
+  round 1: snapshot 19.7 / 19.4 | restore 72.5 / 49.2 | index rebuild 11.4 | UPDATE 19.2 / 16.8 (its WHERE alone 5.6)
+  round 2: snapshot 19.1 / 19.5 | restore 72.6 / 49.2 | index rebuild 11.1 | UPDATE 20.1 / 15.5 (its WHERE alone 5.8)
+  round 3: snapshot 18.6 / 18.9 | restore 72.4 / 46.6 | index rebuild 10.7 | UPDATE 19.7 / 16.8 (its WHERE alone 5.2)

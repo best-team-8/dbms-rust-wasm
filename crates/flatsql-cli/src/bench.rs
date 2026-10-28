@@ -3,7 +3,8 @@
 //! JavaScript boundary, so the numbers show the cost of WebAssembly.
 //!
 //! `WORKLOAD` must match `WORKLOAD` in `bench/suite.js`; the runner refuses to
-//! mix results of different workloads.
+//! mix results of different workloads (other than the compatible ones listed
+//! there).
 //!
 //! With `--storage DIR` the benchmark measures durable commits on files
 //! (`FileStorage`) with and without fsync instead.
@@ -16,11 +17,18 @@ use flatsql_core::storage::file::FileStorage;
 use flatsql_core::storage::Persistent;
 use flatsql_core::{Database, Prepared, Value};
 
-const WORKLOAD: &str = "benchmark-1";
+const WORKLOAD: &str = "benchmark-2";
 const SCHEMA: &str = "CREATE TABLE items (id INTEGER PRIMARY KEY, category TEXT, price FLOAT, qty INT, name TEXT)";
 const INDEX: &str = "CREATE INDEX items_category ON items (category)";
 const INSERT: &str = "INSERT INTO items VALUES (?, ?, ?, ?, ?)";
 const VERIFY: &str = "SELECT COUNT(*), SUM(qty), SUM(price) FROM items";
+// `insert_many` (from workload benchmark-2): the rows of the insert phase into
+// a second table of the same definition, all in one call.
+const MANY_SCHEMA: &str =
+    "CREATE TABLE items_many (id INTEGER PRIMARY KEY, category TEXT, price FLOAT, qty INT, name TEXT)";
+const MANY_INDEX: &str = "CREATE INDEX items_many_category ON items_many (category)";
+const MANY_INSERT: &str = "INSERT INTO items_many VALUES (?, ?, ?, ?, ?)";
+const MANY_VERIFY: &str = "SELECT COUNT(*), SUM(qty), SUM(price) FROM items_many";
 const HEAD: usize = 3;
 const WARM_ROWS: i64 = 10_000;
 const WARM_ITERS: usize = 200;
@@ -38,10 +46,10 @@ impl Lcg {
 pub fn row(i: i64) -> Vec<Value> {
     vec![
         Value::Int(i),
-        Value::Text(format!("c{}", i % 100)),
+        Value::Text(format!("c{}", i % 100).into()),
         Value::Float(((i * 7919) % 10000) as f64 / 100.0),
         Value::Int(i % 50),
-        Value::Text(format!("item-{i}")),
+        Value::Text(format!("item-{i}").into()),
     ]
 }
 
@@ -122,7 +130,7 @@ fn gen_params(p: Params, rng: &mut Lcg, rows: i64) -> Vec<Value> {
     match p {
         Params::None => vec![],
         Params::Id => vec![Value::Int(rng.below(rows as u64) as i64)],
-        Params::Category => vec![Value::Text(format!("c{}", rng.below(100)))],
+        Params::Category => vec![Value::Text(format!("c{}", rng.below(100)).into())],
         Params::Range => {
             let a = rng.below((rows - 1000).max(1) as u64) as i64;
             vec![Value::Int(a), Value::Int(a + 999)]
@@ -337,6 +345,33 @@ fn workload(rows: i64) -> String {
     let mut restored = Database::restore(Some(&snap), &[], 1).unwrap();
     stats.push(OpStat::single("restore", us_since(t), String::new()));
     state.push(("afterRestore", verify(&mut restored)));
+
+    let t = Instant::now();
+    restored.execute(MANY_SCHEMA).unwrap();
+    restored.execute(MANY_INDEX).unwrap();
+    let ins = restored.prepare(MANY_INSERT).unwrap();
+    restored.execute("BEGIN").unwrap();
+    let mut next = 0;
+    restored
+        .execute_many(&ins, |params| {
+            if next == rows {
+                return Ok(false);
+            }
+            params.extend(row(next));
+            next += 1;
+            Ok(true)
+        })
+        .unwrap();
+    restored.execute("COMMIT").unwrap();
+    restored.take_wal();
+    let us = us_since(t);
+    stats.push(OpStat::single(
+        "insert_many",
+        us,
+        format!(",\"rowsPerSec\":{:.1},\"method\":\"executeMany\"", rows as f64 / (us / 1e6)),
+    ));
+    let many: Vec<String> = restored.execute(MANY_VERIFY).unwrap().rows[0].iter().map(canon).collect();
+    state.push(("afterInsertMany", many));
 
     let mut out = String::new();
     let _ = write!(out, "{{\"engine\":\"flatsql-native\",\"workload\":\"{WORKLOAD}\",\"rows\":{rows},\"ops\":{{");

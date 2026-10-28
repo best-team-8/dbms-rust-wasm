@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T04:05:04.160Z",
+  "options": {
+    "runs": 10,
+    "targets": "browser",
+    "kinds": "workload",
+    "engines": "flatsql-idb",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.8",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\07-bulk-index-build\\browser-durable"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.8",
+    "describe": "po-2.8",
+    "commit": "a273b5d53eba3a387db8eff8923531649ae7155b",
+    "subject": "core: update rows in place, touch only changed indexes, read the clock once per statement",
+    "codeTreeSha256": "c1b0b9b744b312a8b6e49ea36f1c9f2c0c096194354c864288cf77dbac167f64",
+    "module": {
+      "bytes": 655868,
+      "gzipBytes": 247915
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.8-dirty",
+    "commit": "a273b5d53eba3a387db8eff8923531649ae7155b",
+    "subject": "core: update rows in place, touch only changed indexes, read the clock once per statement",
+    "codeTreeSha256": "efa5bbac204432a09b8cfaff292efa7dd17863eea6f02c7c07d16efbab277680",
+    "module": {
+      "bytes": 684172,
+      "gzipBytes": 257469
+    }
+  },
+  "cpuLoadBefore": 0.08130193143674683,
+  "finished": "2026-10-25T04:07:25.589Z"
+}

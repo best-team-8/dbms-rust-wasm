@@ -1,0 +1,8 @@
+size_of Value 24 B, inline-text value 24 B, Stamp 16 B
+layout                         | live heap | allocs  | build     | full scan | key lookup (best of 5)
+Vec<Value> per row (today)     |  19.0 MiB |  309095 |   28.5 ms |  1.86 ms |  194 ns
+Box<[Value]> per row           |  18.2 MiB |  309095 |   27.8 ms |  1.68 ms |  196 ns
+slot + one Vec<Value> block    |  21.5 MiB |  216667 |   33.5 ms |  1.90 ms |  213 ns
+slot + block, inline texts     |  20.3 MiB |   16667 |   26.1 ms |  1.88 ms |  210 ns
+Vec per row, inline texts      |  17.8 MiB |  109095 |   18.6 ms |  1.77 ms |  199 ns
+encoded bytes per row          |   9.7 MiB |  309085 |   30.0 ms |  2.87 ms |  201 ns

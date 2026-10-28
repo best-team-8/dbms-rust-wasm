@@ -1,0 +1,17 @@
+Stages of the design, 28.10.2026. Single runs, for direction only; the A/B measurement is in compare.md and browser/compare.md.
+
+1. Node.js, stages.mjs (100 000 rows, 4096 rows per step), first version with the CRC computed over the whole snapshot at the end:
+   snapshot (one call) 19.36 ms | begin 0.01 ms | longest step 0.48 ms | all 25 steps 9.25 ms | finish 10.34 ms
+   After the CRC computed step by step (stages-after.txt):
+   snapshot (one call) 19.28 ms | begin 0.01 ms | longest step 0.81 ms | all 25 steps 18.67 ms | finish 0.71 ms
+
+2. Browser (Edge), bench/run.js --kinds checkpoint --engines flatsql-idb, one run, longest gap of the event loop probe / whole checkpoint:
+   rows      | tag po-2.7          | steps, CRC at the end | + CRC per step      | + snapshot as Blob, turns around finish and write
+   10 000    | 5.23 / 9.85 ms      | 4.69 / 11.08 ms       | 3.71 / 12.20 ms     | 1.86 / 9.25 ms
+   50 000    | 13.94 / 19.44 ms    | 9.97 / 23.77 ms       | 5.22 / 23.83 ms     | 1.80 / 19.34 ms
+   100 000   | 28.06 / 34.96 ms    | 23.67 / 45.44 ms      | 9.06 / 38.33 ms     | 2.97 / 34.68 ms
+   idle      | 2.22 ms             | 0.87 ms               | 1.90 ms             | 2.28 ms
+
+3. IndexedDB put of 4 570 857 bytes in Edge 156 (idb-put.mjs, median of 9):
+   Uint8Array: put() 4.40 ms, longest heartbeat gap 4.50 ms, until complete 15.2 ms
+   Blob:       put() 1.60 ms (new Blob() included), longest heartbeat gap 1.70 ms, until complete 9.9 ms

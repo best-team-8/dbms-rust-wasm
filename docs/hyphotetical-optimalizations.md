@@ -8,9 +8,9 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 
 | Hipoteza | Stan |
 |---|---|
-| O1 | zadanie 2.13 |
+| O1 | zadanie 2.13, potwierdzona |
 | O2, O3 | część zadania 2.9 |
-| O4 | zadanie 2.14 |
+| O4 | zadanie 2.14, potwierdzona |
 | O7 | zadanie 2.11 (outbox to około połowy czasu odtworzenia) |
 | O9 | budowa indeksów: zadanie 2.12; outbox: 2.11; dekodowanie wierszy: 2.7 |
 | O10 | zadanie 2.16 |
@@ -26,6 +26,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 - Dowód: profil V8 (`analysis/profile.txt`) przypisuje dekodowaniu UTF-8 (`decodeUTF8`, `decodeText`, `decode`) około 24% próbek ścieżki „obiekty”. `result_to_js` w `crates/flatsql-wasm/src/lib.rs` przy każdym wyniku tworzy z UTF-8 pięć kluczy obiektu (`columns`, `rows`, `rowsAffected`, `rowsScanned`, `message`), wszystkie nazwy kolumn i tekst `message`, czyli przy odczycie jednego wiersza 11 łańcuchów niezależnych od danych.
 - Zmiana: klucze jako łańcuchy internowane po stronie JS (np. funkcja `intern` wasm-bindgen albo obiekt budowany w kodzie sklejającym), nazwy kolumn zapamiętane przy przygotowanej instrukcji i zwracane z JS, `message` tylko dla instrukcji zmieniających dane.
 - Pomiar: `point_lookup` i `materialize_10k` w grupie „pamięć”, profil z `analysis/profile.mjs`. Spodziewany wynik: ścieżka „obiekty” bliżej JSON (około 6–7 µs). To mniejszy krok niż binarny format z 2.4 i może go poprzedzić.
+- Wynik po zmianie: obiekt wyniku tworzony funkcją JavaScriptu z kluczami jako literałami i nazwy kolumn tworzone raz na plan skróciły odczyt po kluczu z wynikiem jako obiekty w Node.js z 8,20 do 3,04 µs, w przeglądarce z 8,99 do 3,95 µs, więcej niż spodziewano się, bo zniknęły też wywołania przez kod sklejający dla każdego klucza ([optimization-results.md §11](research/optimization-results.md#11-obiekt-wyniku-tworzony-w-javascripcie)).
 
 ### O2. Odczyty w `FlatDB` bez sprawdzania WAL
 
@@ -47,6 +48,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 - Dowód: narzut WASM jest bliski zeru w operacjach liczonych w całości w silniku (pełny skan 0,98×, top-k 0,95×), więc różnica pochodzi z 100 000 przejść przez granicę z pięcioma parametrami, w tym dwoma łańcuchami kodowanymi do UTF-8 przy każdym wierszu.
 - Zmiana: `executeMany(statement, rows)` albo wsad kolumnowy (tablice typowane dla liczb, jeden bufor dla tekstów); 2.4 obejmuje typowane parametry pojedynczego wywołania, nie wsad.
 - Pomiar: `insert` w Node.js i przeglądarce wobec natywnego.
+- Wynik po zmianie: `executeMany` z parametrami kodowanymi w JavaScripcie do jednego bufora skróciło wstawienie 100 000 wierszy w Node.js z 283 do 160 ms, w przeglądarce z 273 do 151 ms, przy 145 ms natywnie; wsad kolumnowy odrzucony ([optimization-results.md §13](research/optimization-results.md#13-wstawianie-wielu-wierszy-jednym-wywołaniem)).
 
 ### O5. Grupowanie wywołań w trybie Worker
 
@@ -102,6 +104,7 @@ Stan po rozbiciu kosztów silnika ([benchmark-results.md §1.12](research/benchm
 - Dowód: wykonawca (`exec.rs`, typ `Groups`) dla każdego wiersza buduje klucz `Vec<Cow<Value>>` i szuka go w `BTreeMap` porównaniami łańcuchów.
 - Zmiana: ścieżka dla jednej kolumny grupującej bez wektora klucza, tablica mieszająca z kluczem tekstowym, a przy indeksie na kolumnie grupującej przejście po indeksie (grupy już rozdzielone).
 - Pomiar: `group_by` natywnie i w WASM (narzut WASM wynosi tu 1,05–1,13×, więc zysk będzie widoczny w obu).
+- Wynik po zmianie: wyszukanie grupy przez tablicę mieszającą skróciło grupowanie natywnie z 16,7 do 11,0 ms; przejście po indeksie z wyszukaniem każdego wiersza zmierzone wolniejsze od przeglądu tabeli (27–28 ms wobec 11,5 ms w pętli ręcznej) i odrzucone ([optimization-results.md §8](research/optimization-results.md#8-grupowanie-przez-tablicę-mieszającą)).
 - Wynik licznika alokacji: grupowanie wykonuje 540 alokacji na całe zapytanie, bo klucz powstaje w buforze używanym ponownie, a kopia tylko dla nowej grupy. Część hipotezy o alokacji klucza na wiersz jest odrzucona; zostają porównania łańcuchów w `BTreeMap` i interpretacja wyrażeń.
 
 ### O12. Odczyt wyłącznie z indeksu dla innych zapytań niż `COUNT(*)`

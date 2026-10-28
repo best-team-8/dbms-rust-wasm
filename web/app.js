@@ -139,7 +139,7 @@ function seedAssets(db) {
 function renderResult(result, ms, statements) {
   const meta = [];
   if (statements > 1) meta.push(`${statements} instrukcji`);
-  meta.push(result.message);
+  if (result.message) meta.push(result.message);
   if (result.columns.length) meta.push(`${result.rows.length} wierszy`);
   if (result.rowsAffected) meta.push(`zmienione: ${result.rowsAffected}`);
   if (result.rowsScanned) meta.push(`przejrzane: ${result.rowsScanned}`);
@@ -249,7 +249,7 @@ function runSql(sql, fromTable = false) {
     const ms = performance.now() - t0;
     const last = results[results.length - 1] ?? { columns: [], rows: [], message: 'OK' };
     renderResult(last, ms, results.length);
-    log(`${results.map((r) => r.message).join(', ')} – ${fmtDuration(ms)}`);
+    log(`${results.map((r) => r.message || `${r.rows.length} wierszy`).join(', ')} – ${fmtDuration(ms)}`);
   } catch (err) {
     $('error').textContent = `${err.kind ? `[${err.kind}] ` : ''}${err.message}`;
     $('error').classList.remove('hidden');

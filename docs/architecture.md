@@ -15,8 +15,9 @@ Dokument opisuje budowę prototypu: warstwy silnika, ścieżkę zapytania i zapi
 flowchart TB
   SQL["tekst SQL"] --> Lexer["sql::lexer<br/>tokeny"] --> Parser["sql::parser<br/>AST"]
   Parser --> Binder["expr::Binder<br/>nazwy → indeksy kolumn,<br/>zwijanie stałych, agregaty"]
-  Binder --> Planner["plan::choose<br/>ścieżka dostępu"]
-  Planner --> Exec["exec<br/>SELECT / DML / DDL"]
+  Binder --> Planner["plan<br/>ścieżka dostępu, koniunkty<br/>przez nią gwarantowane"]
+  Planner --> Compiled["exec::compile<br/>postać skompilowana<br/>(w instrukcji przygotowanej)"]
+  Compiled --> Exec["exec<br/>SELECT / DML / DDL"]
   Exec --> Table["table<br/>BTreeMap wierszy, indeksy, tombstone'y"]
   Exec --> Txn["db: transakcja<br/>undo log · ramka WAL · outbox"]
   Txn --> WAL["bufor WAL<br/>(take_wal)"]
@@ -27,9 +28,9 @@ flowchart TB
 |---|---|
 | `value` | typ `Value` (`Null`, `Bool`, `Int`, `Float`, `Text`) z **porządkiem całkowitym** – liczby porównywane numerycznie bez względu na `Int`/`Float`, NaN na końcu – dzięki czemu `Value` może być kluczem `BTreeMap`. Koercja przy zapisie do kolumny jest bezstratna (`2.0` → `INT` tak, `2.5` → `INT` nie). |
 | `sql` | ręcznie napisany lekser (komentarze, cudzysłowy, Unicode w identyfikatorach) i parser rekurencyjny zstępujący z precedencją operatorów. Konstrukcje relacyjne (`JOIN`, `FOREIGN KEY`, `REFERENCES`, podzapytania, `UNION`) zwracają czytelny błąd `unsupported` – to część definicji języka. |
-| `expr` | wiązanie wyrażeń do postaci `BExpr` (kolumny jako indeksy), zwijanie stałych, wydzielanie agregatów (`COUNT(*) + COUNT(*)` liczony raz). Ewaluacja: liście (kolumna, literał) obsługiwane inline bez wywołania funkcji, predykaty `WHERE` przez osobny ewaluator logiki trójwartościowej. |
-| `plan` | wybór ścieżki dostępu na podstawie koniunkcji `WHERE`: PK lookup → PK multi-lookup (`IN`) → indeks (`=`/`IN`) → zakres PK → zakres indeksu → pełny skan; wykrywa warunki sprzeczne (`id > 5 AND id < 5`, `= NULL`). |
-| `exec` | SELECT: strumieniowanie z wczesnym zakończeniem dla porządku PK, ograniczony bufor top-k dla `ORDER BY … LIMIT`, grupowanie po kluczach pożyczonych z tabeli; DML i DDL. |
+| `expr` | wiązanie wyrażeń do postaci `BExpr` (kolumny jako indeksy, parametry `?` jako odwołania czytane przy wykonaniu), zwijanie stałych, wydzielanie agregatów (`COUNT(*) + COUNT(*)` liczony raz). Ewaluacja: liście (kolumna, literał, parametr) obsługiwane inline bez wywołania funkcji, predykaty `WHERE` przez osobny ewaluator logiki trójwartościowej. |
+| `plan` | wybór ścieżki dostępu na podstawie koniunkcji `WHERE`: PK lookup → PK multi-lookup (`IN`) → indeks (`=`/`IN`) → zakres PK → zakres indeksu → pełny skan; wykrywa warunki sprzeczne (`id > 5 AND id < 5`, `= NULL`); zwraca maskę koniunktów, które ścieżka gwarantuje, i liczy wiersze ścieżki bez ich czytania; dla instrukcji przygotowanej szablon ścieżki (`AccessPlan`) wypełniany wartością parametru. |
+| `exec` | kompilacja SELECT, INSERT, UPDATE i DELETE względem katalogu (postać przechowywana w instrukcji przygotowanej i unieważniana numerem wersji katalogu); SELECT: strumieniowanie z wczesnym zakończeniem dla porządku PK, ograniczony bufor top-k dla `ORDER BY … LIMIT`, grupowanie po kluczach pożyczonych z tabeli, `COUNT(*)` bez czytania wierszy, gdy ścieżka gwarantuje warunek; DML i DDL. |
 | `db` | obiekt `Database`: katalog, transakcje, WAL, odtwarzanie, API synchronizacji. |
 | `storage` | kodek binarny, WAL, snapshot, trait `Storage` (pamięć, plik), `Persistent`. |
 | `sync` | zegar HLC, `Change`/`Mutation`, paczki zmian, outbox. |
@@ -41,12 +42,14 @@ EXPLAIN SELECT category, COUNT(*) FROM items WHERE price > 10 AND id BETWEEN 100
 
 SELECT FROM items
   ACCESS:    PRIMARY KEY RANGE SCAN (id >= 100 AND id <= 200)
-  FILTER:    (price > 10) AND (id BETWEEN 100 AND 200)
+  FILTER:    price > 10
   AGGREGATE: GROUP BY category; COUNT(*)
   OUTPUT:    category, COUNT(*)
 ```
 
-Pełny warunek jest zawsze sprawdzany na wierszach kandydujących, więc ścieżka dostępu musi jedynie zwrócić nadzbiór wyników – upraszcza to planer i eliminuje całą klasę błędów.
+Ścieżka dostępu zwraca nadzbiór wyników, a planer mówi, które koniunkty warunku gwarantuje (równość wyszukania, granice zakresu); wykonawca sprawdza tylko pozostałe, więc w przykładzie warunek na `id` nie jest liczony w każdym wierszu ([ADR-0040](adr/0040-warunek-gwarantowany-przez-sciezke-dostepu.md)). `COUNT(*)` z warunkiem przejętym w całości przez ścieżkę liczy wiersze bez ich czytania: przy indeksie to długość zbioru kluczy wartości. Zgodność z pełnym przeglądem sprawdza test różnicowy planera.
+
+Instrukcja przygotowana kompiluje się przy `prepare`: nazwy kolumn rozwiązane, parametry zostają odwołaniami, ścieżka dostępu wybrana albo przygotowana jako szablon wypełniany wartością parametru. Postać skompilowana jest ważna dla wersji katalogu, dla której powstała; każda zmiana schematu (także wycofana i odebrana z innej repliki) zmienia wersję i wymusza ponowną kompilację ([ADR-0041](adr/0041-plan-w-instrukcji-przygotowanej.md)).
 
 ## 3. Transakcje
 
@@ -78,7 +81,7 @@ flowchart LR
 
 | Backend | Gdzie | Zapis WAL | Checkpoint |
 |---|---|---|---|
-| `IndexedDbStore` | przeglądarka | `add()` do magazynu `wal` (klucze rosnące) | `put` snapshotu i `clear()` WAL w **jednej** transakcji IndexedDB |
+| `IndexedDbStore` | przeglądarka | `add()` do magazynu `wal` (klucze rosnące) | `put` snapshotu (jako `Blob`) i `clear()` WAL w **jednej** transakcji IndexedDB |
 | `MemoryStore` | przeglądarka / testy | tablica fragmentów | podmiana |
 | `FileStorage` (Rust) | natywnie (CLI) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `--no-fsync`) | `snapshot.fsql.tmp` i `fsync` → `rename` → `fsync` katalogu → obcięcie WAL i `fsync`; zawsze synchronizowany |
 | `FsStore` (JS) | Node.js (serwer) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `new FsStore(dir, { fsync: false })`) | jak `FileStorage`; `meta.json` (identyfikator węzła, kursor synchronizacji) przez plik tymczasowy, `fsync` i `rename` |
@@ -94,6 +97,8 @@ Wyłączenie `fsync` (`--no-fsync`, `fsync: false`) dotyczy tylko zatwierdzeń: 
 ### 4.3 Group commit w przeglądarce
 
 `FlatDB.exec()` zwraca wynik synchronicznie. Jeśli transakcja wyprodukowała bajty WAL, `FlatDB` planuje `flush()` w najbliższym mikrozadaniu. Wszystkie zatwierdzenia wykonane w jednym „tiku” pętli zdarzeń trafiają więc do IndexedDB jednym zapisem (test: 101 zatwierdzeń → 1 zapis). `await db.flush()` gwarantuje, że wszystko zatwierdzone do tej chwili jest trwałe. Operacje na magazynie są serializowane w jednej kolejce, a checkpoint jest bezpieczny wobec zapisów wykonywanych w trakcie (rozstrzyga LSN).
+
+Checkpoint nie blokuje strony na czas kodowania snapshotu: `FlatDB` koduje go krokami po `checkpointStepRows` wierszy (domyślnie 4096) z obrotem pętli zdarzeń między krokami (`snapshotBegin`, `snapshotStep`, `snapshotFinish`). Snapshot jest stanem z chwili rozpoczęcia: zanim zapis zmieni wiersz, do którego kroki jeszcze nie doszły, rdzeń zachowuje jego dotychczasowy stan, a zmiany z czasu checkpointu trafiają do WAL zapisywanego po nim. Zmiana schematu albo przestawienie zegara rozpoczyna kodowanie od nowa.
 
 Semantyka trwałości jest więc analogiczna do `synchronous=NORMAL` w SQLite: po `await flush()` dane są trwałe; zatwierdzenia z ostatnich milisekund mogą przepaść przy nagłym zamknięciu karty, ale baza zawsze wraca do spójnego stanu.
 
@@ -127,6 +132,7 @@ Dwie karty z własnymi kopiami bazy w pamięci, dopisujące do tego samego WAL, 
 
 ### 5.2 Outbox
 
+- Outbox wierszy jest prowadzony od włączenia synchronizacji (`enableSync`, robi to `SyncClient` i serwer synchronizacji); krok jest zapisany w WAL i w snapshocie. Do tego czasu outbox przyjmuje tylko zmiany schematu, a włączenie oznacza każdy wiersz i tombstone jako oczekujący, czyli pierwsza wysyłka zawiera cały stan – to samo, co zawierałby outbox prowadzony od początku ([ADR-0043](adr/0043-outbox-po-wlaczeniu-synchronizacji.md)). Baza bez synchronizacji nie płaci za outbox w zapisie, snapshocie, odtworzeniu ani pamięci.
 - Lokalna zmiana wiersza zapisuje w outboksie tylko **referencję** `(tabela, klucz) → seq`. Przy eksporcie odczytywany jest bieżący stan wiersza (albo tombstone), więc 100 kolejnych `UPDATE` tego samego wiersza wysyła jedną zmianę.
 - Zmiany schematu (`CREATE/DROP TABLE/INDEX`) są przechowywane w całości.
 - Każda lokalna operacja w WAL niesie swój numer `seq`; potwierdzenie serwera zapisywane jest w WAL jako `Ack(seq)`. Outbox jest więc odbudowywany przy odtwarzaniu i **przetrwa zamknięcie aplikacji w trybie offline**, a potwierdzone zmiany nie są wysyłane ponownie.
@@ -162,8 +168,9 @@ Wspólny kodek: liczby całkowite jako LEB128 (ze znakiem w kodowaniu zig-zag), 
 +-----------+-----------+---------------------------------------------+
 | len u32LE | crc u32LE | payload: lsn, op_count, op₁, op₂, …         |
 +-----------+-----------+---------------------------------------------+
-op = 0x10 seq change      (zmiana; seq > 0 → lokalna, w outboksie)
+op = 0x10 seq change      (zmiana; seq > 0 → lokalna, w outboksie, jeśli dotyczy schematu albo synchronizacja jest włączona)
    | 0x20 upto            (potwierdzenie outboksu)
+   | 0x30 seq             (włączenie synchronizacji: wiersze i tombstone'y oczekujące, numerowane od seq)
 change = tag stamp body   (1 CREATE TABLE, 2 DROP TABLE, 3 CREATE INDEX,
                            4 DROP INDEX, 5 PUT tabela wartości, 6 DELETE tabela klucz)
 ```
@@ -171,11 +178,13 @@ change = tag stamp body   (1 CREATE TABLE, 2 DROP TABLE, 3 CREATE INDEX,
 **Snapshot**
 
 ```text
-"FLATSQL1" format node_id clock lsn next_seq acked_seq
+"FLATSQL1" format(2) node_id clock lsn next_seq acked_seq flagi (bit 0: synchronizacja włączona)
 tabele: schemat, stamp utworzenia, indeksy (nazwa, kolumna), wiersze (stamp + wartości), tombstone'y
-outbox: seq, rodzaj (1 = wiersz: tabela + klucz, 2 = zmiana schematu)
+outbox: zmiany schematu (seq, zmiana); wiersze pogrupowane po tabeli (nazwa, pary seq + klucz)
 crc32 (u32 LE)
 ```
+
+Format 1 (bez flag, outbox jako lista `seq, rodzaj, tabela + klucz` z nazwą tabeli w każdym wpisie) jest nadal czytany; baza w formacie 1 ma synchronizację włączoną.
 
 **Paczka zmian (synchronizacja)**
 
@@ -189,10 +198,10 @@ Konkatenacja paczek jest poprawną paczką – serwer przekazuje zapisane paczki
 
 `flatsql-wasm` udostępnia dwie ścieżki zwracania wyników, porównywane w badaniach:
 
-- `exec`/`run` – obiekty i tablice JS budowane z Rust przez `js-sys` (wiele przejść przez granicę WASM↔JS),
+- `exec`/`run` – obiekty i tablice JS dekodowane z binarnego formatu wyniku: rdzeń koduje wiersze SELECT wprost z tabeli (`ResultEncoder`, `Database::execute_prepared_encoded`) do bufora w pamięci WASM, a funkcja JavaScriptu dołączona do modułu tworzy obiekt wyniku jednym wywołaniem (liczby czytane z bajtów, wszystkie teksty dekodowane jednym wywołaniem `TextDecoder`); nazwy kolumn instrukcji przygotowanej powstają raz na plan i są kopiowane do każdego wyniku,
 - `execJson`/`runJson` – wynik serializowany do JSON w Rust, parsowany przez `JSON.parse` (jedno przekazanie łańcucha).
 
-Dla zapisów masowych `execute` zwraca tylko liczbę zmienionych wierszy. Błędy są obiektami `Error` z polem `kind` (`parse`, `schema`, `constraint`, `type`, `eval`, `transaction`, `storage`, `unsupported`). Panika w Rust trafia do konsoli dzięki `console_error_panic_hook`.
+Dla zapisów masowych `execute` zwraca tylko liczbę zmienionych wierszy, a `executeMany(statement, rows)` wykonuje przygotowany zapis dla wielu tablic parametrów jako jedną instrukcję: JavaScript koduje parametry do bufora (porcje około 64 KiB), rdzeń wykonuje je przez `Database::execute_many` z jednym odczytem zegara. Nazwy kolumn wyniku są wspólne dla wszystkich wyników jednej instrukcji przygotowanej, a komunikat (`message`) mają tylko instrukcje zmieniające dane lub schemat. `PreparedStatement.readOnly` pozwala mostowi pominąć sprawdzanie WAL po odczytach; `FlatDB` przechowuje ostatnio używane instrukcje `exec(sql)` i `query(sql, params)` według tekstu SQL (`statementCache`, domyślnie 64). Błędy są obiektami `Error` z polem `kind` (`parse`, `schema`, `constraint`, `type`, `eval`, `transaction`, `storage`, `unsupported`). Panika w Rust trafia do konsoli dzięki `console_error_panic_hook`.
 
 ## 8. Decyzje projektowe i kompromisy
 

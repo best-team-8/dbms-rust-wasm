@@ -1,0 +1,17 @@
+# Row layouts compared before the change: built with the core of tag
+# po-2.14 (text values as `String`), made by `node bench/build-version.js po-2.14`.
+#
+#   cargo run --release --manifest-path docs/research/data/optimization/14-compact-text/layout/Cargo.toml
+#   cargo build --release --target wasm32-wasip1 --manifest-path …/layout/Cargo.toml
+#   node docs/research/data/optimization/14-compact-text/layout/run-wasi.mjs target/wasm32-wasip1/release/layout.wasm
+
+[package]
+name = "layout"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+flatsql-core = { path = "../../../../../../bench/versions/po-2.14/crates/flatsql-core" }
+
+[workspace]

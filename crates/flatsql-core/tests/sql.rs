@@ -30,10 +30,11 @@ fn col(r: &QueryResult, i: usize) -> Vec<String> {
 fn select_projection_filter_and_order() {
     let mut db = db();
     let r = q(&mut db, "SELECT name, price * 2 AS double FROM items WHERE category = 'weapon' ORDER BY price DESC");
-    assert_eq!(r.columns, vec!["name", "double"]);
+    assert_eq!(&r.columns[..], ["name", "double"]);
     assert_eq!(col(&r, 0), vec!["sword", "bow"]);
     assert_eq!(r.rows[0][1], Value::Float(240.0));
-    assert_eq!(r.message, "SELECT 2");
+    // The command tag is reserved for statements that change something.
+    assert_eq!(r.message, "");
 }
 
 #[test]
@@ -251,12 +252,15 @@ fn planner_uses_keys_and_indexes() {
     assert!(plan(&mut db, "SELECT * FROM t WHERE grp >= 8").starts_with("INDEX RANGE SCAN"));
 
     // Same answers whatever the access path.
+    let r = q(&mut db, "SELECT id FROM t WHERE grp = 3");
+    assert_eq!((r.rows.len(), r.rows_scanned), (100, 100));
+    let r = q(&mut db, "SELECT id FROM t WHERE id > 10 AND id <= 20");
+    assert_eq!((r.rows.len(), r.rows_scanned), (10, 10));
+    // COUNT(*) of rows the access path guarantees: counted, not read.
     let r = q(&mut db, "SELECT COUNT(*) FROM t WHERE grp = 3");
-    assert_eq!(r.rows[0][0], Value::Int(100));
-    assert_eq!(r.rows_scanned, 100);
+    assert_eq!((r.rows[0][0].clone(), r.rows_scanned), (Value::Int(100), 0));
     let r = q(&mut db, "SELECT COUNT(*) FROM t WHERE id > 10 AND id <= 20");
-    assert_eq!(r.rows[0][0], Value::Int(10));
-    assert_eq!(r.rows_scanned, 10);
+    assert_eq!((r.rows[0][0].clone(), r.rows_scanned), (Value::Int(10), 0));
     assert_eq!(q(&mut db, "SELECT COUNT(*) FROM t WHERE grp >= 8 AND v < 100").rows[0][0], Value::Int(20));
     assert_eq!(q(&mut db, "SELECT COUNT(*) FROM t WHERE id IN (1, 2, 2000)").rows[0][0], Value::Int(2));
     let r = q(&mut db, "SELECT v FROM t WHERE id = 5");
@@ -334,6 +338,6 @@ fn json_output() {
     let r = q(&mut db, "SELECT id, name FROM items WHERE id = 1");
     assert_eq!(
         r.to_json(),
-        r#"{"columns":["id","name"],"rows":[[1,"sword"]],"rowsAffected":0,"rowsScanned":1,"message":"SELECT 1"}"#
+        r#"{"columns":["id","name"],"rows":[[1,"sword"]],"rowsAffected":0,"rowsScanned":1,"message":""}"#
     );
 }

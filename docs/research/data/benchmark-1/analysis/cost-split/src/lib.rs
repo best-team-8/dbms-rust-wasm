@@ -9,10 +9,10 @@ pub const ROWS: i64 = 100_000;
 pub fn row(i: i64) -> Vec<Value> {
     vec![
         Value::Int(i),
-        Value::Text(format!("c{}", i % 100)),
+        Value::Text(format!("c{}", i % 100).into()),
         Value::Float(((i * 7919) % 10000) as f64 / 100.0),
         Value::Int(i % 50),
-        Value::Text(format!("item-{i}")),
+        Value::Text(format!("item-{i}").into()),
     ]
 }
 
@@ -24,6 +24,20 @@ impl Lcg {
         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
         (self.0 >> 33) % n
     }
+}
+
+/// Snapshot of `db` with every row pending in the outbox: the state of the
+/// benchmark database before the outbox was kept only with synchronisation
+/// (`core_sync`: synchronisation is enabled on a copy to get it).
+pub fn with_outbox(db: &Database) -> Vec<u8> {
+    #[cfg(core_sync)]
+    {
+        let mut copy = Database::restore(Some(&db.snapshot().unwrap()), &[], 1).unwrap();
+        copy.enable_sync().unwrap();
+        copy.snapshot().unwrap()
+    }
+    #[cfg(not(core_sync))]
+    db.snapshot().unwrap()
 }
 
 /// The table of Benchmark 1 with `ROWS` rows inserted in one transaction.

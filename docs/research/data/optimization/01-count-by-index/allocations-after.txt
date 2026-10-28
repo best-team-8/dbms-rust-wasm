@@ -1,0 +1,12 @@
+point lookup SELECT *: 26 allocations, 1622 bytes
+point lookup SELECT id: 13 allocations, 770 bytes
+COUNT(*) by index: 23 allocations, 2050 bytes
+key range (1000 rows) + SUM: 25 allocations, 3104 bytes
+prepare point lookup: 20 allocations, 2677 bytes
+full scan with filter: 26 allocations, 3214 bytes
+GROUP BY (100 groups): 540 allocations, 72442 bytes
+snapshot with outbox: 3 allocations, 16800448 bytes
+snapshot without outbox: 2 allocations, 7200192 bytes
+restore with outbox: 559268 allocations, 67905997 bytes
+restore without outbox: 325926 allocations, 37616567 bytes
+UPDATE 10%: 41769 allocations, 15635883 bytes

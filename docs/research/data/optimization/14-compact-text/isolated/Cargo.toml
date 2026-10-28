@@ -1,0 +1,17 @@
+# Top-k, grouping and scan of the benchmark table, one process, best of 7
+# rounds of 20 executions. Built once with the core before the change (tag
+# po-2.14, made by `node bench/build-version.js po-2.14`) and once with the
+# core of this repository (change the path below).
+#
+#   cargo run --release --manifest-path docs/research/data/optimization/14-compact-text/isolated/Cargo.toml
+
+[package]
+name = "isolated"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+flatsql-core = { path = "../../../../../../bench/versions/po-2.14/crates/flatsql-core" }
+
+[workspace]

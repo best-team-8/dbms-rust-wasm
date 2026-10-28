@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1152 728" width="1152" height="728" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="1152" height="728" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Flat-SQL wobec najszybszego pokrewnego silnika – przeglądarka</text>
+<text x="16" y="42" font-size="12" fill="#52514e">czas Flat-SQL przez czas najszybszego pokrewnego silnika grupy (podany z prawej); poniżej 1× Flat-SQL jest szybszy</text>
+<circle cx="22" cy="62" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="32" y="66" font-size="12" fill="#0b0b0b">Flat-SQL po optymalizacjach</text>
+<circle cx="237.44000000000003" cy="62" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<text x="247.44000000000003" y="66" font-size="12" fill="#0b0b0b">Flat-SQL, prototyp</text>
+<line x1="259" x2="259" y1="82" y2="680" stroke="#e4e3df" stroke-width="1"/>
+<text x="259" y="696" font-size="11" fill="#52514e" text-anchor="middle">0,01×</text>
+<line x1="389" x2="389" y1="82" y2="680" stroke="#e4e3df" stroke-width="1"/>
+<text x="389" y="696" font-size="11" fill="#52514e" text-anchor="middle">0,1×</text>
+<line x1="519" x2="519" y1="82" y2="680" stroke="#e4e3df" stroke-width="1"/>
+<text x="519" y="696" font-size="11" fill="#52514e" text-anchor="middle">1×</text>
+<line x1="649" x2="649" y1="82" y2="680" stroke="#e4e3df" stroke-width="1"/>
+<text x="649" y="696" font-size="11" fill="#52514e" text-anchor="middle">10×</text>
+<line x1="779" x2="779" y1="82" y2="680" stroke="#e4e3df" stroke-width="1"/>
+<text x="779" y="696" font-size="11" fill="#52514e" text-anchor="middle">100×</text>
+<line x1="519" x2="519" y1="82" y2="680" stroke="#52514e" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="523" y="94" font-size="11" fill="#52514e">tyle samo</text>
+<text x="16" y="102" font-size="12" font-weight="600" fill="#52514e">grupa „dane w pamięci”</text>
+<g><title>Wstawienie N wierszy (1 transakcja): prototyp 1,76×; po optymalizacjach 1,28× (sql.js)</title>
+<text x="249" y="123" font-size="12" fill="#0b0b0b" text-anchor="end">Wstawienie N wierszy (1 transakcja)</text>
+<line x1="551.0325392618747" x2="532.9980968433272" y1="119" y2="119" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="551.0325392618747" x2="551.0325392618747" y1="119" y2="119" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="532.9980968433272" x2="532.9980968433272" y1="119" y2="119" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="551.0325392618747" cy="119" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="532.9980968433272" cy="119" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="123" font-size="11" fill="#52514e">1,76× → 1,28×</text>
+<text x="1136" y="123" font-size="11" fill="#52514e" text-anchor="end">sql.js</text>
+</g>
+<g><title>Odczyt po kluczu: prototyp 1,15×; po optymalizacjach 0,41× (SQLite WASM (:memory:))</title>
+<text x="249" y="145" font-size="12" fill="#0b0b0b" text-anchor="end">Odczyt po kluczu</text>
+<line x1="526.6792660253813" x2="468.73473803962645" y1="141" y2="141" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="526.6792660253813" x2="526.6792660253813" y1="141" y2="141" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="468.73473803962645" x2="468.73473803962645" y1="141" y2="141" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="526.6792660253813" cy="141" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="468.73473803962645" cy="141" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="145" font-size="11" fill="#52514e">1,15× → 0,41×</text>
+<text x="1136" y="145" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>COUNT po indeksie: prototyp 7,0×; po optymalizacjach 0,030× (SQLite WASM (:memory:))</title>
+<text x="249" y="167" font-size="12" fill="#0b0b0b" text-anchor="end">COUNT po indeksie</text>
+<line x1="628.8505079138133" x2="321.6652692383336" y1="163" y2="163" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="628.8505079138133" x2="628.8505079138133" y1="163" y2="163" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="321.6652692383336" x2="321.6652692383336" y1="163" y2="163" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="628.8505079138133" cy="163" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="321.6652692383336" cy="163" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="167" font-size="11" fill="#52514e">7,0× → 0,030×</text>
+<text x="1136" y="167" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>Zakres klucza (1000 wierszy) + SUM: prototyp 1,03×; po optymalizacjach 0,58× (SQLite WASM (:memory:))</title>
+<text x="249" y="189" font-size="12" fill="#0b0b0b" text-anchor="end">Zakres klucza (1000 wierszy) + SUM</text>
+<line x1="520.7859880531494" x2="488.3961053661054" y1="185" y2="185" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="520.7859880531494" x2="520.7859880531494" y1="185" y2="185" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="488.3961053661054" x2="488.3961053661054" y1="185" y2="185" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="520.7859880531494" cy="185" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="488.3961053661054" cy="185" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="189" font-size="11" fill="#52514e">1,03× → 0,58×</text>
+<text x="1136" y="189" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>Pełny skan z filtrem: prototyp 1,11×; po optymalizacjach 0,61× (SQLite WASM (:memory:))</title>
+<text x="249" y="211" font-size="12" fill="#0b0b0b" text-anchor="end">Pełny skan z filtrem</text>
+<line x1="524.8482868109945" x2="491.21034176783485" y1="207" y2="207" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="524.8482868109945" x2="524.8482868109945" y1="207" y2="207" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="491.21034176783485" x2="491.21034176783485" y1="207" y2="207" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="524.8482868109945" cy="207" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="491.21034176783485" cy="207" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="211" font-size="11" fill="#52514e">1,11× → 0,61×</text>
+<text x="1136" y="211" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>GROUP BY (100 grup): prototyp 0,34×; po optymalizacjach 0,20× (SQLite WASM (:memory:))</title>
+<text x="249" y="233" font-size="12" fill="#0b0b0b" text-anchor="end">GROUP BY (100 grup)</text>
+<line x1="458.61794304586556" x2="429.4637734694775" y1="229" y2="229" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="458.61794304586556" x2="458.61794304586556" y1="229" y2="229" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="429.4637734694775" x2="429.4637734694775" y1="229" y2="229" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="458.61794304586556" cy="229" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="429.4637734694775" cy="229" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="233" font-size="11" fill="#52514e">0,34× → 0,20×</text>
+<text x="1136" y="233" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>ORDER BY … LIMIT 10: prototyp 0,52×; po optymalizacjach 0,50× (SQLite WASM (:memory:))</title>
+<text x="249" y="255" font-size="12" fill="#0b0b0b" text-anchor="end">ORDER BY … LIMIT 10</text>
+<line x1="481.9927722674816" x2="479.99211618031256" y1="251" y2="251" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="481.9927722674816" x2="481.9927722674816" y1="251" y2="251" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="479.99211618031256" x2="479.99211618031256" y1="251" y2="251" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="481.9927722674816" cy="251" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="479.99211618031256" cy="251" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="255" font-size="11" fill="#52514e">0,52× → 0,50×</text>
+<text x="1136" y="255" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>Pobranie 10 000 wierszy: prototyp 0,85×; po optymalizacjach 0,11× (sql.js)</title>
+<text x="249" y="277" font-size="12" fill="#0b0b0b" text-anchor="end">Pobranie 10 000 wierszy</text>
+<line x1="509.7775664023644" x2="394.5196166918712" y1="273" y2="273" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="509.7775664023644" x2="509.7775664023644" y1="273" y2="273" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="394.5196166918712" x2="394.5196166918712" y1="273" y2="273" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="509.7775664023644" cy="273" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="394.5196166918712" cy="273" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="277" font-size="11" fill="#52514e">0,85× → 0,11×</text>
+<text x="1136" y="277" font-size="11" fill="#52514e" text-anchor="end">sql.js</text>
+</g>
+<g><title>UPDATE 10% wierszy: prototyp 3,5×; po optymalizacjach 1,75× (SQLite WASM (:memory:))</title>
+<text x="249" y="299" font-size="12" fill="#0b0b0b" text-anchor="end">UPDATE 10% wierszy</text>
+<line x1="590.2691644399853" x2="550.7557502800584" y1="295" y2="295" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="590.2691644399853" x2="590.2691644399853" y1="295" y2="295" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="550.7557502800584" x2="550.7557502800584" y1="295" y2="295" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="590.2691644399853" cy="295" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="550.7557502800584" cy="295" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="299" font-size="11" fill="#52514e">3,5× → 1,75×</text>
+<text x="1136" y="299" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>DELETE 10% wierszy: prototyp 2,2×; po optymalizacjach 1,44× (SQLite WASM (:memory:))</title>
+<text x="249" y="321" font-size="12" fill="#0b0b0b" text-anchor="end">DELETE 10% wierszy</text>
+<line x1="564.7604982793966" x2="539.4637713929436" y1="317" y2="317" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="564.7604982793966" x2="564.7604982793966" y1="317" y2="317" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="539.4637713929436" x2="539.4637713929436" y1="317" y2="317" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="564.7604982793966" cy="317" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="539.4637713929436" cy="317" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="321" font-size="11" fill="#52514e">2,2× → 1,44×</text>
+<text x="1136" y="321" font-size="11" fill="#52514e" text-anchor="end">SQLite WASM (:memory:)</text>
+</g>
+<g><title>Snapshot / eksport: prototyp 21×; po optymalizacjach 15× (sql.js)</title>
+<text x="249" y="343" font-size="12" fill="#0b0b0b" text-anchor="end">Snapshot / eksport</text>
+<line x1="690.3543925173934" x2="670.62100569079" y1="339" y2="339" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="690.3543925173934" x2="690.3543925173934" y1="339" y2="339" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="670.62100569079" x2="670.62100569079" y1="339" y2="339" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="690.3543925173934" cy="339" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="670.62100569079" cy="339" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="343" font-size="11" fill="#52514e">21× → 15×</text>
+<text x="1136" y="343" font-size="11" fill="#52514e" text-anchor="end">sql.js</text>
+</g>
+<g><title>Odtworzenie / import: prototyp 97×; po optymalizacjach 39× (sql.js)</title>
+<text x="249" y="365" font-size="12" fill="#0b0b0b" text-anchor="end">Odtworzenie / import</text>
+<line x1="777.5102250955629" x2="725.8840970698272" y1="361" y2="361" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="777.5102250955629" x2="777.5102250955629" y1="361" y2="361" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="725.8840970698272" x2="725.8840970698272" y1="361" y2="361" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="777.5102250955629" cy="361" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="725.8840970698272" cy="361" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="365" font-size="11" fill="#52514e">97× → 39×</text>
+<text x="1136" y="365" font-size="11" fill="#52514e" text-anchor="end">sql.js</text>
+</g>
+<line x1="16" x2="1136" y1="374" y2="374" stroke="#e4e3df"/>
+<text x="16" y="388" font-size="12" font-weight="600" fill="#52514e">grupa „trwały zapis w IndexedDB”</text>
+<g><title>Wstawienie N wierszy (1 transakcja): prototyp 2,0×; po optymalizacjach 1,38× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="409" font-size="12" fill="#0b0b0b" text-anchor="end">Wstawienie N wierszy (1 transakcja)</text>
+<line x1="558.3508421042118" x2="537.1998598821573" y1="405" y2="405" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="558.3508421042118" x2="558.3508421042118" y1="405" y2="405" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="537.1998598821573" x2="537.1998598821573" y1="405" y2="405" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="558.3508421042118" cy="405" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="537.1998598821573" cy="405" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="409" font-size="11" fill="#52514e">2,0× → 1,38×</text>
+<text x="1136" y="409" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>Odczyt po kluczu: prototyp 0,92×; po optymalizacjach 0,34× (RxDB (Dexie storage))</title>
+<text x="249" y="431" font-size="12" fill="#0b0b0b" text-anchor="end">Odczyt po kluczu</text>
+<line x1="514.3979203663395" x2="458.7788110369851" y1="427" y2="427" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="514.3979203663395" x2="514.3979203663395" y1="427" y2="427" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="458.7788110369851" x2="458.7788110369851" y1="427" y2="427" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="514.3979203663395" cy="427" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="458.7788110369851" cy="427" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="431" font-size="11" fill="#52514e">0,92× → 0,34×</text>
+<text x="1136" y="431" font-size="11" fill="#52514e" text-anchor="end">RxDB (Dexie storage)</text>
+</g>
+<g><title>COUNT po indeksie: prototyp 6,7×; po optymalizacjach 0,035× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="453" font-size="12" fill="#0b0b0b" text-anchor="end">COUNT po indeksie</text>
+<line x1="626.3523371637632" x2="329.90593038301984" y1="449" y2="449" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="626.3523371637632" x2="626.3523371637632" y1="449" y2="449" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="329.90593038301984" x2="329.90593038301984" y1="449" y2="449" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="626.3523371637632" cy="449" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="329.90593038301984" cy="449" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="453" font-size="11" fill="#52514e">6,7× → 0,035×</text>
+<text x="1136" y="453" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>Zakres klucza (1000 wierszy) + SUM: prototyp 0,90×; po optymalizacjach 0,47× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="475" font-size="12" fill="#0b0b0b" text-anchor="end">Zakres klucza (1000 wierszy) + SUM</text>
+<line x1="513.1889929376318" x2="476.16562604126966" y1="471" y2="471" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="513.1889929376318" x2="513.1889929376318" y1="471" y2="471" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="476.16562604126966" x2="476.16562604126966" y1="471" y2="471" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="513.1889929376318" cy="471" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="476.16562604126966" cy="471" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="475" font-size="11" fill="#52514e">0,90× → 0,47×</text>
+<text x="1136" y="475" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>Pełny skan z filtrem: prototyp 1,08×; po optymalizacjach 0,54× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="497" font-size="12" fill="#0b0b0b" text-anchor="end">Pełny skan z filtrem</text>
+<line x1="523.5925547485763" x2="483.8803568120737" y1="493" y2="493" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="523.5925547485763" x2="523.5925547485763" y1="493" y2="493" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="483.8803568120737" x2="483.8803568120737" y1="493" y2="493" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="523.5925547485763" cy="493" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="483.8803568120737" cy="493" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="497" font-size="11" fill="#52514e">1,08× → 0,54×</text>
+<text x="1136" y="497" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>GROUP BY (100 grup): prototyp 0,15×; po optymalizacjach 0,086× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="519" font-size="12" fill="#0b0b0b" text-anchor="end">GROUP BY (100 grup)</text>
+<line x1="411.1663686480133" x2="380.72139360300247" y1="515" y2="515" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="411.1663686480133" x2="411.1663686480133" y1="515" y2="515" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="380.72139360300247" x2="380.72139360300247" y1="515" y2="515" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="411.1663686480133" cy="515" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="380.72139360300247" cy="515" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="519" font-size="11" fill="#52514e">0,15× → 0,086×</text>
+<text x="1136" y="519" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>ORDER BY … LIMIT 10: prototyp 0,80×; po optymalizacjach 0,71× (PouchDB)</title>
+<text x="249" y="541" font-size="12" fill="#0b0b0b" text-anchor="end">ORDER BY … LIMIT 10</text>
+<line x1="506.20571993483054" x2="500.0056236060348" y1="537" y2="537" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="506.20571993483054" x2="506.20571993483054" y1="537" y2="537" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="500.0056236060348" x2="500.0056236060348" y1="537" y2="537" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="506.20571993483054" cy="537" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="500.0056236060348" cy="537" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="541" font-size="11" fill="#52514e">0,80× → 0,71×</text>
+<text x="1136" y="541" font-size="11" fill="#52514e" text-anchor="end">PouchDB</text>
+</g>
+<g><title>Pobranie 10 000 wierszy: prototyp 1,05×; po optymalizacjach 0,11× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="563" font-size="12" fill="#0b0b0b" text-anchor="end">Pobranie 10 000 wierszy</text>
+<line x1="521.5425158867886" x2="392.7053124131744" y1="559" y2="559" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="521.5425158867886" x2="521.5425158867886" y1="559" y2="559" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="392.7053124131744" x2="392.7053124131744" y1="559" y2="559" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="521.5425158867886" cy="559" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="392.7053124131744" cy="559" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="563" font-size="11" fill="#52514e">1,05× → 0,11×</text>
+<text x="1136" y="563" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>UPDATE 10% wierszy: prototyp 1,06×; po optymalizacjach 0,73× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="585" font-size="12" fill="#0b0b0b" text-anchor="end">UPDATE 10% wierszy</text>
+<line x1="522.1494083493048" x2="501.0383951786305" y1="581" y2="581" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="522.1494083493048" x2="522.1494083493048" y1="581" y2="581" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="501.0383951786305" x2="501.0383951786305" y1="581" y2="581" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="522.1494083493048" cy="581" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="501.0383951786305" cy="581" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="585" font-size="11" fill="#52514e">1,06× → 0,73×</text>
+<text x="1136" y="585" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>DELETE 10% wierszy: prototyp 0,89×; po optymalizacjach 0,57× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="607" font-size="12" fill="#0b0b0b" text-anchor="end">DELETE 10% wierszy</text>
+<line x1="512.236774668494" x2="487.2221933640782" y1="603" y2="603" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="512.236774668494" x2="512.236774668494" y1="603" y2="603" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="487.2221933640782" x2="487.2221933640782" y1="603" y2="603" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="512.236774668494" cy="603" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="487.2221933640782" cy="603" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="607" font-size="11" fill="#52514e">0,89× → 0,57×</text>
+<text x="1136" y="607" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>Trwałe zatwierdzenie 1 wiersza: prototyp 0,36×; po optymalizacjach 0,33× (PouchDB)</title>
+<text x="249" y="629" font-size="12" fill="#0b0b0b" text-anchor="end">Trwałe zatwierdzenie 1 wiersza</text>
+<line x1="460.8339532399957" x2="456.2534421327555" y1="625" y2="625" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="460.8339532399957" x2="460.8339532399957" y1="625" y2="625" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="456.2534421327555" x2="456.2534421327555" y1="625" y2="625" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="460.8339532399957" cy="625" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="456.2534421327555" cy="625" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="629" font-size="11" fill="#52514e">0,36× → 0,33×</text>
+<text x="1136" y="629" font-size="11" fill="#52514e" text-anchor="end">PouchDB</text>
+</g>
+<g><title>1000 zatwierdzeń, jedno oczekiwanie: prototyp 0,066×; po optymalizacjach 0,057× (sql.js + eksport do IndexedDB)</title>
+<text x="249" y="651" font-size="12" fill="#0b0b0b" text-anchor="end">1000 zatwierdzeń, jedno oczekiwanie</text>
+<line x1="365.36065109937635" x2="357.22945438878145" y1="647" y2="647" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="365.36065109937635" x2="365.36065109937635" y1="647" y2="647" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="357.22945438878145" x2="357.22945438878145" y1="647" y2="647" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="365.36065109937635" cy="647" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="357.22945438878145" cy="647" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="651" font-size="11" fill="#52514e">0,066× → 0,057×</text>
+<text x="1136" y="651" font-size="11" fill="#52514e" text-anchor="end">sql.js + eksport do IndexedDB</text>
+</g>
+<g><title>Ponowne otwarcie + 1. zapytanie: prototyp 23×; po optymalizacjach 11× (wa-sqlite + IDBBatchAtomicVFS)</title>
+<text x="249" y="673" font-size="12" fill="#0b0b0b" text-anchor="end">Ponowne otwarcie + 1. zapytanie</text>
+<line x1="695.005033807433" x2="652.1983219635101" y1="669" y2="669" stroke="#9ec5f4" stroke-width="2"/>
+<line x1="695.005033807433" x2="695.005033807433" y1="669" y2="669" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<line x1="652.1983219635101" x2="652.1983219635101" y1="669" y2="669" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="695.005033807433" cy="669" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="652.1983219635101" cy="669" r="5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="791" y="673" font-size="11" fill="#52514e">23× → 11×</text>
+<text x="1136" y="673" font-size="11" fill="#52514e" text-anchor="end">wa-sqlite + IDBBatchAtomicVFS</text>
+</g>
+<text x="1136" y="720" font-size="10.5" fill="#52514e" text-anchor="end">skala logarytmiczna; punkt – iloraz median uruchomień</text>
+</svg>

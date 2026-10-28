@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-25T01:45:31.700Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.2",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\03-prepared-plan"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.2",
+    "describe": "po-2.2",
+    "commit": "6839b70b75c3503fb4027d1f1022d91c29a381c1",
+    "subject": "core: skip the conjuncts of WHERE that the access path guarantees",
+    "codeTreeSha256": "4f0300bd8f700d3c8b55c03a9c14ecc350422530ff806710d0701b1bb3a59ba4",
+    "module": {
+      "bytes": 590964,
+      "gzipBytes": 223497
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.2-dirty",
+    "commit": "6839b70b75c3503fb4027d1f1022d91c29a381c1",
+    "subject": "core: skip the conjuncts of WHERE that the access path guarantees",
+    "codeTreeSha256": "5411a683996305218fe0ab32da902aae317be615e31064d9cbaf8584c786553f",
+    "module": {
+      "bytes": 608941,
+      "gzipBytes": 232549
+    },
+    "note": "The commit differs from the measured code only by rustfmt formatting and one clippy allow attribute (codeTreeSha256 is the measured code)."
+  },
+  "cpuLoadBefore": 0.123530868954887,
+  "finished": "2026-10-25T01:50:17.543Z"
+}

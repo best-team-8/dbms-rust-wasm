@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ENGINES, enginesIn } from './engines/index.js';
 import { summarize } from './stats.js';
-import { DEFAULT_ROWS, READ_OPS, Rng, WORKLOAD } from './suite.js';
+import { COMPATIBLE_WORKLOADS, DEFAULT_ROWS, READ_OPS, Rng, WORKLOAD } from './suite.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const NODE_KINDS = ['workload', 'cold', 'memory', 'network', 'fsync'];
@@ -161,7 +161,7 @@ async function runNative(o, outDir) {
         continue;
       }
       const result = JSON.parse(await readFile(out, 'utf8'));
-      if (result.workload !== WORKLOAD) {
+      if (result.workload !== WORKLOAD && !COMPATIBLE_WORKLOADS.includes(result.workload)) {
         throw new Error(`native benchmark reports workload ${result.workload}, this runner measures ${WORKLOAD}`);
       }
     }

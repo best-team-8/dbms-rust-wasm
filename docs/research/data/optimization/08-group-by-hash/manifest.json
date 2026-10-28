@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T04:13:38.095Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.12",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\08-group-by-hash"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.12",
+    "describe": "po-2.12",
+    "commit": "d0a2e2231f3cd0554698b678e0f0dbcb1e5b6a49",
+    "subject": "core: build secondary indexes in bulk from rows grouped by value",
+    "codeTreeSha256": "efa5bbac204432a09b8cfaff292efa7dd17863eea6f02c7c07d16efbab277680",
+    "module": {
+      "bytes": 684092,
+      "gzipBytes": 257430
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.12-dirty",
+    "commit": "d0a2e2231f3cd0554698b678e0f0dbcb1e5b6a49",
+    "subject": "core: build secondary indexes in bulk from rows grouped by value",
+    "codeTreeSha256": "f7c5142d9840c66ba3f8430b643ad7fef78f5f39f0bcc8c486bbab8b186a934b",
+    "module": {
+      "bytes": 690130,
+      "gzipBytes": 259491
+    }
+  },
+  "cpuLoadBefore": 0.16251169445820263,
+  "finished": "2026-10-25T04:17:40.649Z"
+}

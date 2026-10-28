@@ -1,0 +1,2 @@
+Flat-SQL: C:\Users\patry\Documents\Projects\dbms-rust-wasm\bench\versions\po-2.7, 4096 rows per step
+snapshot  18.70 ms

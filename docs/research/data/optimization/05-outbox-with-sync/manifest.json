@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T02:44:03.071Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload,memory",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.10",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\05-outbox-with-sync"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.10",
+    "describe": "po-2.10",
+    "commit": "5639f81aaae308b4f047aa0fe4120d2bacce9b25",
+    "subject": "core: compile WHERE conjuncts and SET expressions specialised to column types",
+    "codeTreeSha256": "4722269beae5b8ac975dcb2fd91431566177627fb36b5b69ecb77c544547c10d",
+    "module": {
+      "bytes": 628081,
+      "gzipBytes": 238401
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.10-dirty",
+    "commit": "5639f81aaae308b4f047aa0fe4120d2bacce9b25",
+    "subject": "core: compile WHERE conjuncts and SET expressions specialised to column types",
+    "codeTreeSha256": "d83f7a37e60efa5020cf1b9ffb526eb47656f36c6122ff727dd951f11161aa34",
+    "module": {
+      "bytes": 643544,
+      "gzipBytes": 242791
+    }
+  },
+  "cpuLoadBefore": 0.10284324832140587,
+  "finished": "2026-10-25T02:48:26.522Z"
+}

@@ -7,6 +7,10 @@
 // option: snapshot.fsql.tmp + fsync -> rename -> fsync of the directory ->
 // truncate the WAL. Truncating the WAL before the rename is durable could
 // leave the old snapshot with an empty WAL after a crash.
+//
+// Like FileStorage, the store keeps the WAL file open for appending between
+// checkpoints instead of opening and closing it for every append; the
+// handle is closed before the WAL is truncated, by close() and destroy().
 
 import fsp from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -53,6 +57,8 @@ export class FsStore {
    * @param {boolean} [options.fsync] fsync every WAL append (default true);
    *   checkpoints are synced either way
    */
+  #walHandle = null;
+
   constructor(dir, { fsync = true } = {}) {
     this.dir = dir;
     this.fsync = fsync;
@@ -86,18 +92,33 @@ export class FsStore {
   }
 
   async appendWal(bytes) {
-    const fh = await fsp.open(this.#wal, 'a');
+    this.#walHandle ??= await fsp.open(this.#wal, 'a');
     try {
-      await fh.writeFile(bytes);
-      if (this.fsync) await fh.datasync();
-    } finally {
-      await fh.close();
+      await this.#walHandle.writeFile(bytes);
+      if (this.fsync) await this.#walHandle.datasync();
+    } catch (err) {
+      // A failed write may leave the handle unusable; the next append opens
+      // the file again.
+      await this.#closeWal().catch(() => {});
+      throw err;
     }
     this.walSize += bytes.length;
   }
 
+  async #closeWal() {
+    const fh = this.#walHandle;
+    this.#walHandle = null;
+    await fh?.close();
+  }
+
+  /** Closes the WAL file (FlatDB.close calls it). */
+  async close() {
+    await this.#closeWal();
+  }
+
   async writeSnapshot(bytes) {
     await this.#replace(join(this.dir, 'snapshot.fsql'), bytes, true);
+    await this.#closeWal();
     const fh = await fsp.open(this.#wal, 'w');
     try {
       if (this.fsync) await fh.sync();
@@ -118,6 +139,7 @@ export class FsStore {
   }
 
   async destroy() {
+    await this.#closeWal();
     await fsp.rm(this.dir, { recursive: true, force: true });
     this.walSize = 0;
     this.snapshotSize = 0;

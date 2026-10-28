@@ -116,6 +116,10 @@ Znalezione w rundzie 2 i **nie** włączone:
 | Stepanov O., Klym H., *A Quantitative Analysis of WebAssembly Integration*, Electronics and Information Technologies 32, 2025 | jedyny znaleziony pomiar wywołań `wasm-bindgen`, ale czasopismo uczelniane o małym zasięgu, dostępne tylko streszczenie, a podany koszt kopiowania 1 MB (1–3 ms) budzi wątpliwości |
 | Gupta A., Mumick I. S., Subrahmanian V. S., *Maintaining Views Incrementally*, SIGMOD 1993 | algorytm zliczania opisany w przeglądzie [M3] |
 
+### 4.2 Rewizja 4 – zastosowanie i wynik weryfikacji
+
+Po Benchmarku 2 i testach poprawności tezy prac rdzenia zestawiono z wynikami ([literature-verification.md](../research/literature-verification.md)). Rdzeń obejmuje od 28.10.2026 tylko prace, które projekt zastosował albo których tezy sprawdził benchmark lub test; poza rdzeń przeszły [L24], [C11], [M1], [E1] i [B5]. Pozostałe 28 prac podzielono na katalogi `papers/potwierdzone/` (19), `papers/niepotwierdzone/` (2: [W1], [W11]) i `papers/zastosowane/` (7). Przegląd literatury przed pomiarem dał więc dwa przewidywania, które pomiar obalił: narzut WebAssembly rzędu 1,5× w operacjach wykonywanych w silniku i moduł optymalizowany pod rozmiar bez straty czasu.
+
 ## 5. Ograniczenia
 
 1. **Brak dostępu do płatnych baz bibliograficznych.** Nie przeszukano Scopus, Web of Science, pełnych tekstów IEEE Xplore i SpringerLink. Nie użyto bezpośrednio Google Scholar, więc nie ma liczby cytowań ani pełnych list „cited by”. Przegląd jest **ukierunkowany, a nie systematyczny** (w rozumieniu wytycznych Kitchenham) – nie spełnia wymogów PRISMA (zapisane zapytania z liczbą wyników na każdym etapie).

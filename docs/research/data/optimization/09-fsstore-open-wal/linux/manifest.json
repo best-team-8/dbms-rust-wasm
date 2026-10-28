@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-25T04:21:08.207Z",
+  "options": {
+    "runs": 10,
+    "targets": "node",
+    "kinds": "fsync",
+    "engines": "flatsql",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "/mnt/c/Users/patry/Documents/Projects/dbms-rust-wasm/bench/versions/po-2.15",
+    "after": "/mnt/c/Users/patry/Documents/Projects/dbms-rust-wasm",
+    "out": "/mnt/c/Users/patry/Documents/Projects/dbms-rust-wasm/docs/research/data/optimization/09-fsstore-open-wal/linux"
+  },
+  "before": {
+    "root": "/mnt/c/Users/patry/Documents/Projects/dbms-rust-wasm/bench/versions/po-2.15",
+    "describe": null,
+    "commit": null,
+    "subject": null,
+    "codeTreeSha256": null,
+    "module": {
+      "bytes": 690050,
+      "gzipBytes": 259478
+    }
+  },
+  "after": {
+    "root": "/mnt/c/Users/patry/Documents/Projects/dbms-rust-wasm",
+    "describe": "po-2.15-dirty",
+    "commit": "17d30dc113e57ee9de646afbc73f3b7591e6c3f1",
+    "subject": "core: group rows by one column through a hash table",
+    "codeTreeSha256": "9a247189d247ee16bb8b078d0d65a29951ad4c474f687756df5b521ad1c1f789",
+    "module": {
+      "bytes": 690130,
+      "gzipBytes": 259491
+    }
+  },
+  "cpuLoadBefore": 0.0018883193957377933,
+  "finished": "2026-10-25T04:22:48.577Z",
+  "note": "Measured in WSL 2 from the Windows working copy. git in WSL does not convert CRLF line endings, so codeTreeSha256 here hashes the files with CRLF and differs from the value computed on Windows for the same code (windows/manifest.json: f89b3f39...)."
+}

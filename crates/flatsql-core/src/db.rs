@@ -8,16 +8,19 @@
 //! the database is produced by [`Database::snapshot`] (checkpoint).
 
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::exec;
-use crate::result::QueryResult;
+use crate::expr::missing_param;
+use crate::result::{QueryResult, ResultEncoder};
 use crate::sql::{self, Statement};
 use crate::storage::codec::Writer;
 use crate::storage::snapshot;
-use crate::storage::wal::{self, LogOp, WalReader, OP_ACK, OP_CHANGE};
+use crate::storage::wal::{self, LogOp, WalReader, OP_ACK, OP_CHANGE, OP_SYNC};
 use crate::sync::{
     decode_batch, encode_batch, encode_change, encode_delete, encode_put, system_now_ms, ApplyReport, Change, Hlc,
     Mutation, Outbox, OutboxItem, SchemaConflict, Stamp, MAX_DRIFT_MS,
@@ -82,14 +85,21 @@ pub struct DbStats {
     pub acked_seq: u64,
     pub clock: u64,
     pub in_transaction: bool,
+    /// Whether local row changes are kept in the outbox.
+    pub sync: bool,
 }
 
 /// A parsed statement that can be executed many times with different
-/// `?` parameters.
+/// `?` parameters. SELECT, INSERT, UPDATE and DELETE also keep their
+/// compiled form (names resolved, access path chosen or prepared as a
+/// template), built when the statement is prepared and again when the
+/// schema of the database it runs on has changed since.
 #[derive(Debug, Clone)]
 pub struct Prepared {
     stmt: Statement,
     params: usize,
+    /// Compiled form and the catalog version it was built for.
+    compiled: RefCell<Option<(u64, exec::Compiled)>>,
 }
 
 impl Prepared {
@@ -109,6 +119,13 @@ enum Undo {
         key: Value,
         prev: Option<RowEntry>,
         prev_tomb: Option<Stamp>,
+    },
+    /// Restores the columns and the stamp of a row changed in place.
+    Update {
+        table: Arc<str>,
+        key: Value,
+        cols: Vec<(usize, Value)>,
+        prev_stamp: Stamp,
     },
     CreateTable(String),
     DropTable(Box<Table>),
@@ -145,17 +162,42 @@ struct Mark {
     next_seq: u64,
 }
 
+/// A new catalog version. The counter is shared by every database of the
+/// process, so a version also identifies the database.
+fn next_catalog_version() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
 pub struct Database {
     pub(crate) tables: BTreeMap<String, Table>,
+    /// Changes with every change of the schema (tables and indexes); a
+    /// compiled statement is valid for the version it was built for.
+    catalog_version: u64,
     pub(crate) node_id: u32,
     pub(crate) clock: Hlc,
     pub(crate) lsn: u64,
     pub(crate) next_seq: u64,
     pub(crate) acked_seq: u64,
     pub(crate) outbox: Outbox,
+    /// Synchronisation is enabled: local row changes enter the outbox. Until
+    /// then only schema changes do; enabling marks every row and tombstone as
+    /// pending, which is what the outbox of a database that never synced
+    /// would hold.
+    pub(crate) sync: bool,
     wal_out: Vec<u8>,
     txn: Option<Txn>,
     recovery: Option<RecoveryReport>,
+    /// Snapshot being encoded in steps, with the catalog version it began
+    /// on (0 after a clock rebase: the job starts again).
+    snapshot_job: Option<(u64, snapshot::Job)>,
+}
+
+fn check_params(p: &Prepared, params: &[Value]) -> Result<()> {
+    if params.len() != p.params {
+        return Err(Error::Eval(format!("statement expects {} parameter(s), {} supplied", p.params, params.len())));
+    }
+    Ok(())
 }
 
 impl Database {
@@ -164,15 +206,18 @@ impl Database {
     pub fn new(node_id: u32) -> Self {
         Database {
             tables: BTreeMap::new(),
+            catalog_version: next_catalog_version(),
             node_id,
             clock: Hlc::new(system_now_ms),
             lsn: 0,
             next_seq: 1,
             acked_seq: 0,
             outbox: Outbox::default(),
+            sync: false,
             wal_out: Vec::new(),
             txn: None,
             recovery: None,
+            snapshot_job: None,
         }
     }
 
@@ -212,14 +257,92 @@ impl Database {
     pub fn prepare(&self, sql: &str) -> Result<Prepared> {
         let stmt = sql::parse_one(sql)?;
         let params = sql::param_count(&stmt);
-        Ok(Prepared { stmt, params })
+        // A statement on a table that does not exist yet is compiled when it
+        // runs, which also reports the error.
+        let compiled = exec::compile(self, &stmt).ok().flatten().map(|c| (self.catalog_version, c));
+        Ok(Prepared { stmt, params, compiled: RefCell::new(compiled) })
     }
 
     pub fn execute_prepared(&mut self, p: &Prepared, params: &[Value]) -> Result<QueryResult> {
-        if params.len() != p.params {
-            return Err(Error::Eval(format!("statement expects {} parameter(s), {} supplied", p.params, params.len())));
+        if !self.compile_prepared(p, Some(params))? {
+            return self.execute_statement(&p.stmt, params);
         }
-        self.execute_statement(&p.stmt, params)
+        let compiled = p.compiled.borrow();
+        let (_, plan) = compiled.as_ref().expect("compiled above");
+        self.run_compiled(plan, params)
+    }
+
+    /// Like [`execute_prepared`](Self::execute_prepared) with the result
+    /// written to `out` in the binary result format
+    /// ([`ResultEncoder`](crate::result::ResultEncoder)). Rows of a SELECT are
+    /// encoded straight from the table, without a copy in a `QueryResult`.
+    /// Returns the column names of the result.
+    pub fn execute_prepared_encoded(
+        &mut self,
+        p: &Prepared,
+        params: &[Value],
+        out: &mut Vec<u8>,
+    ) -> Result<Arc<[String]>> {
+        if self.compile_prepared(p, Some(params))? {
+            if let Some((_, exec::Compiled::Select(plan))) = &*p.compiled.borrow() {
+                let mut e = ResultEncoder::new(out, plan.names().len());
+                let scanned = exec::run_select_into(self, plan, params, &mut e)?;
+                e.finish(0, scanned, "");
+                return Ok(plan.names().clone());
+            }
+        }
+        let r = self.execute_prepared(p, params)?;
+        r.encode(out);
+        Ok(r.columns)
+    }
+
+    /// Executes the prepared INSERT, UPDATE or DELETE `p` once for every set
+    /// of parameters that `next` writes into the vector it gets (cleared
+    /// before every call); `next` returns false when there are no more. All
+    /// executions are one statement: they are applied together or not at all,
+    /// and their rows get stamps from one reading of the clock. Returns the
+    /// number of affected rows.
+    pub fn execute_many(&mut self, p: &Prepared, mut next: impl FnMut(&mut Vec<Value>) -> Result<bool>) -> Result<u64> {
+        let compiled = self.compile_prepared(p, None)?;
+        if !compiled || !matches!(&*p.compiled.borrow(), Some((_, c)) if c.writes()) {
+            return Err(Error::Unsupported(
+                "executing a statement for many sets of parameters needs a prepared INSERT, UPDATE or DELETE".into(),
+            ));
+        }
+        let plan = p.compiled.borrow();
+        let (_, plan) = plan.as_ref().expect("compiled above");
+        let r = self.in_statement(|db| {
+            let now = db.wall_ms();
+            let mut params = Vec::with_capacity(p.params);
+            let mut affected = 0;
+            loop {
+                params.clear();
+                if !next(&mut params)? {
+                    break;
+                }
+                check_params(p, &params)?;
+                affected += exec::write_counts(db, plan, &params, now)?.0;
+            }
+            Ok(QueryResult { rows_affected: affected, ..Default::default() })
+        })?;
+        Ok(r.rows_affected)
+    }
+
+    /// Checks the parameters of `p` (when given) and compiles it again if
+    /// the catalog changed since it was compiled; false if it has no compiled
+    /// form.
+    fn compile_prepared(&self, p: &Prepared, params: Option<&[Value]>) -> Result<bool> {
+        if let Some(params) = params {
+            check_params(p, params)?;
+        }
+        let fresh = matches!(&*p.compiled.borrow(), Some((version, _)) if *version == self.catalog_version);
+        if !fresh {
+            match exec::compile(self, &p.stmt)? {
+                Some(c) => *p.compiled.borrow_mut() = Some((self.catalog_version, c)),
+                None => return Ok(false),
+            }
+        }
+        Ok(true)
     }
 
     pub fn execute_statement(&mut self, stmt: &Statement, params: &[Value]) -> Result<QueryResult> {
@@ -249,16 +372,34 @@ impl Database {
             _ => {}
         }
 
+        if params.len() < sql::param_count(stmt) {
+            return Err(missing_param(params.len(), params.len()));
+        }
+        if let Some(c) = exec::compile(self, stmt)? {
+            return self.run_compiled(&c, params);
+        }
         if stmt.is_read_only() {
             return exec::run_read(self, stmt, params);
         }
+        self.in_statement(|db| exec::run_write(db, stmt))
+    }
 
+    fn run_compiled(&mut self, c: &exec::Compiled, params: &[Value]) -> Result<QueryResult> {
+        match c {
+            exec::Compiled::Select(p) => exec::run_select(self, p, params),
+            write => self.in_statement(|db| exec::run_compiled_write(db, write, params)),
+        }
+    }
+
+    /// Runs a write with statement level atomicity, in a transaction of its
+    /// own unless one is open.
+    fn in_statement(&mut self, f: impl FnOnce(&mut Database) -> Result<QueryResult>) -> Result<QueryResult> {
         let implicit = self.txn.is_none();
         if implicit {
             self.txn = Some(Txn { seq_start: self.next_seq, ..Default::default() });
         }
         let mark = self.mark();
-        match exec::run_write(self, stmt, params) {
+        match f(self) {
             Ok(r) => {
                 if implicit {
                     self.commit();
@@ -319,6 +460,7 @@ impl Database {
             acked_seq: self.acked_seq,
             clock: self.clock.last(),
             in_transaction: self.txn.is_some(),
+            sync: self.sync,
         }
     }
 
@@ -338,10 +480,18 @@ impl Database {
     }
 
     fn rollback_to(&mut self, m: Mark) {
-        let Database { txn, tables, next_seq, .. } = self;
+        let Database { txn, tables, next_seq, catalog_version, .. } = self;
         let txn = txn.as_mut().expect("rollback outside of a transaction");
+        let mut schema = false;
         while txn.undo.len() > m.undo {
-            apply_undo(tables, txn.undo.pop().unwrap());
+            let undo = txn.undo.pop().unwrap();
+            // A snapshot in progress already kept every row an undo touches:
+            // the write being undone changed it after the snapshot began.
+            schema |= !matches!(undo, Undo::Row { .. } | Undo::Update { .. });
+            apply_undo(tables, undo);
+        }
+        if schema {
+            *catalog_version = next_catalog_version();
         }
         txn.ops.truncate(m.ops);
         txn.op_count = m.op_count;
@@ -369,6 +519,15 @@ impl Database {
         Stamp { time: self.clock.tick(), node: self.node_id }
     }
 
+    /// Current wall clock, read once per statement for [`new_stamp_at`](Self::new_stamp_at).
+    pub(crate) fn wall_ms(&self) -> u64 {
+        self.clock.wall_ms()
+    }
+
+    pub(crate) fn new_stamp_at(&mut self, now_ms: u64) -> Stamp {
+        Stamp { time: self.clock.tick_at(now_ms), node: self.node_id }
+    }
+
     fn next_seq_for(&mut self, local: bool) -> u64 {
         if local {
             let s = self.next_seq;
@@ -381,8 +540,13 @@ impl Database {
 
     /// Stores a validated row. `local == false` for changes from other replicas.
     pub(crate) fn write_put(&mut self, tkey: &str, values: Vec<Value>, stamp: Stamp, local: bool) -> Result<()> {
+        if self.snapshot_job.is_some() {
+            if let Some(pk) = self.tables.get(tkey).map(|t| t.schema.pk) {
+                self.keep_for_snapshot(tkey, &values[pk]);
+            }
+        }
         let seq = self.next_seq_for(local);
-        let Database { tables, txn, .. } = self;
+        let Database { tables, txn, sync, .. } = self;
         let txn = txn.as_mut().expect("write outside of a transaction");
         let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
         let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
@@ -393,16 +557,59 @@ impl Database {
         txn.op_count += 1;
         let key = values[t.schema.pk].clone();
         let (prev, prev_tomb) = t.put(values, stamp);
-        if local {
+        if local && *sync {
             txn.outbox.push((seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() }));
         }
         txn.undo.push(Undo::Row { table: t.key.clone(), key, prev, prev_tomb });
         Ok(())
     }
 
+    /// Changes columns of an existing row in place (a local UPDATE that keeps
+    /// the key): one lookup, only the changed columns are swapped and kept
+    /// for undo, and only indexes whose column value changed are updated. The
+    /// WAL gets the whole new row, as from [`write_put`](Self::write_put).
+    pub(crate) fn write_update(
+        &mut self,
+        tkey: &str,
+        key: Value,
+        changes: Vec<(usize, Value)>,
+        stamp: Stamp,
+    ) -> Result<()> {
+        self.keep_for_snapshot(tkey, &key);
+        let seq = self.next_seq_for(true);
+        let Database { tables, txn, sync, .. } = self;
+        let txn = txn.as_mut().expect("write outside of a transaction");
+        let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
+        let Table { schema, key: table_key, rows, indexes, .. } = t;
+        let row = rows.get_mut(&key).ok_or_else(|| Error::Storage(format!("row {} disappeared", key.to_sql())))?;
+        let mut cols = Vec::with_capacity(changes.len());
+        for (c, new) in changes {
+            for idx in indexes.iter_mut().filter(|i| i.column == c) {
+                if row.values[c] != new {
+                    idx.remove(&row.values[c], &key);
+                    idx.insert(&new, &key);
+                }
+            }
+            cols.push((c, std::mem::replace(&mut row.values[c], new)));
+        }
+        let prev_stamp = std::mem::replace(&mut row.stamp, stamp);
+        let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
+        w.u8(OP_CHANGE);
+        w.var(seq);
+        encode_put(&mut w, stamp, &schema.name, &row.values);
+        txn.ops = w.buf;
+        txn.op_count += 1;
+        if *sync {
+            txn.outbox.push((seq, OutboxItem::Row { table: table_key.clone(), key: key.clone() }));
+        }
+        txn.undo.push(Undo::Update { table: table_key.clone(), key, cols, prev_stamp });
+        Ok(())
+    }
+
     pub(crate) fn write_delete(&mut self, tkey: &str, key: Value, stamp: Stamp, local: bool) -> Result<()> {
+        self.keep_for_snapshot(tkey, &key);
         let seq = self.next_seq_for(local);
-        let Database { tables, txn, .. } = self;
+        let Database { tables, txn, sync, .. } = self;
         let txn = txn.as_mut().expect("write outside of a transaction");
         let t = tables.get_mut(tkey).ok_or_else(|| no_table(tkey))?;
         let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
@@ -412,7 +619,7 @@ impl Database {
         txn.ops = w.buf;
         txn.op_count += 1;
         let (prev, prev_tomb) = t.delete(&key, stamp);
-        if local {
+        if local && *sync {
             txn.outbox.push((seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() }));
         }
         txn.undo.push(Undo::Row { table: t.key.clone(), key, prev, prev_tomb });
@@ -422,6 +629,7 @@ impl Database {
     /// Applies a schema change (CREATE/DROP TABLE/INDEX).
     pub(crate) fn write_schema(&mut self, change: Change, local: bool) -> Result<()> {
         let undo = apply_schema(&mut self.tables, &change)?;
+        self.catalog_version = next_catalog_version();
         let seq = self.next_seq_for(local);
         let txn = self.txn.as_mut().expect("write outside of a transaction");
         let mut w = Writer { buf: std::mem::take(&mut txn.ops) };
@@ -470,6 +678,59 @@ impl Database {
         Ok(snapshot::encode(self))
     }
 
+    /// Starts a snapshot encoded in steps ([`snapshot_step`](Self::snapshot_step)),
+    /// so a host can encode a large database between other work. The
+    /// snapshot is the state at this call even if the database changes
+    /// between the steps; it replaces a snapshot begun earlier.
+    pub fn snapshot_begin(&mut self) -> Result<()> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot take a snapshot inside an open transaction".into()));
+        }
+        self.snapshot_job = Some((self.catalog_version, snapshot::Job::begin(self)));
+        Ok(())
+    }
+
+    /// Encodes up to `rows` more rows of the snapshot begun with
+    /// [`snapshot_begin`](Self::snapshot_begin); returns whether it is
+    /// complete. After a schema change or a clock rebase the snapshot starts
+    /// again from the current state (waiting while a transaction is open),
+    /// which is still a correct snapshot: its WAL position moves with it.
+    pub fn snapshot_step(&mut self, rows: usize) -> Result<bool> {
+        let Some((version, mut job)) = self.snapshot_job.take() else {
+            return Err(Error::Storage("no snapshot in progress".into()));
+        };
+        if version != self.catalog_version {
+            if self.txn.is_some() {
+                self.snapshot_job = Some((version, job));
+                return Ok(false);
+            }
+            job = snapshot::Job::begin(self);
+        }
+        let done = job.step(self, rows);
+        self.snapshot_job = Some((self.catalog_version, job));
+        Ok(done)
+    }
+
+    /// The snapshot once [`snapshot_step`](Self::snapshot_step) returned
+    /// true; ends the job.
+    pub fn snapshot_finish(&mut self) -> Result<Vec<u8>> {
+        match self.snapshot_job.take() {
+            Some((version, job)) if version == self.catalog_version && job.done() => Ok(job.finish()),
+            other => {
+                self.snapshot_job = other;
+                Err(Error::Storage("the snapshot is not complete".into()))
+            }
+        }
+    }
+
+    /// Keeps row `key` of table `tkey` for the snapshot in progress, before
+    /// it changes.
+    fn keep_for_snapshot(&mut self, tkey: &str, key: &Value) {
+        if let Some((_, job)) = &mut self.snapshot_job {
+            job.keep(&self.tables, tkey, key);
+        }
+    }
+
     /// Opens a database from an optional snapshot and a WAL. A torn or
     /// corrupted tail of the WAL is reported and ignored.
     pub fn restore(snapshot: Option<&[u8]>, wal: &[u8], node_id: u32) -> Result<Database> {
@@ -497,6 +758,7 @@ impl Database {
                         }
                     }
                     LogOp::Ack(upto) => db.apply_ack(upto),
+                    LogOp::Sync(first) => db.mark_all_pending(first),
                 }
             }
             db.lsn = frame.lsn;
@@ -536,10 +798,11 @@ impl Database {
             mutation => {
                 let change = Change { stamp, mutation };
                 apply_schema(&mut self.tables, &change)?;
+                self.catalog_version = next_catalog_version();
                 OutboxItem::Schema(change)
             }
         };
-        if seq > 0 {
+        if seq > 0 && (self.sync || matches!(item, OutboxItem::Schema(_))) {
             self.outbox.insert(seq, item);
         }
         Ok(())
@@ -557,6 +820,50 @@ impl Database {
     /// Number of local changes not yet acknowledged by the sync server.
     pub fn outbox_len(&self) -> usize {
         self.outbox.len()
+    }
+
+    /// Whether local row changes are kept in the outbox (see
+    /// [`enable_sync`](Self::enable_sync)).
+    pub fn sync_enabled(&self) -> bool {
+        self.sync
+    }
+
+    /// Starts keeping local row changes in the outbox. A database that has
+    /// not synchronised yet keeps only its schema changes there; enabling
+    /// makes every row and tombstone a pending entry, so the first push sends
+    /// the whole state, as the outbox of a database that kept every change
+    /// would. The step is logged, so it survives a restart. Returns whether
+    /// synchronisation was off before.
+    pub fn enable_sync(&mut self) -> Result<bool> {
+        if self.txn.is_some() {
+            return Err(Error::Transaction("cannot enable synchronisation inside an open transaction".into()));
+        }
+        if self.sync {
+            return Ok(false);
+        }
+        let first = self.next_seq;
+        self.mark_all_pending(first);
+        let mut w = Writer::new();
+        w.u8(OP_SYNC);
+        w.var(first);
+        self.lsn += 1;
+        wal::write_frame(&mut self.wal_out, self.lsn, 1, &w.buf);
+        Ok(true)
+    }
+
+    /// Enables synchronisation and makes every row and tombstone a pending
+    /// outbox entry, numbered from `first` in catalog and key order (the same
+    /// order when the step is replayed from the WAL).
+    fn mark_all_pending(&mut self, first: u64) {
+        self.sync = true;
+        let mut seq = first.max(self.next_seq);
+        for t in self.tables.values() {
+            for key in t.rows.keys().chain(t.tombstones.keys()) {
+                self.outbox.insert(seq, OutboxItem::Row { table: t.key.clone(), key: key.clone() });
+                seq += 1;
+            }
+        }
+        self.next_seq = seq;
     }
 
     /// Encodes up to `max` pending local changes as a batch. Returns the batch
@@ -661,6 +968,10 @@ impl Database {
             }
         }
         self.clock.reset(keep);
+        // Stamps change without a WAL record: a snapshot in progress starts again.
+        if let Some((version, _)) = &mut self.snapshot_job {
+            *version = 0;
+        }
         for seq in targets {
             let new = self.new_stamp();
             let Database { tables, outbox, .. } = self;
@@ -942,6 +1253,23 @@ fn apply_undo(tables: &mut BTreeMap<String, Table>, undo: Undo) {
                     t.restore_row(p);
                 }
                 t.set_tombstone(&key, prev_tomb);
+            }
+        }
+        Undo::Update { table, key, cols, prev_stamp } => {
+            if let Some(t) = tables.get_mut(&*table) {
+                let Table { rows, indexes, .. } = t;
+                if let Some(row) = rows.get_mut(&key) {
+                    for (c, old) in cols {
+                        for idx in indexes.iter_mut().filter(|i| i.column == c) {
+                            if row.values[c] != old {
+                                idx.remove(&row.values[c], &key);
+                                idx.insert(&old, &key);
+                            }
+                        }
+                        row.values[c] = old;
+                    }
+                    row.stamp = prev_stamp;
+                }
             }
         }
         Undo::CreateTable(key) => {

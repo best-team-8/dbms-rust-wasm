@@ -113,8 +113,10 @@ export class IndexedDbStore {
     metaKeys.forEach((k, i) => (meta[k] = metaValues[i]));
     const walBytes = wal.length ? concat(wal) : null;
     this.walSize = walBytes ? walBytes.length : 0;
-    this.snapshotSize = snapshot ? snapshot.byteLength : 0;
-    return { snapshot: snapshot ? new Uint8Array(snapshot) : null, wal: walBytes, meta };
+    // Snapshots are stored as a Blob; older versions stored the bytes.
+    const bytes = snapshot instanceof Blob ? new Uint8Array(await snapshot.arrayBuffer()) : snapshot ? new Uint8Array(snapshot) : null;
+    this.snapshotSize = bytes ? bytes.byteLength : 0;
+    return { snapshot: bytes, wal: walBytes, meta };
   }
 
   async appendWal(bytes) {
@@ -128,7 +130,9 @@ export class IndexedDbStore {
   async writeSnapshot(bytes) {
     const db = await this.#open();
     const tx = this.#tx(db, ['snapshot', 'wal'], 'readwrite');
-    tx.objectStore('snapshot').put(bytes, 'main');
+    // As a Blob: put() of the bytes serialises them on the calling thread
+    // (4.4 ms for 4.5 MB in Edge), of a Blob made from them only 1.6 ms.
+    tx.objectStore('snapshot').put(new Blob([bytes]), 'main');
     tx.objectStore('wal').clear();
     await done(tx);
     this.walSize = 0;

@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T05:37:49.701Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "workload",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.4",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\13-insert-many"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.4",
+    "describe": "po-2.4",
+    "commit": "16f547ecee6422672798211fb4c2d839b60c553c",
+    "subject": "core/wasm: encode results straight from the table in a binary format decoded by JavaScript",
+    "codeTreeSha256": "e2f08f82c4515a5ac3a74065233c6b4bc04c438428499c2924aab278eec419f9",
+    "module": {
+      "bytes": 695364,
+      "gzipBytes": 262201
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm",
+    "describe": "po-2.4-dirty",
+    "commit": "16f547ecee6422672798211fb4c2d839b60c553c",
+    "subject": "core/wasm: encode results straight from the table in a binary format decoded by JavaScript",
+    "codeTreeSha256": "ab36476f66a29905dcf765c828c11a43bb5e640b4298e115a398e3b009e7d4f6",
+    "module": {
+      "bytes": 700875,
+      "gzipBytes": 264753
+    }
+  },
+  "cpuLoadBefore": 0.0876237349997235,
+  "finished": "2026-10-25T05:41:03.393Z"
+}
