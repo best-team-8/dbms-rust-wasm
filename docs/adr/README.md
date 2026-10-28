@@ -64,6 +64,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0048](0048-krotkie-teksty-w-wartosci.md) | Krótkie teksty przechowywane w wartości, wiersze bez bloków ciągłych | architektura | przyjęta |
 | [0049](0049-checkpoint-krokami.md) | Checkpoint kodowany krokami z zachowaniem wierszy zmienianych w trakcie, snapshot w IndexedDB jako Blob | architektura | przyjęta |
 | [0050](0050-konfiguracja-kompilacji-bez-zmian.md) | Kompilacja modułu WebAssembly bez zmian: opt-level 3, wasm-opt -O3, alokator domyślny, bez SIMD | badania | przyjęta |
+| [0051](0051-porownanie-z-silnikami-z-benchmarku-1.md) | Wersja po optymalizacjach porównywana z silnikami odniesienia z Benchmarku 1, silniki oznaczone według roli | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

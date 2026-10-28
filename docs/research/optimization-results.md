@@ -67,7 +67,7 @@ Wersję po wszystkich zmianach (tag `po-2.5`) zmierzono razem z prototypem pełn
 | Pauza checkpointu, 100 000 wierszy (IndexedDB) | 40,3 ms | 2,60 ms | 16× |
 | Pamięć liniowa po wczytaniu 100 000 wierszy | 73,3 MiB | 51,8 MiB | 1,4× |
 
-Wyniki obu wersji zgadzają się w 2100 porównaniach sum kontrolnych. Pogorszyły się: rozmiar modułu (219 575 → 274 098 B po kompresji gzip, +25%), zimny start (+8% w Node.js, +12–15% w przeglądarce, w rozrzucie) i natywny top-k (+21%, §14). Top-k w WebAssembly i trwałe zatwierdzenie pojedynczego wiersza nie zmieniły się.
+Wyniki obu wersji zgadzają się w 2100 porównaniach sum kontrolnych. Pogorszyły się: rozmiar modułu (219 575 → 274 098 B po kompresji gzip, +25%), zimny start (+8% w Node.js, +12–15% w przeglądarce, w rozrzucie) i natywny top-k (+21%, §14). Top-k w WebAssembly i trwałe zatwierdzenie pojedynczego wiersza nie zmieniły się. Na tle silników z Benchmarku 1 wersja po optymalizacjach jest najszybsza w przeglądarce w odczycie po kluczu, `COUNT` po indeksie, zakresie klucza i pobraniu 10 000 wierszy, szybsza od obu wersji SQLite we wszystkich odczytach, a wolniejsza od szybszej z nich we wstawianiu, `UPDATE`, `DELETE`, snapshocie i odtworzeniu ([benchmark-results.md §3.9](benchmark-results.md#39-flat-sql-po-optymalizacjach-na-tle-innych-silników)).
 
 ## 1. Liczenie wierszy po indeksie bez ich czytania
 

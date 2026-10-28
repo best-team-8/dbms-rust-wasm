@@ -109,6 +109,8 @@ Benchmark porównuje silniki w grupach o tych samych warunkach uruchomienia ([be
 
 Niemierzone: Zeta-Lite [D5], bo kod jest zamknięty i nie ma modułu do pobrania (porównanie opiera się na deklaracjach z preprintu); absurd-sql, bo projekt nie jest rozwijany, a jego podejście reprezentują wa-sqlite i `opfs-sahpool`; GlueSQL i Turso są opisane w przeglądzie, ale nie należą do zestawu punktów odniesienia tej wersji benchmarku (Turso w przeglądarce jest w fazie beta).
 
+Porównanie wersji Flat-SQL po optymalizacjach z innymi silnikami ([benchmark-results.md §3.9](benchmark-results.md#39-flat-sql-po-optymalizacjach-na-tle-innych-silników)) dzieli je według roli z tej tabeli i z punktu 4. Pokrewne są silniki, które rozwiązują to samo zadanie co Flat-SQL: SQLite w WebAssembly dla danych operacyjnych aplikacji (sql.js, SQLite WASM, wa-sqlite) i bazy local-first z synchronizacją (PouchDB, RxDB), a z niemierzonych Zeta-Lite. PGlite i DuckDB-Wasm mają inne zastosowanie (punkt 4.2), a AlaSQL, Dexie.js i czysty JavaScript są punktami odniesienia.
+
 ## Źródła
 
 - Literatura: [D1] DuckDB-Wasm, [D2] SQLite, [D5] Zeta-Lite, [L24] CRR, [L27] Simba, [S10] checkpointy, [B3] metodyka – [references/README.md](../references/README.md).
