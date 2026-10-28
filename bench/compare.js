@@ -115,7 +115,9 @@ function metrics(r) {
       for (const [op, v] of Object.entries(ops)) if (Number.isFinite(v.meanUs)) m[`FsStore ${mode} ${op}`] = v.meanUs;
     }
     for (const [mode, v] of Object.entries(res.syncPush ?? {})) if (Number.isFinite(v.meanUs)) m[`sync round ${mode}`] = v.meanUs;
-    for (const [mode, ops] of Object.entries(res.file ?? res.storage ?? {})) {
+    // The native CLI reports FileStorage under fsync / nofsync.
+    const file = res.file ?? res.storage ?? (r.engine === 'flatsql-native' ? { fsync: res.fsync, nofsync: res.nofsync } : {});
+    for (const [mode, ops] of Object.entries(file)) {
       if (ops && typeof ops === 'object') for (const [op, v] of Object.entries(ops)) if (Number.isFinite(v?.meanUs)) m[`FileStorage ${mode} ${op}`] = v.meanUs;
     }
   } else if (r.kind === 'network') {

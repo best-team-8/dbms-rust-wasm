@@ -6,6 +6,16 @@ Moduł WebAssembly: 711549 → 724082 B, gzip -9: 268907 → 274096 B (+5189 B).
 
 | Metryka | Przed | Po | Zmiana mediany | 95% CI średnich rozłączne |
 |---|---:|---:|---:|---|
+| FileStorage fsync insert | 197 (195–201) ms | 203 (197–204) ms | +3,1% | nie (w rozrzucie) |
+| FileStorage fsync commit_single | 517 (500–528) µs | 504 (487–518) µs | -2,7% | nie (w rozrzucie) |
+| FileStorage fsync commit_group | 2,69 (2,67–2,73) ms | 2,80 (2,69–2,86) ms | +4,1% | nie (w rozrzucie) |
+| FileStorage fsync checkpoint | 30,3 (29,7–31,3) ms | 30,9 (30,0–33,8) ms | +2,0% | nie (w rozrzucie) |
+| FileStorage fsync reopen | 45,7 (45,4–46,4) ms | 45,9 (45,5–46,1) ms | +0,6% | nie (w rozrzucie) |
+| FileStorage nofsync insert | 191 (190–195) ms | 192 (191–195) ms | +0,0% | nie (w rozrzucie) |
+| FileStorage nofsync commit_single | 9,30 (8,88–9,62) µs | 9,50 (9,07–10,8) µs | +2,1% | nie (w rozrzucie) |
+| FileStorage nofsync commit_group | 2,09 (2,09–2,10) ms | 2,25 (2,13–2,39) ms | +7,5% | nie (w rozrzucie) |
+| FileStorage nofsync checkpoint | 29,1 (28,9–29,5) ms | 30,2 (29,4–31,5) ms | +3,6% | nie (w rozrzucie) |
+| FileStorage nofsync reopen | 45,2 (44,5–46,2) ms | 45,5 (45,2–45,8) ms | +0,7% | nie (w rozrzucie) |
 
 ### native – workload – flatsql-native
 

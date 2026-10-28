@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 380" width="820" height="380" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="820" height="380" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Najdłuższa pauza wątku głównego podczas checkpointu</text>
+<text x="16" y="42" font-size="12" fill="#52514e">Flat-SQL + IndexedDB w przeglądarce, sonda MessageChannel</text>
+<line x1="70" x2="679.04" y1="324" y2="324" stroke="#e4e3df"/>
+<text x="62" y="328" font-size="11" fill="#52514e" text-anchor="end">0 ms</text>
+<line x1="70" x2="679.04" y1="274.4" y2="274.4" stroke="#e4e3df"/>
+<text x="62" y="278.4" font-size="11" fill="#52514e" text-anchor="end">10 ms</text>
+<line x1="70" x2="679.04" y1="224.8" y2="224.8" stroke="#e4e3df"/>
+<text x="62" y="228.8" font-size="11" fill="#52514e" text-anchor="end">20 ms</text>
+<line x1="70" x2="679.04" y1="175.20000000000002" y2="175.20000000000002" stroke="#e4e3df"/>
+<text x="62" y="179.20000000000002" font-size="11" fill="#52514e" text-anchor="end">30 ms</text>
+<line x1="70" x2="679.04" y1="125.6" y2="125.6" stroke="#e4e3df"/>
+<text x="62" y="129.6" font-size="11" fill="#52514e" text-anchor="end">40 ms</text>
+<line x1="70" x2="679.04" y1="76" y2="76" stroke="#e4e3df"/>
+<text x="62" y="80" font-size="11" fill="#52514e" text-anchor="end">50 ms</text>
+<text x="70" y="342" font-size="11" fill="#52514e" text-anchor="middle">10 000</text>
+<text x="374.52" y="342" font-size="11" fill="#52514e" text-anchor="middle">50 000</text>
+<text x="679.04" y="342" font-size="11" fill="#52514e" text-anchor="middle">100 000</text>
+<text x="374.52" y="372" font-size="11" fill="#52514e" text-anchor="middle">liczba wierszy</text>
+<line x1="70" x2="679.04" y1="241.168" y2="241.168" stroke="#52514e" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="74" y="236.168" font-size="11" fill="#52514e">jedna klatka przy 60 Hz (16,7 ms)</text>
+<polyline points="70,292.9132000827789 374.52,222.95239998817442 679.04,124.01279973983765" fill="none" stroke="#8b8a86" stroke-width="2"/>
+<g><title>prototyp, 10 000: mediana 6,27 ms, Q1–Q3 6,11–6,80 ms</title>
+<line x1="70" x2="70" y1="293.7129999113083" y2="290.29059992313387" stroke="#8b8a86" stroke-width="2"/>
+<circle cx="70" cy="292.9132000827789" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>prototyp, 50 000: mediana 20,4 ms, Q1–Q3 20,1–20,5 ms</title>
+<line x1="374.52" x2="374.52" y1="224.41560007095336" y2="222.24559977531433" stroke="#8b8a86" stroke-width="2"/>
+<circle cx="374.52" cy="222.95239998817442" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>prototyp, 100 000: mediana 40,3 ms, Q1–Q3 39,9–40,9 ms</title>
+<line x1="679.04" x2="679.04" y1="126.00299961566927" y2="121.08640001773833" stroke="#8b8a86" stroke-width="2"/>
+<circle cx="679.04" cy="124.01279973983765" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/></g>
+<polyline points="70,310.6823996925354 374.52,317.97359983444215 679.04,311.1164001655579" fill="none" stroke="#2a78d6" stroke-width="2"/>
+<g><title>po optymalizacjach, 10 000: mediana 2,69 ms, Q1–Q3 2,46–2,92 ms</title>
+<line x1="70" x2="70" y1="311.798399810791" y2="309.5230000591278" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="70" cy="310.6823996925354" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>po optymalizacjach, 50 000: mediana 1,22 ms, Q1–Q3 1,12–1,39 ms</title>
+<line x1="374.52" x2="374.52" y1="318.4571998167038" y2="317.11179976940156" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="374.52" cy="317.97359983444215" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<g><title>po optymalizacjach, 100 000: mediana 2,60 ms, Q1–Q3 1,50–3,29 ms</title>
+<line x1="679.04" x2="679.04" y1="316.56" y2="307.6692002010345" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="679.04" cy="311.1164001655579" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/></g>
+<text x="689.04" y="128.01279973983765" font-size="12" fill="#0b0b0b">prototyp</text>
+<text x="689.04" y="315.1164001655579" font-size="12" fill="#0b0b0b">po optymalizacjach</text>
+</svg>

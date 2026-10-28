@@ -1,0 +1,409 @@
+{
+  "workload": "benchmark-2",
+  "date": "2026-10-28T01:51:03.127Z",
+  "options": {
+    "targets": [
+      "node",
+      "native"
+    ],
+    "runs": 1,
+    "rows": 100000,
+    "kinds": [
+      "fsync"
+    ],
+    "engines": [
+      "flatsql",
+      "flatsql-json"
+    ],
+    "flatsql": "/home/patry/b2/po-2.5",
+    "out": "/home/patry/b2linux/after",
+    "label": "after",
+    "browserChannel": "msedge",
+    "browserExe": null,
+    "headed": false
+  },
+  "flatsql": {
+    "root": "/home/patry/b2/po-2.5",
+    "describe": "po-2.5",
+    "commit": "45f581d9ff1978ce9e56f8e00b2c6d80214a9bae"
+  },
+  "tool": {
+    "commit": "45f581d9ff1978ce9e56f8e00b2c6d80214a9bae",
+    "describe": "po-2.5"
+  },
+  "host": {
+    "cpu": "AMD Ryzen 5 4600H with Radeon Graphics",
+    "threads": 12,
+    "memoryBytes": 7993503744,
+    "os": "linux 6.6.87.2-microsoft-standard-WSL2 x64"
+  },
+  "node": "v24.21.0",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "packages": {
+    "sql.js": null,
+    "@sqlite.org/sqlite-wasm": null,
+    "@journeyapps/wa-sqlite": null,
+    "@electric-sql/pglite": null,
+    "@duckdb/duckdb-wasm": null,
+    "alasql": null,
+    "dexie": null,
+    "pouchdb-browser": null,
+    "rxdb": null,
+    "playwright-core": null,
+    "esbuild": null
+  },
+  "engines": {
+    "flatsql": {
+      "label": "Flat-SQL",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "flatsql",
+      "api": "sync",
+      "model": "SQL",
+      "needs": []
+    },
+    "flatsql-json": {
+      "label": "Flat-SQL (JSON)",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "flatsql",
+      "options": {
+        "json": true
+      },
+      "api": "sync",
+      "model": "SQL",
+      "needs": []
+    },
+    "sqljs": {
+      "label": "sql.js",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "sqljs",
+      "api": "sync",
+      "model": "SQL",
+      "needs": []
+    },
+    "sqlite-wasm": {
+      "label": "SQLite WASM (:memory:)",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "sqlite-wasm",
+      "api": "sync",
+      "model": "SQL",
+      "needs": []
+    },
+    "pglite": {
+      "label": "PGlite (pamięć)",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "pglite",
+      "api": "async",
+      "model": "SQL",
+      "needs": []
+    },
+    "duckdb": {
+      "label": "DuckDB-Wasm",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "duckdb",
+      "api": "sync",
+      "model": "SQL",
+      "needs": []
+    },
+    "alasql": {
+      "label": "AlaSQL",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "alasql",
+      "api": "sync",
+      "model": "SQL",
+      "needs": [],
+      "wasm": false
+    },
+    "js-map": {
+      "label": "czysty JS (Map)",
+      "group": "memory",
+      "where": [
+        "node",
+        "browser"
+      ],
+      "module": "js-map",
+      "api": "sync",
+      "model": "kod JS",
+      "needs": [],
+      "wasm": false
+    },
+    "flatsql-idb": {
+      "label": "Flat-SQL + IndexedDB",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "flatsql",
+      "options": {
+        "store": "idb",
+        "durability": "default"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "IndexedDB"
+      ]
+    },
+    "flatsql-idb-strict": {
+      "label": "Flat-SQL + IndexedDB (strict)",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "flatsql",
+      "options": {
+        "store": "idb",
+        "durability": "strict"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "IndexedDB"
+      ]
+    },
+    "sqljs-idb": {
+      "label": "sql.js + eksport do IndexedDB",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "sqljs",
+      "options": {
+        "store": "idb"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "IndexedDB"
+      ]
+    },
+    "wa-sqlite-idb": {
+      "label": "wa-sqlite + IDBBatchAtomicVFS",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "wa-sqlite",
+      "options": {
+        "synchronous": "full"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "IndexedDB"
+      ]
+    },
+    "wa-sqlite-idb-relaxed": {
+      "label": "wa-sqlite + IDBBatchAtomicVFS (synchronous=normal)",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "wa-sqlite",
+      "options": {
+        "synchronous": "normal"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "IndexedDB"
+      ]
+    },
+    "pglite-idb": {
+      "label": "PGlite + IndexedDB",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "pglite",
+      "options": {
+        "fs": "idb"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "IndexedDB"
+      ]
+    },
+    "dexie": {
+      "label": "Dexie.js",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "dexie",
+      "options": {
+        "durability": "default"
+      },
+      "api": "async",
+      "model": "API IndexedDB",
+      "needs": [
+        "IndexedDB"
+      ],
+      "wasm": false
+    },
+    "dexie-strict": {
+      "label": "Dexie.js (strict)",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "dexie",
+      "options": {
+        "durability": "strict"
+      },
+      "api": "async",
+      "model": "API IndexedDB",
+      "needs": [
+        "IndexedDB"
+      ],
+      "wasm": false
+    },
+    "pouchdb": {
+      "label": "PouchDB",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "pouchdb",
+      "api": "async",
+      "model": "API dokumentowe",
+      "needs": [
+        "IndexedDB"
+      ],
+      "wasm": false
+    },
+    "rxdb": {
+      "label": "RxDB (Dexie storage)",
+      "group": "durable",
+      "where": [
+        "browser"
+      ],
+      "module": "rxdb",
+      "api": "async",
+      "model": "API dokumentowe",
+      "needs": [
+        "IndexedDB"
+      ],
+      "wasm": false
+    },
+    "flatsql-worker": {
+      "label": "Flat-SQL w Workerze (pamięć)",
+      "group": "worker",
+      "where": [
+        "worker"
+      ],
+      "module": "flatsql",
+      "api": "sync",
+      "model": "SQL",
+      "needs": [
+        "Worker"
+      ]
+    },
+    "flatsql-worker-idb": {
+      "label": "Flat-SQL w Workerze + IndexedDB",
+      "group": "worker",
+      "where": [
+        "worker"
+      ],
+      "module": "flatsql",
+      "options": {
+        "store": "idb",
+        "durability": "default"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "Worker",
+        "IndexedDB"
+      ]
+    },
+    "sqlite-opfs": {
+      "label": "SQLite WASM + opfs-sahpool",
+      "group": "worker",
+      "where": [
+        "worker"
+      ],
+      "module": "sqlite-wasm",
+      "options": {
+        "vfs": "opfs-sahpool"
+      },
+      "api": "sync",
+      "model": "SQL",
+      "needs": [
+        "Worker",
+        "OPFS"
+      ]
+    },
+    "pglite-opfs": {
+      "label": "PGlite + OPFS (opfs-ahp)",
+      "group": "worker",
+      "where": [
+        "worker"
+      ],
+      "module": "pglite",
+      "options": {
+        "fs": "opfs"
+      },
+      "api": "async",
+      "model": "SQL",
+      "needs": [
+        "Worker",
+        "OPFS"
+      ]
+    },
+    "duckdb-worker": {
+      "label": "DuckDB-Wasm w Workerze (pamięć)",
+      "group": "worker",
+      "where": [
+        "worker"
+      ],
+      "module": "duckdb",
+      "api": "sync",
+      "model": "SQL",
+      "needs": [
+        "Worker"
+      ]
+    }
+  },
+  "targets": {
+    "node": {
+      "started": "2026-10-28T01:52:01.802Z",
+      "finished": "2026-10-28T01:52:03.404Z",
+      "runs": 10
+    },
+    "native": {
+      "started": "2026-10-28T01:52:03.404Z",
+      "finished": "2026-10-28T01:52:04.549Z",
+      "runs": 10
+    }
+  },
+  "failures": []
+}

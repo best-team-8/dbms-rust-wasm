@@ -1,6 +1,6 @@
 # Wyniki benchmarków i walidacji offline
 
-Dokument zawiera wyniki „Benchmarku 1”, czyli pomiaru prototypu Flat-SQL przed optymalizacjami, wykonanego według [scenariusza badawczego](benchmark-scenario.md), oraz wcześniejsze wyniki wstępne. Benchmark 1 jest stanem wyjściowym: późniejsze wersje silnika mierzy się tym samym narzędziem razem z prototypem. Surowe wyniki wszystkich procesów, skrypt tworzący tabele i wykresy oraz skrypty analizy leżą w [data/benchmark-1/](data/benchmark-1/); pełne tabele: [data/benchmark-1/tables.md](data/benchmark-1/tables.md).
+Dokument zawiera wyniki „Benchmarku 1”, czyli pomiaru prototypu Flat-SQL przed optymalizacjami, wykonanego według [scenariusza badawczego](benchmark-scenario.md), wcześniejsze wyniki wstępne oraz wyniki „Benchmarku 2”, czyli pomiaru wersji po optymalizacjach razem z prototypem tym samym narzędziem ([§3](#3-benchmark-2-wersja-po-optymalizacjach)). Benchmark 1 jest stanem wyjściowym: późniejsze wersje silnika mierzy się tym samym narzędziem razem z prototypem. Surowe wyniki wszystkich procesów, skrypt tworzący tabele i wykresy oraz skrypty analizy leżą w [data/benchmark-1/](data/benchmark-1/); pełne tabele: [data/benchmark-1/tables.md](data/benchmark-1/tables.md).
 
 ## 1. Benchmark 1: prototyp przed optymalizacjami
 
@@ -412,3 +412,120 @@ Główna przyczyna wolnego filtrowania okazała się nieoczywista: rekurencyjna 
 3. Największymi kosztami okazały się granica JS↔WASM i reprezentacja danych w pamięci (osobne alokacje wierszy), a nie sam WebAssembly; to wyznacza kierunki dalszej optymalizacji.
 4. Przyrostowy WAL z group commitem jest właściwą strategią trwałości w przeglądarce – koszt zatwierdzenia nie rośnie z rozmiarem bazy, w przeciwieństwie do eksportu całego pliku.
 5. Model płaskich tabel adresowanych kluczem umożliwił prostą, deterministyczną synchronizację (LWW per wiersz), która zachowuje pełną funkcjonalność offline.
+
+## 3. Benchmark 2: wersja po optymalizacjach
+
+### 3.1 Warunki pomiaru
+
+Pomiar wykonano 28 października 2026 na tym samym laptopie i w tych samych środowiskach co Benchmark 1 (§1.1): Node.js 24.21.0, Microsoft Edge 156 bez okna, natywny CLI. Porównano prototyp (tag `prototyp`, commit `261d78f`) z wersją po optymalizacjach opisanych w [optimization-results.md](optimization-results.md) (tag `po-2.5`, commit `45f581d`). Obie wersje mierzył ten sam runner, na przemian: uruchomienie prototypu, uruchomienie wersji po zmianach, w następnej parze odwrotnie, każda wersja w 10 nowych procesach dla każdej konfiguracji. Mierzono wszystkie konfiguracje Flat-SQL z Benchmarku 1 (dane w pamięci z wynikiem jako obiekty JS i jako JSON, IndexedDB w trybie domyślnym i `strict`, Web Worker w pamięci i z IndexedDB, benchmark natywny) i wszystkie rodzaje pomiarów: obciążenie, zimny start, pamięć, pauzę checkpointu, Local-First, zapis plików. W Windows to 540 procesów (160 Node.js, 40 natywnych, 340 przeglądarki), bez żadnego nieudanego; koszt utrwalania plików w Linuksie (WSL 2, Ubuntu 24.04, ext4, Node.js 24.21.0) zmierzono w kolejnych 40 procesach. Obciążenie procesora przed pomiarem wynosiło 6,2%.
+
+Obciążenie ma identyfikator `benchmark-2`: operacje Benchmarku 1 są niezmienione, a na końcu doszło wstawienie N wierszy do drugiej tabeli o tej samej definicji jednym wywołaniem (`executeMany`); prototyp, który takiego wywołania nie ma, wykonuje tę operację pętlą pojedynczych instrukcji. Wyniki zapytań i stan tabeli po każdej fazie zapisu obu wersji zgadzają się w 2100 porównaniach sum kontrolnych. Tabele podają medianę z 10 uruchomień; kwartyle, rozłączność 95% przedziałów ufności średnich i wszystkie konfiguracje są w [data/benchmark-2/tables.md](data/benchmark-2/tables.md), surowe wyniki i skrypt tabel i wykresów w [data/benchmark-2/](data/benchmark-2/). Krotność to mediana prototypu podzielona przez medianę wersji po zmianach.
+
+### 3.2 Dane w pamięci
+
+| Operacja | Node.js, obiekty | Przeglądarka, obiekty | Przeglądarka, JSON | Natywnie |
+|---|---:|---:|---:|---:|
+| Wstawienie N wierszy (1 transakcja) | 371 → 286 ms | 357 → 267 ms | 334 → 269 ms | 208 → 162 ms |
+| Wstawienie N wierszy jednym wywołaniem | 1,16 s → 151 ms | 405 → 147 ms | 401 → 146 ms | – → 144 ms |
+| Odczyt po kluczu | 8,94 → 2,45 µs | 8,78 → 3,28 µs | 5,50 → 4,16 µs | 2,28 → 0,91 µs |
+| COUNT po indeksie | 427 → 2,09 µs | 437 → 1,90 µs | 427 → 2,88 µs | 435 → 0,71 µs |
+| Zakres klucza (1000 wierszy) + SUM | 80,8 → 41,0 µs | 77,6 → 45,5 µs | 77,3 → 47,4 µs | 83,9 → 48,7 µs |
+| Pełny skan z filtrem | 7,74 → 4,49 ms | 7,83 → 4,40 ms | 7,79 → 4,45 ms | 8,06 → 5,35 ms |
+| GROUP BY (100 grup) | 15,5 → 9,58 ms | 15,6 → 9,38 ms | 15,4 → 9,77 ms | 14,6 → 10,8 ms |
+| ORDER BY … LIMIT 10 | 5,24 → 5,27 ms | 5,44 → 5,33 ms | 5,42 → 5,35 ms | 5,63 → 6,82 ms |
+| Pobranie 10 000 wierszy | 9,54 → 1,65 ms | 11,4 → 1,55 ms | 7,80 → 7,06 ms | 3,72 → 2,86 ms |
+| UPDATE 10% wierszy | 41,4 → 15,4 ms | 30,9 → 15,4 ms | 30,7 → 15,0 ms | 30,9 → 14,6 ms |
+| DELETE 10% wierszy | 27,7 → 17,6 ms | 26,9 → 17,5 ms | 26,8 → 17,6 ms | 24,8 → 14,3 ms |
+| Snapshot | 33,8 → 22,1 ms | 32,2 → 22,6 ms | 32,5 → 21,6 ms | 25,3 → 17,3 ms |
+| Odtworzenie | 115 → 48,2 ms | 115 → 46,4 ms | 115 → 46,7 ms | 111 → 40,4 ms |
+
+Wszystkie operacje poza top-k są w każdym środowisku szybsze przy rozłącznych przedziałach ufności. Najwięcej zyskał `COUNT` po indeksie (204–617 razy), bo wiersze nie są już czytane, następnie pobranie 10 000 wierszy z wynikiem jako obiekty (5,8–7,3 razy), odczyt po kluczu z wynikiem jako obiekty (2,7–3,6 razy), odtworzenie (2,4–2,8 razy) i `UPDATE` (2,0–2,7 razy). Wstawienie pojedynczymi instrukcjami jest szybsze o 22–25%, a jednym wywołaniem trwa w przeglądarce 146–147 ms, tyle co natywnie (144 ms). W Node.js pętla prototypu wykonana na końcu obciążenia trwa 1,16 s, trzy razy dłużej niż ta sama pętla w fazie wstawienia; przyczyny w prototypie nie badano. Top-k nie zmienił się w WebAssembly (0,99–1,02 razy), a natywnie jest wolniejszy o 21%, co wiąże się z przechowywaniem krótkich tekstów w wartości ([optimization-results.md §14](optimization-results.md#14-krótkie-teksty-w-wartości)). Ścieżka z wynikiem jako JSON zyskała w operacjach przekazujących dane mniej (odczyt po kluczu −24%, 10 000 wierszy −8 do −10%), bo binarny format wyniku dotyczy ścieżki obiektowej; ta jest teraz szybsza od JSON zarówno przy jednym wierszu (3,28 wobec 4,16 µs), jak i przy 10 000 wierszy (1,55 wobec 7,06 ms).
+
+![Obciążenie w przeglądarce, prototyp i wersja po optymalizacjach](data/benchmark-2/figures/02-obciazenie-przegladarka.svg)
+
+### 3.3 Narzut WebAssembly
+
+Krotność czasu natywnego tej samej wersji, ścieżka z wynikiem jako obiekty JS (prototyp → wersja po zmianach):
+
+| Operacja | Node.js | Przeglądarka |
+|---|---:|---:|
+| Wstawienie N wierszy (1 transakcja) | 1,79× → 1,77× | 1,72× → 1,65× |
+| Wstawienie N wierszy jednym wywołaniem | – → 1,05× | – → 1,02× |
+| Odczyt po kluczu | 3,9× → 2,7× | 3,9× → 3,6× |
+| Zakres klucza + SUM | 0,96× → 0,84× | 0,92× → 0,93× |
+| Pełny skan z filtrem | 0,96× → 0,84× | 0,97× → 0,82× |
+| GROUP BY | 1,06× → 0,89× | 1,07× → 0,87× |
+| Pobranie 10 000 wierszy | 2,6× → 0,58× | 3,1× → 0,54× |
+| Snapshot | 1,34× → 1,28× | 1,27× → 1,31× |
+| Odtworzenie | 1,03× → 1,19× | 1,03× → 1,15× |
+
+Operacje wykonywane w całości w silniku są w WebAssembly co najmniej tak szybkie jak natywnie: zakres klucza, pełny skan i grupowanie 0,82–0,93 razy, top-k 0,77–0,78 razy, bo natywnie zwolnił. Pobranie 10 000 wierszy jest w WebAssembly szybsze niż natywnie, bo moduł koduje wynik wprost z wierszy tabeli, a benchmark natywny kopiuje każdy wiersz do wyniku pośredniego. Wstawienie wielu wierszy jednym wywołaniem ma narzut 2–5%, wobec 65–77% przy instrukcji na wiersz. Odczyt po kluczu jest nadal 2,7–3,6 razy wolniejszy niż natywnie, choć szybszy niż w prototypie, bo natywne wykonanie przyspieszyło bardziej (2,28 → 0,91 µs) niż przejście przez granicę.
+
+![Narzut WebAssembly](data/benchmark-2/figures/05-narzut-wasm.svg)
+
+### 3.4 Trwały zapis w IndexedDB i silnik w Web Workerze
+
+| Operacja | IndexedDB, tryb domyślny | IndexedDB, `strict` | Worker, pamięć | Worker + IndexedDB |
+|---|---:|---:|---:|---:|
+| Wstawienie N wierszy | 442 → 324 ms | 453 → 334 ms | 350 → 271 ms | 449 → 332 ms |
+| Odczyt po kluczu | 9,47 → 3,71 µs | 9,59 → 3,63 µs | 59,2 → 48,1 µs | 59,4 → 49,2 µs |
+| Pobranie 10 000 wierszy | 13,9 → 1,50 ms | 13,9 → 1,40 ms | 23,2 → 13,5 ms | 25,7 → 13,8 ms |
+| Trwałe zatwierdzenie 1 wiersza | 376 → 364 µs | 975 → 979 µs | – | 419 → 448 µs |
+| 1000 zatwierdzeń, jedno oczekiwanie | 5,86 → 5,07 ms | 6,62 → 5,89 ms | – | 6,15 → 5,21 ms |
+| Ponowne otwarcie + 1. zapytanie | 173 → 81,4 ms | 173 → 81,4 ms | – | 179 → 88,7 ms |
+
+Trwałe zatwierdzenie pojedynczego wiersza nie zmieniło się (różnice w rozrzucie), bo jego koszt to transakcja IndexedDB. Ponowne otwarcie bazy skróciło się o połowę razem z odtworzeniem. W trybie Worker każde wywołanie nadal kosztuje około 45 µs komunikatu w obie strony, więc odczyt po kluczu zyskał tylko 18%, a pobranie 10 000 wierszy 42–46%: przesłanie tablic wierszy między wątkami zostało bez zmian.
+
+### 3.5 Pauza checkpointu
+
+| Liczba wierszy | Najdłuższa pauza: prototyp | po zmianach | Cały checkpoint: prototyp | po zmianach |
+|---:|---:|---:|---:|---:|
+| 10 000 | 6,27 ms | 2,69 ms | 10,8 ms | 10,4 ms |
+| 50 000 | 20,4 ms | 1,22 ms | 25,7 ms | 19,2 ms |
+| 100 000 | 40,3 ms | 2,60 ms | 47,9 ms | 35,6 ms |
+
+Flat-SQL z IndexedDB w trybie domyślnym; w trybie `strict` pauza przy 100 000 wierszy 40,0 → 1,56 ms. Najdłuższa pauza pętli zdarzeń jest teraz na poziomie sondy w bezczynności (2,1 ms) i nie rośnie z liczbą wierszy, więc mieści się w budżecie klatki (16,7 ms) przy każdym rozmiarze bazy. Cały checkpoint przy 50 000 i 100 000 wierszy trwa krócej o około 25%, przy 10 000 wierszy tyle samo.
+
+![Pauza checkpointu](data/benchmark-2/figures/06-pauza-checkpointu.svg)
+
+### 3.6 Rozmiar modułu, zimny start i pamięć
+
+Moduł WebAssembly urósł z 219 575 do 274 098 B po kompresji gzip (+25%), a pliki pobierane przy zimnym starcie przeglądarki z 230 do 287 KiB. Zimny start wydłużył się: w Node.js 53,9 → 58,3 ms (+8%, przedziały rozłączne), w przeglądarce 42,5 → 49,0 ms (+15%) i z IndexedDB 80,8 → 90,5 ms (+12%), w obu przypadkach w rozrzucie. Otwarcie bazy w pamięci jest szybsze o 11–23%, a dłuższe są inicjalizacja modułu (+6–28%) i pierwsze zapytanie, które trwa 5,6–6,9 ms wobec 3,8–4,8 ms: zapytanie wykonywane po raz pierwszy kompiluje plan i wyrażenia, a moduł ma więcej kodu do pierwszej kompilacji przez V8; podziału tego czasu nie mierzono. Pamięć liniowa WebAssembly po wczytaniu 100 000 wierszy w jednej transakcji zmalała z 73,3 do 51,8 MiB (−29%) w Node.js i w przeglądarce.
+
+### 3.7 Local-First a Cloud-First
+
+Lokalny odczyt po kluczu z tekstem SQL skrócił się w Node.js z 14,5 do 10,1 µs, w przeglądarce pozostał na 14,2 µs. Odczyt przez serwer na tym samym komputerze trwa 0,67 ms w Node.js (+11% wobec prototypu) i 2,55 ms w przeglądarce, a z symulowanym RTT 20–100 ms tyle co RTT, jak w Benchmarku 1. Różnica rzędów wielkości między odczytem lokalnym i przez sieć się nie zmieniła.
+
+### 3.8 Koszt utrwalania plików
+
+| Operacja | Windows: prototyp → po zmianach | Linux (WSL 2): prototyp → po zmianach |
+|---|---:|---:|
+| `FsStore`, zatwierdzenie z `fsync` | 1,36 → 0,68 ms | 2,68 → 2,47 ms |
+| `FsStore`, zatwierdzenie bez `fsync` | 585 → 77,7 µs | 368 → 161 µs |
+| `FsStore`, ponowne otwarcie | 111 → 52,2 ms | 123 → 58,8 ms |
+| `FsStore`, checkpoint z `fsync` | 47,1 → 37,3 ms | 72,9 → 56,3 ms |
+| CLI, zatwierdzenie z `fsync` | 485 → 491 µs | 1,97 → 2,05 ms |
+| CLI, zatwierdzenie bez `fsync` | 9,98 → 9,23 µs | 8,25 → 6,28 µs |
+| CLI, ponowne otwarcie | 118 → 45,9 ms | 152 → 72,2 ms |
+
+Zatwierdzenie w magazynie plikowym Node.js przyspieszyło przez otwarty plik WAL: bez `fsync` 7,5 razy w Windows i 2,3 razy w Linuksie. Zatwierdzenie z `fsync` w CLI nie zmieniło się, bo jego koszt to sam `fsync`; w `FsStore` w Linuksie różnica jest w rozrzucie z tego samego powodu.
+
+### 3.9 Słabe strony prototypu po optymalizacjach
+
+| | Objaw w Benchmarku 1 (przeglądarka) | Benchmark 2 (przeglądarka, wynik jako obiekty) | Stan |
+|---|---|---|---|
+| S1 | `COUNT(*)` po indeksie 438 µs | 1,90 µs | usunięta |
+| S2 | ponowne sprawdzanie warunku gwarantowanego przez ścieżkę dostępu | zakres klucza 77,6 → 45,5 µs, plan bez tego warunku | usunięta |
+| S3 | odczyt po kluczu 9,2 µs (obiekty), 5,6 µs (JSON); 10 000 wierszy 12,0 ms | 3,28 µs (JSON 4,16 µs); 1,55 ms | zmniejszona; odczyt po kluczu nadal 3,6× natywnego |
+| S4 | `UPDATE` 10% 31 ms, `DELETE` 27 ms | 15,4 ms i 17,5 ms | zmniejszona |
+| S5 | snapshot 32 ms, odtworzenie 116 ms, ponowne otwarcie 174 ms | 22,6 ms, 46,4 ms, 81,4 ms | zmniejszona; SQLite kopiuje strony (1,2–1,6 ms) |
+| S6 | 73 MiB pamięci liniowej po wczytaniu w jednej transakcji | 51,8 MiB | zmniejszona |
+| S7 | pauza checkpointu 40 ms przy 100 000 wierszy | 2,6 ms | usunięta |
+| S8 | wstawienie 343–391 ms | 267 ms pojedynczo, 147 ms jednym wywołaniem (natywnie 144 ms) | usunięta przy wstawianiu wielu wierszy |
+| S9 | grupowanie 15,6 ms, pełny skan 8,0 ms | 9,38 ms, 4,40 ms | zmniejszona; DuckDB-Wasm 3,6 ms i 0,6 ms |
+| S10 | Worker: 56 µs na wywołanie | około 45 µs (prototyp w tym pomiarze około 50 µs) | koszt komunikatu bez zmian (poza zakresem optymalizacji) |
+| S11 | `FsStore` zatwierdza bez `fsync` w 0,40–0,60 ms | 78 µs (Windows), 161 µs (Linux) | zmniejszona |
+
+### 3.10 Odniesienie do hipotez
+
+H2 po optymalizacjach: operacje wykonywane w całości w silniku są w WebAssembly szybsze niż natywnie lub równe (0,82–0,93 razy), a narzut ogranicza się do operacji przekazujących pojedyncze wartości przez granicę (odczyt po kluczu 2,7–3,6 razy); operacje przekazujące dużo danych jednym buforem mają narzut bliski zeru albo są szybsze niż natywnie (pobranie 10 000 wierszy, wstawienie jednym wywołaniem). H3 po optymalizacjach: przewaga JSON nad obiektami przestała istnieć; wynik dekodowany w JavaScripcie z jednego bufora jest szybszy od JSON przy jednym wierszu (1,27 razy) i przy 10 000 wierszy (4,6 razy). H5: koszt trwałego zatwierdzenia w IndexedDB się nie zmienił, a koszt przeniesiony na checkpoint i ponowne otwarcie zmalał (pauza checkpointu 16 razy, ponowne otwarcie 2,1 razy).

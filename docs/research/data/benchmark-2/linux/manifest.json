@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-28T01:50:56.136Z",
+  "options": {
+    "runs": 10,
+    "targets": "node,native",
+    "kinds": "fsync",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "/home/patry/b2/prototyp",
+    "after": "/home/patry/b2/po-2.5",
+    "out": "/home/patry/b2linux"
+  },
+  "before": {
+    "root": "/home/patry/b2/prototyp",
+    "describe": "prototyp",
+    "commit": "261d78fb445ed185c832a1ef2d3d52a6bbdc0a65",
+    "subject": "bench: module size of Worker engines, plain values from DuckDB, table alignment in the report",
+    "codeTreeSha256": "46c52d7b8ed60244168408d1410adbb2bcee73dd5397e29ec94d32d5216781f9",
+    "module": {
+      "bytes": 578926,
+      "gzipBytes": 219575
+    }
+  },
+  "after": {
+    "root": "/home/patry/b2/po-2.5",
+    "describe": "po-2.5",
+    "commit": "45f581d9ff1978ce9e56f8e00b2c6d80214a9bae",
+    "subject": "docs: compare build options of the WebAssembly module",
+    "codeTreeSha256": "978ee6dcd9ba353b60b6be9975cb262eb89155a138a02e55becd16e75562f7a9",
+    "module": {
+      "bytes": 724002,
+      "gzipBytes": 274098
+    }
+  },
+  "cpuLoadBefore": 0.0019455252918287938,
+  "finished": "2026-10-28T01:52:08.303Z",
+  "note": "WSL 2 (jądro 6.6.87.2-microsoft-standard-WSL2, Ubuntu 24.04) na tym samym laptopie, katalog tymczasowy /tmp na ext4 (wirtualny dysk WSL na tym samym SSD); CLI obu wersji zbudowane na x86_64-unknown-linux-musl z rust-lld, pakiety WebAssembly skopiowane z kompilacji w Windows (bench/versions); Node.js 24.21.0 jak w Benchmarku 1; skrypt linux.sh"
+}

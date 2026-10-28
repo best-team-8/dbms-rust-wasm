@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 839.36 624" width="839.36" height="624" font-family="Segoe UI, system-ui, sans-serif">
+<rect width="839.36" height="624" fill="#ffffff"/>
+<text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Obciążenie w przeglądarce, wynik jako obiekty JS</text>
+<text x="16" y="42" font-size="12" fill="#52514e">N = 100 000 wierszy; liczba po prawej: krotność przyspieszenia (mediana prototypu / mediana po zmianach)</text>
+<circle cx="284.36" cy="70" r="4.5" fill="#8b8a86"/><text x="293.36" y="74" font-size="12" fill="#0b0b0b">prototyp</text>
+<circle cx="361.16" cy="70" r="4.5" fill="#2a78d6"/><text x="370.16" y="74" font-size="12" fill="#0b0b0b">po optymalizacjach</text>
+<line x1="279.36" x2="279.36" y1="82" y2="580" stroke="#e4e3df" stroke-width="1"/>
+<text x="279.36" y="596" font-size="11" fill="#52514e" text-anchor="middle">1 µs</text>
+<line x1="361.02666666666664" x2="361.02666666666664" y1="82" y2="580" stroke="#e4e3df" stroke-width="1"/>
+<text x="361.02666666666664" y="596" font-size="11" fill="#52514e" text-anchor="middle">10 µs</text>
+<line x1="442.6933333333333" x2="442.6933333333333" y1="82" y2="580" stroke="#e4e3df" stroke-width="1"/>
+<text x="442.6933333333333" y="596" font-size="11" fill="#52514e" text-anchor="middle">100 µs</text>
+<line x1="524.36" x2="524.36" y1="82" y2="580" stroke="#e4e3df" stroke-width="1"/>
+<text x="524.36" y="596" font-size="11" fill="#52514e" text-anchor="middle">1 ms</text>
+<line x1="606.0266666666666" x2="606.0266666666666" y1="82" y2="580" stroke="#e4e3df" stroke-width="1"/>
+<text x="606.0266666666666" y="596" font-size="11" fill="#52514e" text-anchor="middle">10 ms</text>
+<line x1="687.6933333333334" x2="687.6933333333334" y1="82" y2="580" stroke="#e4e3df" stroke-width="1"/>
+<text x="687.6933333333334" y="596" font-size="11" fill="#52514e" text-anchor="middle">100 ms</text>
+<line x1="769.36" x2="769.36" y1="82" y2="580" stroke="#e4e3df" stroke-width="1"/>
+<text x="769.36" y="596" font-size="11" fill="#52514e" text-anchor="middle">1 s</text>
+<text x="269.36" y="109" font-size="12" fill="#0b0b0b" text-anchor="end">Wstawienie N wierszy (1 transakcja)</text>
+<g><title>Wstawienie N wierszy (1 transakcja) – prototyp: mediana 357 ms, Q1–Q3 355 ms–361 ms, n = 10</title>
+<line x1="732.6105358641171" x2="733.2058906620521" y1="95" y2="95" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="732.8512435129836" cy="95" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Wstawienie N wierszy (1 transakcja) – po optymalizacjach: mediana 267 ms, Q1–Q3 266 ms–269 ms, n = 10</title>
+<line x1="722.3846660842684" x2="722.7510177191576" y1="107" y2="107" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="722.4655920789373" cy="107" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="741.2058906620521" y="109" font-size="11" fill="#52514e">1,34×</text>
+</g>
+<text x="269.36" y="147" font-size="12" fill="#0b0b0b" text-anchor="end">Wstawienie N wierszy jednym wywołaniem</text>
+<g><title>Wstawienie N wierszy jednym wywołaniem – prototyp: mediana 405 ms, Q1–Q3 403 ms–426 ms, n = 10</title>
+<line x1="737.1099632926368" x2="739.0788784692385" y1="133" y2="133" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="737.3358601252658" cy="133" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Wstawienie N wierszy jednym wywołaniem – po optymalizacjach: mediana 147 ms, Q1–Q3 146 ms–148 ms, n = 10</title>
+<line x1="701.1688869833364" x2="701.5497788223979" y1="145" y2="145" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="701.4359100757998" cy="145" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="747.0788784692385" y="147" font-size="11" fill="#52514e">2,8×</text>
+</g>
+<text x="269.36" y="185" font-size="12" fill="#0b0b0b" text-anchor="end">Odczyt po kluczu</text>
+<g><title>Odczyt po kluczu – prototyp: mediana 8,78 µs, Q1–Q3 8,72 µs–8,90 µs, n = 10</title>
+<line x1="356.16071060645476" x2="356.8780716020472" y1="171" y2="171" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="356.42214960308434" cy="171" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Odczyt po kluczu – po optymalizacjach: mediana 3,28 µs, Q1–Q3 3,15 µs–3,30 µs, n = 10</title>
+<line x1="320.110209440443" x2="321.71470803274497" y1="183" y2="183" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="321.47888238454124" cy="183" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="364.8780716020472" y="185" font-size="11" fill="#52514e">2,7×</text>
+</g>
+<text x="269.36" y="223" font-size="12" fill="#0b0b0b" text-anchor="end">COUNT po indeksie</text>
+<g><title>COUNT po indeksie – prototyp: mediana 437 µs, Q1–Q3 428 µs–449 µs, n = 10</title>
+<line x1="494.2920959308203" x2="495.9662391854163" y1="209" y2="209" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="495.01919624043694" cy="209" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>COUNT po indeksie – po optymalizacjach: mediana 1,90 µs, Q1–Q3 1,84 µs–1,93 µs, n = 10</title>
+<line x1="300.93856627323066" x2="302.6805115097148" y1="221" y2="221" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="302.1248769660907" cy="221" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="503.9662391854163" y="223" font-size="11" fill="#52514e">230×</text>
+</g>
+<text x="269.36" y="261" font-size="12" fill="#0b0b0b" text-anchor="end">Zakres klucza (1000 wierszy) + SUM</text>
+<g><title>Zakres klucza (1000 wierszy) + SUM – prototyp: mediana 77,6 µs, Q1–Q3 77,4 µs–79,5 µs, n = 10</title>
+<line x1="433.6043144183269" x2="434.5427044118163" y1="247" y2="247" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="433.6872790148884" cy="247" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Zakres klucza (1000 wierszy) + SUM – po optymalizacjach: mediana 45,5 µs, Q1–Q3 43,7 µs–47,1 µs, n = 10</title>
+<line x1="413.3427943965968" x2="416.02767173037796" y1="259" y2="259" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="414.7350207693603" cy="259" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="442.5427044118163" y="261" font-size="11" fill="#52514e">1,71×</text>
+</g>
+<text x="269.36" y="299" font-size="12" fill="#0b0b0b" text-anchor="end">Pełny skan z filtrem</text>
+<g><title>Pełny skan z filtrem – prototyp: mediana 7,83 ms, Q1–Q3 7,78 ms–7,90 ms, n = 10</title>
+<line x1="597.1421337786335" x2="597.6740682765164" y1="285" y2="285" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="597.3522424939429" cy="285" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Pełny skan z filtrem – po optymalizacjach: mediana 4,40 ms, Q1–Q3 4,39 ms–4,42 ms, n = 10</title>
+<line x1="576.7981315161599" x2="577.064469774616" y1="297" y2="297" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="576.8753689627499" cy="297" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="605.6740682765164" y="299" font-size="11" fill="#52514e">1,78×</text>
+</g>
+<text x="269.36" y="337" font-size="12" fill="#0b0b0b" text-anchor="end">GROUP BY (100 grup)</text>
+<g><title>GROUP BY (100 grup) – prototyp: mediana 15,6 ms, Q1–Q3 15,4 ms–15,7 ms, n = 10</title>
+<line x1="621.2455851534642" x2="622.1038359343245" y1="323" y2="323" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="621.8212370820765" cy="323" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>GROUP BY (100 grup) – po optymalizacjach: mediana 9,38 ms, Q1–Q3 9,28 ms–9,53 ms, n = 10</title>
+<line x1="603.3618440210471" x2="604.3343695484443" y1="335" y2="335" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="603.7664893142666" cy="335" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="630.1038359343245" y="337" font-size="11" fill="#52514e">1,66×</text>
+</g>
+<text x="269.36" y="375" font-size="12" fill="#0b0b0b" text-anchor="end">ORDER BY … LIMIT 10</text>
+<g><title>ORDER BY … LIMIT 10 – prototyp: mediana 5,44 ms, Q1–Q3 5,38 ms–5,56 ms, n = 10</title>
+<line x1="584.021594148566" x2="585.2181390533842" y1="361" y2="361" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="584.4330951698851" cy="361" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>ORDER BY … LIMIT 10 – po optymalizacjach: mediana 5,33 ms, Q1–Q3 5,29 ms–5,39 ms, n = 10</title>
+<line x1="583.4380225759032" x2="584.1351926023297" y1="373" y2="373" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="583.6844263672688" cy="373" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="593.2181390533842" y="375" font-size="11" fill="#52514e">1,02×</text>
+</g>
+<text x="269.36" y="413" font-size="12" fill="#0b0b0b" text-anchor="end">Pobranie 10 000 wierszy</text>
+<g><title>Pobranie 10 000 wierszy – prototyp: mediana 11,4 ms, Q1–Q3 11,3 ms–11,4 ms, n = 10</title>
+<line x1="610.221654989606" x2="610.7558586230675" y1="399" y2="399" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="610.5968109381131" cy="399" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Pobranie 10 000 wierszy – po optymalizacjach: mediana 1,55 ms, Q1–Q3 1,49 ms–1,60 ms, n = 10</title>
+<line x1="538.5422049885103" x2="540.9882108785309" y1="411" y2="411" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="539.9894598877863" cy="411" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="618.7558586230675" y="413" font-size="11" fill="#52514e">7,3×</text>
+</g>
+<text x="269.36" y="451" font-size="12" fill="#0b0b0b" text-anchor="end">UPDATE 10% wierszy</text>
+<g><title>UPDATE 10% wierszy – prototyp: mediana 30,9 ms, Q1–Q3 30,7 ms–31,1 ms, n = 10</title>
+<line x1="645.8139660498455" x2="646.230254677051" y1="437" y2="437" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="645.9882533332077" cy="437" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>UPDATE 10% wierszy – po optymalizacjach: mediana 15,4 ms, Q1–Q3 15,1 ms–15,8 ms, n = 10</title>
+<line x1="620.7047205631495" x2="622.1547973736293" y1="449" y2="449" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="621.3005319531503" cy="449" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="654.230254677051" y="451" font-size="11" fill="#52514e">2,0×</text>
+</g>
+<text x="269.36" y="489" font-size="12" fill="#0b0b0b" text-anchor="end">DELETE 10% wierszy</text>
+<g><title>DELETE 10% wierszy – prototyp: mediana 26,9 ms, Q1–Q3 26,6 ms–27,5 ms, n = 10</title>
+<line x1="640.6953202982995" x2="641.9554448705312" y1="475" y2="475" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="641.1494628920634" cy="475" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>DELETE 10% wierszy – po optymalizacjach: mediana 17,5 ms, Q1–Q3 17,0 ms–18,2 ms, n = 10</title>
+<line x1="624.9065929200472" x2="627.214638181285" y1="487" y2="487" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="625.8037681279236" cy="487" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="649.9554448705312" y="489" font-size="11" fill="#52514e">1,54×</text>
+</g>
+<text x="269.36" y="527" font-size="12" fill="#0b0b0b" text-anchor="end">Snapshot</text>
+<g><title>Snapshot – prototyp: mediana 32,2 ms, Q1–Q3 31,8 ms–32,3 ms, n = 10</title>
+<line x1="647.0651848445996" x2="647.6417231814212" y1="513" y2="513" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="647.507069832437" cy="513" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Snapshot – po optymalizacjach: mediana 22,6 ms, Q1–Q3 22,2 ms–23,0 ms, n = 10</title>
+<line x1="634.3141565402797" x2="635.6101546477817" y1="525" y2="525" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="634.9808155094781" cy="525" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="655.6417231814212" y="527" font-size="11" fill="#52514e">1,42×</text>
+</g>
+<text x="269.36" y="565" font-size="12" fill="#0b0b0b" text-anchor="end">Odtworzenie</text>
+<g><title>Odtworzenie – prototyp: mediana 115 ms, Q1–Q3 114 ms–116 ms, n = 10</title>
+<line x1="692.3487287613227" x2="692.8582764248836" y1="551" y2="551" stroke="#8b8a86" stroke-width="2" stroke-linecap="round"/>
+<circle cx="692.561544144141" cy="551" r="4.5" fill="#8b8a86" stroke="#ffffff" stroke-width="2"/>
+</g>
+<g><title>Odtworzenie – po optymalizacjach: mediana 46,4 ms, Q1–Q3 46,1 ms–46,9 ms, n = 10</title>
+<line x1="660.2346785860509" x2="660.8126374184707" y1="563" y2="563" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="660.4207286608193" cy="563" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="700.8582764248836" y="565" font-size="11" fill="#52514e">2,5×</text>
+</g>
+<text x="823.36" y="616" font-size="10.5" fill="#52514e" text-anchor="end">skala logarytmiczna; punkt – mediana uruchomień, odcinek – Q1–Q3</text>
+</svg>
