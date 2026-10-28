@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-28T00:46:02.933Z",
+  "options": {
+    "runs": 10,
+    "targets": "node",
+    "kinds": "workload,memory",
+    "engines": "flatsql,flatsql-json",
+    "browserChannel": "msedge",
+    "rows": null,
+    "before": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.6",
+    "after": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\v25-oz",
+    "out": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\docs\\research\\data\\optimization\\16-build-options\\oz"
+  },
+  "before": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\po-2.6",
+    "describe": "po-2.6",
+    "commit": "a397241bf4963cb02c0c40f69c860d57f52e382e",
+    "subject": "core/bridge: encode checkpoints in steps",
+    "codeTreeSha256": "978ee6dcd9ba353b60b6be9975cb262eb89155a138a02e55becd16e75562f7a9",
+    "module": {
+      "bytes": 724002,
+      "gzipBytes": 274098
+    }
+  },
+  "after": {
+    "root": "C:\\Users\\patry\\Documents\\Projects\\dbms-rust-wasm\\bench\\versions\\v25-oz",
+    "describe": "po-2.6-dirty",
+    "commit": "a397241bf4963cb02c0c40f69c860d57f52e382e",
+    "subject": "core/bridge: encode checkpoints in steps",
+    "codeTreeSha256": "0b5b468e39938fdf52d0ec6babe1eda5f9ecad0fe26fabdb259facb017889ab0",
+    "module": {
+      "bytes": 493980,
+      "gzipBytes": 205859
+    }
+  },
+  "cpuLoadBefore": 0.03333701901813357,
+  "finished": "2026-10-28T00:48:54.489Z"
+}

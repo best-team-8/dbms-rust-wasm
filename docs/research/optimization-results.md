@@ -47,6 +47,7 @@ Rozmiar modułu WebAssembly (gzip -9) obu wersji zapisuje się w manifeście pom
 | [13. Wstawianie wielu wierszy jednym wywołaniem](#13-wstawianie-wielu-wierszy-jednym-wywołaniem) | S8 | 100 000 wierszy w jednej transakcji: Node.js 283 → 160 ms, przeglądarka 273 → 151 ms (natywnie 145 ms) | potwierdzona |
 | [14. Krótkie teksty w wartości](#14-krótkie-teksty-w-wartości) | S5, S6 | pamięć po wczytaniu 54,8 → 51,8 MiB, alokacje odtworzenia 319 540 → 119 440; przeglądarka: zakres klucza 51,2 → 45,4 µs (−11%), grupowanie 10,9 → 9,36 ms (−14%), snapshot 24,3 → 21,9 ms (−10%), odtworzenie 49,1 → 46,3 ms (−6%); natywnie top-k +18% | częściowo potwierdzona |
 | [15. Checkpoint krokami](#15-checkpoint-krokami) | S7 | najdłuższa pauza checkpointu 100 000 wierszy w przeglądarce 27,8 → 1,70 ms, cały checkpoint bez zmiany (34,0 → 33,7 ms) | potwierdzona |
+| [16. Poziomy optymalizacji, alokator i SIMD](#16-poziomy-optymalizacji-alokator-i-simd) | – | siedem wariantów kompilacji: mniejszy moduł (`s`, `z`) wolniejszy o 5–78%, talc i `-O4` bez zysku, SIMD −5% w odtworzeniu; konfiguracja bez zmian | odrzucona |
 
 ## 1. Liczenie wierszy po indeksie bez ich czytania
 
@@ -257,3 +258,17 @@ Status: częściowo potwierdzona: mniej pamięci i alokacji, szybsze odtworzenie
 | Ograniczenia | Zapis do magazynu po kodowaniu jest wciąż jednym wywołaniem (`put` obiektu `Blob`, około 1,6 ms dla 4,5 MB). Wiersze zmieniane w trakcie checkpointu są kopiowane, więc przy intensywnych zapisach w trakcie checkpointu rośnie zużycie pamięci do jego końca. Pomiar pauzy obejmuje tylko przeglądarkę Edge. |
 
 Status: potwierdzona.
+
+## 16. Poziomy optymalizacji, alokator i SIMD
+
+| Element | Zawartość |
+|---|---|
+| Słabość | Nie słabość z Benchmarku 1, lecz otwarte pytanie konfiguracji: moduł jest budowany z `opt-level = 3`, LTO, jedną jednostką kodu i `wasm-opt -O3`, z alokatorem domyślnym `wasm32-unknown-unknown` (port dlmalloc) i bez instrukcji SIMD. |
+| Hipoteza | Optymalizacje LLVM nie są dostrojone do WebAssembly, więc moduł optymalizowany pod rozmiar (`"s"`, `"z"`) nie musi być wolniejszy [W11]; alokator talc jest szybszy od dlmalloc w operacjach z wieloma alokacjami (wstawianie, odtworzenie, `UPDATE`, pobranie 10 000 wierszy); `+simd128` przyspieszy pętle przetwarzające bajty i wartości. |
+| Zmiana | Bez zmiany kodu: siedem wariantów wersji po §15, każdy z jedną zmianą konfiguracji (skrypt `variants.py`, osobne kopie robocze w `bench/versions/`): `opt-level = 2`; `opt-level = "s"` z `wasm-opt -Os`; `opt-level = "z"` z `wasm-opt -Oz`; bez `wasm-opt`; `wasm-opt -O4`; talc 5.1 jako alokator modułu (zależność tylko `flatsql-wasm`); `-C target-feature=+simd128` dla celu wasm32 (obecność funkcji `simd128` w module sprawdzona w sekcji `target_features`). |
+| Pomiar | `bench/compare.js`, przed: tag `po-2.6`, po: wariant, Node.js, obciążenie i pamięć po wczytaniu, 10 uruchomień na wersję na przemian, 28.10.2026; obciążenie procesora przed pomiarem 2,0–18,3% (aplikacje użytkownika, najwięcej przy wariancie bez `wasm-opt`). Przeglądarki nie mierzono, bo żaden wariant nie został przyjęty; Node.js wykonuje WebAssembly tym samym silnikiem V8 co Edge. Zestawienie: `summary-node.md` (skrypt `summary.mjs`). Dane: [data/optimization/16-build-options/](data/optimization/16-build-options/). |
+| Wynik | Rozmiar modułu po kompresji gzip wobec 274 098 B i zmiana median ścieżki obiektowej (* przedziały rozłączne). `opt-level = "s"`: 228 306 B (−17%), wstawienie +25%*, zakres klucza +40%*, pobranie 10 000 wierszy +34%*, odtworzenie +36%*. `opt-level = "z"`: 205 859 B (−25%), zakres klucza +78%*, top-k +56%*, pobranie 10 000 wierszy +53%*, pełny przegląd +48%*. `opt-level = 2`: 260 281 B (−5%), wstawienie +9,5%*, wstawienie jednym wywołaniem +16,5%*, zakres klucza +10,6%*, snapshot −14,6%*. Bez `wasm-opt`: 291 622 B (+6%), wstawienie jednym wywołaniem −2,4%*, reszta w rozrzucie. `wasm-opt -O4`: 276 427 B (+1%), odtworzenie −4,6%*, grupowanie +4,8%*. talc: 274 159 B, wszystkie operacje w rozrzucie, pamięć po wczytaniu +1,0%*. `+simd128`: 270 683 B (−1%), odtworzenie −5,1%*, reszta w rozrzucie. Hipoteza o mniejszym module bez straty czasu nie potwierdziła się: w tym silniku `opt-level = 3` jest wyraźnie najszybszy. Alokator talc nie przyspieszył operacji z wieloma alokacjami, także po §14, które usunęło dwie trzecie alokacji odtworzenia. SIMD daje 5% w jednej operacji. |
+| Wpływ na inne operacje | Brak (konfiguracja bez zmian). |
+| Ograniczenia | Tylko Node.js; wariantów nie łączono (np. talc z SIMD). Warianty konfiguracji mają ten sam skrót plików kodu co wersja bazowa (skrót obejmuje `crates`, `bridge`, `server`, a nie `Cargo.toml` obszaru roboczego ani `.cargo`); identyfikuje je katalog wariantu. Moduł z SIMD nie wczytałby się w Safari starszym niż 16.4. |
+
+Status: odrzucona; konfiguracja kompilacji bez zmian.
