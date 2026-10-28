@@ -12,6 +12,7 @@
     "build:dev": "wasm-pack build crates/flatsql-wasm --dev --target web --out-dir ../../pkg --out-name flatsql",
     "test": "node --test \"test/**/*.test.js\"",
     "test:rust": "cargo test --workspace",
+    "check:links": "node scripts/check-links.mjs",
     "start": "node server/server.js",
     "start:persistent": "node server/server.js --data server/data",
     "bench": "node bench/run.js --targets node",
