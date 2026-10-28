@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-28 |
 | Rodzaj | architektura |
-| Powiązane | ADR-0005, ADR-0006, ADR-0008, ADR-0013, ADR-0015, ADR-0018, ADR-0043; future 5.4–5.8, 12.11–12.15; [real-world-usage.md §2 H](../research/real-world-usage.md#h-wyszukiwanie-semantyczne-i-pamięć-asystentów), [use-cases.md §10](../use-cases.md) |
+| Powiązane | ADR-0005, ADR-0006, ADR-0008, ADR-0013, ADR-0015, ADR-0018, ADR-0043; future 5.4–5.8, 12.11–12.15; [use-cases.md H](../research/use-cases.md#h-wyszukiwanie-semantyczne-i-pamięć-asystentów), [use-cases.md](../research/use-cases.md) |
 
 ## Kontekst
 
@@ -36,11 +36,11 @@ Pamięć asystentów i agentów programowych w przeglądarce to rosnąca kategor
 
 ## Konsekwencje
 
-- Nowe zadania w [todo_future.md](../todo_future.md): 5.7 (gałęzie i scalanie warunkowe), 5.8 (przykład pamięci asystenta), 12.11 (odtwarzanie bazy krokami, bo wektory powiększą snapshot), 12.12 (szybsza suma CRC32), 12.13 (port warstwy wierszy), 12.14 (drzewo trwałe, warunkowo), 12.15 (warianty modułu); MVCC jako wariant kompilacji w kierunkach na później.
+- Nowe zadania w [future/todo.md](../future/todo.md): 5.7 (gałęzie i scalanie warunkowe), 5.8 (przykład pamięci asystenta), 12.11 (odtwarzanie bazy krokami, bo wektory powiększą snapshot), 12.12 (szybsza suma CRC32), 12.13 (port warstwy wierszy), 12.14 (drzewo trwałe, warunkowo), 12.15 (warianty modułu); MVCC jako wariant kompilacji w kierunkach na później.
 - Tracimy wobec MVCC tani start gałęzi (do czasu 12.14) i wiele długich transakcji naraz na żywym stanie; gwarancje scalania warunkowego obejmują jedno urządzenie, między replikami atomowy pozostaje wiersz (ADR-0018).
-- [real-world-usage.md](../research/real-world-usage.md) opisuje dopasowanie dojrzałego Flat-SQL do pamięci asystentów po tych zadaniach.
+- [use-cases.md](../research/use-cases.md) opisuje dopasowanie dojrzałego Flat-SQL do pamięci asystentów po tych zadaniach.
 - Wszystko to jest pracą po pracy inżynierskiej; w pracy dyplomowej kierunek rozwoju opisuje się słowami.
 
 ## Źródła
 
-[D5], [L2]; [benchmark-results.md §3](../research/benchmark-results.md#3-benchmark-2-wersja-po-optymalizacjach), [optimization-results.md §1, §6, §15](../research/optimization-results.md), [use-cases.md §10](../use-cases.md).
+[D5], [L2]; [benchmark-results.md §2](../research/benchmark-results.md#2-benchmark-2-wersja-po-optymalizacjach), [optimization-results.md §1, §6, §15](../research/optimization-results.md), [use-cases.md](../research/use-cases.md).

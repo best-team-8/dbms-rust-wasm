@@ -28,7 +28,7 @@
 
 - **Pozostawienie kopii całego wiersza i tylko pominięcie niezmienionych indeksów** – kopia z walidacją to najdroższa część po indeksach.
 - **Dziennik wycofania z całym poprzednim wierszem przy zmianie w miejscu** – wymaga kopii, której zmiana ma uniknąć.
-- **Zapis w WAL tylko zmienionych kolumn** – zmienia format WAL i paczek zmian (ADR-0009, ADR-0011) oraz semantykę LWW per wiersz (ADR-0015); osobna decyzja z LWW per kolumna ([todo_future.md](../todo_future.md) 12.3).
+- **Zapis w WAL tylko zmienionych kolumn** – zmienia format WAL i paczek zmian (ADR-0009, ADR-0011) oraz semantykę LWW per wiersz (ADR-0015); osobna decyzja z LWW per kolumna ([future/todo.md](../future/todo.md) 12.3).
 
 ## Konsekwencje
 

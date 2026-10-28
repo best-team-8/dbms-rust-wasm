@@ -31,6 +31,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [2.2](#22-konflikt-definicji-tabeli) `a_different_table_definition_is_reported_as_one_schema_conflict`, `definitions_compare_as_same_additive_or_incompatible`, `a table defined differently on two devices is reported as a schema conflict` | Czy różne definicje tej samej tabeli na dwóch replikach są zgłaszane jako jeden konflikt z rodzajem różnicy, zamiast cichego odrzucania wierszy? | zaliczony |
 | [2.3](#23-zbieżność-w-trudnych-warunkach) `sync_converges_despite_skewed_clocks_partitions_and_retries` | Czy repliki kończą w stanie wyznaczonym przez najnowsze wysłane zmiany mimo przesuniętych zegarów, podziałów sieci, usunięć w trakcie przerwy, ponowień i restartów? | zaliczony |
 | [2.4](#24-outbox-od-włączenia-synchronizacji) `enabling_sync_later_gives_the_outbox_of_a_database_that_kept_every_change`, `a_database_without_sync_keeps_no_row_entries_in_its_snapshot`, `snapshot_of_format_1_is_read_with_its_outbox` | Czy baza, która włącza synchronizację później, wysyła te same zmiany co baza prowadząca outbox od początku, także po restarcie z dowolnego połączenia snapshotu i WAL? | zaliczony |
+| [2.5](#25-praca-offline-w-aplikacji-demo) sprawdzenie w przeglądarce | Czy aplikacja w przeglądarce uruchamia się, czyta i zapisuje dane bez serwera, zachowuje niewysłane zmiany po odświeżeniu strony i wysyła je, gdy serwer wróci? | zaliczony (ręcznie) |
 | [3.1](#31-ten-sam-zapis-każdego-nan) `equal_data_encodes_to_identical_bytes_whatever_the_nan_bits`, `nan_computed_in_sql_is_stored_canonically` | Czy te same dane dają te same bajty snapshotu, WAL i paczek zmian niezależnie od wzorca bitów NaN? | zaliczony |
 | [3.2](#32-te-same-odpowiedzi-przy-każdej-ścieżce-dostępu) `random_queries_give_the_same_answers_as_a_full_scan`, `count_by_index_reads_no_rows`, `only_conjuncts_the_access_path_does_not_guarantee_are_evaluated` | Czy zapytanie daje tę samą odpowiedź niezależnie od ścieżki dostępu wybranej przez planer, także gdy wiersze są liczone bez czytania, a warunek gwarantowany przez ścieżkę nie jest sprawdzany ponownie? | zaliczony |
 | [3.3](#33-instrukcje-przygotowane-z-zapamiętanym-planem) `prepared_statements_with_parameters_give_the_same_answers_as_a_full_scan`, `prepared_statement_follows_schema_changes`, `parameters_are_checked_and_usable_in_limit`, `statements kept by exec and query follow schema changes…`, `reads do not look for WAL bytes, writes do` | Czy instrukcja przygotowana ze skompilowanym planem daje dla każdych wartości parametrów tę samą odpowiedź co pełny przegląd i czy jej plan nadąża za zmianami schematu? | zaliczony |
@@ -224,6 +225,19 @@ Każda zmiana wysyłana między replikami ma znacznik z hybrydowego zegara logic
 | Wynik | Zaliczony, 3 sposoby restartu, przebieg poniżej 0,1 s. 25.10.2026, środowisko z początku dokumentu, commit „core: keep the outbox only once synchronisation is enabled, compact outbox in snapshots”. |
 | Wpływ na projekt | Repliki w testach synchronizacji włączają synchronizację przy utworzeniu, tak jak `SyncClient` i serwer. |
 | Ograniczenia | Test nie obejmuje włączenia synchronizacji w trakcie zegara przesuniętego w przyszłość; ten przypadek obsługuje istniejące przestemplowanie wpisów outboxa, które po włączeniu zawiera wszystkie wiersze. |
+
+### 2.5 Praca offline w aplikacji demo
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Czy aplikacja w przeglądarce uruchamia się, czyta i zapisuje dane bez serwera, zachowuje niewysłane zmiany po odświeżeniu strony i wysyła je, gdy serwer wróci? |
+| Uzasadnienie | Hipoteza H6 zakłada pełną funkcjonalność offline [L1]. Testy end-to-end w Node.js sprawdzają silnik, most JavaScript i serwer, ale nie obejmują pamięci podręcznej Service Workera ani IndexedDB prawdziwej przeglądarki. |
+| Model awarii i założenia | Brak sieci uzyskuje się na dwa sposoby: przełącznikiem „Symuluj brak sieci” w demo (klient nie wysyła żądań) i zatrzymaniem procesu serwera. Odświeżenie strony zamyka bazę i otwiera nową instancję z tego samego magazynu. |
+| Procedura | Scenariusz ręczny ze [scenariusza badawczego §6.3](benchmark-scenario.md#63-scenariusz-ręczny-w-przeglądarce-demo): (1) `npm run build && npm start`, otworzyć `http://127.0.0.1:8080`, wczytać dane i wykonać zapytania; (2) włączyć „Symuluj brak sieci” i wykonać kilka zapisów, licznik oczekujących zmian rośnie; (3) zatrzymać serwer, wykonać zapis i odświeżyć stronę; (4) uruchomić serwer ponownie i sprawdzić zapytaniem przez `/api/query`, że zmiany do niego dotarły. |
+| Kontrola negatywna | Brak; scenariusz ręczny. |
+| Wynik | Zaliczony. Przy zatrzymanym serwerze aplikacja uruchomiła się z pamięci podręcznej Service Workera i odtworzyła bazę z IndexedDB w 8,7 ms (10 ramek WAL), zapis wykonał się lokalnie w 0,6 ms, a niewysłana zmiana przetrwała odświeżenie strony. Po ponownym uruchomieniu serwera zmiana została wysłana bez udziału użytkownika i była widoczna w zapytaniu do serwera. 6.10.2026, Chromium 152, commit „docs: describe architecture, Flat-SQL and research results”. |
+| Wpływ na projekt | Brak zmian. |
+| Ograniczenia | Scenariusz wykonano na wersji sprzed prototypu mierzonego w Benchmarku 1, przed poprawkami trwałości i synchronizacji z części 1 i 2; nie powtórzono go na wersjach `v1-prototyp` i `v2-optymalizacja`. Sprawdzono jedną przeglądarkę na jednym komputerze. |
 
 ## 3. Zapytania i format danych
 

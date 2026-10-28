@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (silnik, [flat-sql.md](../flat-sql.md)) |
+| Data | 2026-10-06 (silnik, [flatsql-core/src/sql/README.md](../../crates/flatsql-core/src/sql/README.md)) |
 | Rodzaj | założenie |
 | Powiązane | ADR-0015, ADR-0018, ADR-0030; todo 0.1 |
 
@@ -40,4 +40,4 @@ Składnia SQL, model danych klucz–wiersz:
 
 ## Źródła
 
-[C7], [M1], [M2], [L8], [D4]; [flat-sql.md §1](../flat-sql.md).
+[C7], [M1], [M2], [L8], [D4]; [flatsql-core/src/sql/README.md §1](../../crates/flatsql-core/src/sql/README.md).

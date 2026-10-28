@@ -9,7 +9,7 @@
 
 ## Kontekst
 
-[todo_future.md](../todo_future.md) §9 planował łańcuch zadań nad interfejsem C (9.1): pakiet Pythona (9.2), obsługę `/sync/push` i `/sync/pull` w FastAPI na tych wiązaniach (9.3) i testy zgodności serwera w Node.js i w Pythonie (9.4). Dawałoby to drugą implementację serwera synchronizacji – w procesie backendu w Pythonie, bez osobnego serwera Node.js („wariant B” w [use-cases.md §8](../use-cases.md)). FastAPI pojawiało się w dokumentacji tylko jako przykład backendu, a nie jako wybrana technologia.
+[future/todo.md](../future/todo.md) §9 planował łańcuch zadań nad interfejsem C (9.1): pakiet Pythona (9.2), obsługę `/sync/push` i `/sync/pull` w FastAPI na tych wiązaniach (9.3) i testy zgodności serwera w Node.js i w Pythonie (9.4). Dawałoby to drugą implementację serwera synchronizacji – w procesie backendu w Pythonie, bez osobnego serwera Node.js („wariant B” w [use-cases.md](../research/use-cases.md)). FastAPI pojawiało się w dokumentacji tylko jako przykład backendu, a nie jako wybrana technologia.
 
 ## Decyzja
 
@@ -32,4 +32,4 @@ Wiązania dla Pythona i synchronizacja w procesie backendu wypadają z planów (
 
 ## Źródła
 
-Decyzja autora; [use-cases.md §8](../use-cases.md).
+Decyzja autora; [use-cases.md](../research/use-cases.md).

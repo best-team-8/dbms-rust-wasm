@@ -1,78 +1,144 @@
-# Project Specification: WASM Database Engine for Edge Computing & Local-First Architecture
+# Flat-SQL
 
-## 1. Concept and Core Principles
+Flat-SQL to silnik bazy danych SQL napisany w Rust i kompilowany do WebAssembly. Działa w przeglądarce, w Node.js i natywnie, a dane trzyma w pamięci urządzenia, zapisuje je przyrostowo (w IndexedDB albo w plikach) i synchronizuje w tle z serwerem. Aplikacja dostaje odpowiedź w mikrosekundach, bez czekania na sieć, i działa bez połączenia. Język to SQL ograniczony do jednej tabeli na zapytanie: każda tabela ma klucz główny i nie ma złączeń.
 
-The primary objective is to implement the **Edge Computing** paradigm by shifting database operations directly to the end-user device.
-
-### Key Project Assumptions:
-
-* **0 ms Latency:** Elimination of network delays (typical of *Cloud-First* architectures) through local processing of SQL queries.
-* **Privacy by Design:** Processing sensitive data within an isolated browser environment without transmitting it to a server.
-* **Local-First Architecture:** Ensuring full offline functionality combined with asynchronous state synchronization.
-
-## Practical Applications of a WASM-Compiled Database
-
-1. **Browser Games:**
-   Local storage of inventory, character statistics, and match history. Enables instantaneous read operations during gameplay without network lag.
-
-2. **Video & Graphic Editors:**
-   Cataloging thousands of assets (images, fonts) and fast filtering using SQL directly inside the application (e.g., in a web-based alternative to Adobe Premiere or Canva).
-
-3. **Data Analytics:**
-   A user loads a 500 MB CSV file into the browser, and the WASM database enables sub-second queries without uploading the file to a server.
-
-4. **Crypto Wallets:**
-   A local database for indexing transaction history and managing cryptographic keys within a secure, isolated WASM sandbox.
-
-## 2. Scope of Work and Detailed Objectives
-
-1. **Comparative Analysis & Research Scenario:**
-   Comparative analysis of WASM database engines and the development of a testing scenario.
-
-2. **Storage Layer Implementation:**
-   Implementation of the local data storage layer on the end device.
-
-3. **Benchmarking & Validation:**
-   Conducting performance benchmarks and validating the *Local-First* architecture under offline conditions.
+Repozytorium zawiera silnik, most JavaScript, serwer synchronizacji, aplikację demonstracyjną, narzędzie pomiarowe z surowymi wynikami wszystkich pomiarów i opis badań.
 
 ## Spis treści
 
-- [Co jest zaimplementowane](#co-jest-zaimplementowane)
-- [Szybki start](#szybki-start)
-- [Korzystanie](#korzystanie)
+- [Cele produktu](#cele-produktu)
+- [Najważniejsze wyniki](#najważniejsze-wyniki)
 - [Architektura](#architektura)
-- [Przepływ danych](#przepływ-danych)
-- [Tryby działania w przeglądarce](#tryby-działania-w-przeglądarce)
-- [Struktura repozytorium](#struktura-repozytorium)
-- [Wyniki badań w skrócie](#wyniki-badań-w-skrócie)
-- [Ograniczenia i dalsze prace](#ograniczenia-i-dalsze-prace)
+- [Moduły](#moduły)
+- [Szybki start](#szybki-start)
+- [Odtworzenie badań](#odtworzenie-badań)
 - [Dokumentacja](#dokumentacja)
+- [Ograniczenia](#ograniczenia)
+- [Słowniczek](#słowniczek)
 
-## Co jest zaimplementowane
+## Cele produktu
 
-| Obszar | Zawartość |
-|---|---|
-| Rdzeń silnika (`crates/flatsql-core`) | lekser i parser Flat-SQL, typy `INT/FLOAT/TEXT/BOOL`, logika trójwartościowa SQL, funkcje skalarne i agregujące, planer zapytań (PK lookup, indeks, zakresy, full scan, `EXPLAIN`), transakcje z undo logiem, prepared statements – bez zależności zewnętrznych |
-| Warstwa składowania | WAL (jedna ramka z CRC32 na transakcję), snapshoty (checkpoint), odtwarzanie po awarii odporne na urwane zapisy, backend plikowy i pamięciowy; w przeglądarce IndexedDB z group commitem |
-| Synchronizacja | zegar hybrydowy (HLC) z granicą dryfu (urządzenie z błędnym zegarem wstrzymuje synchronizację, a po poprawie zegara jego zmiany dostają nowe znaczniki), LWW per wiersz z tombstone'ami, outbox odtwarzany z WAL, binarne paczki zmian, serwer z logiem i kompaktowaniem |
-| WASM-Bridge (`crates/flatsql-wasm`, `bridge/`) | wiązania `wasm-bindgen`, API JavaScript (`FlatDB`, `SyncClient`, magazyny IndexedDB/pamięć/pliki), typy TypeScript |
-| Serwer (`server/`) | ten sam silnik WASM w Node.js (tryb edge): hub synchronizacji, API zapytań „cloud” z symulowaną latencją, hosting dema |
-| Demo (`web/`) | konsola SQL w przeglądarce, panel synchronizacji i trybu offline, Service Worker |
-| CLI (`crates/flatsql-cli`) | interaktywna powłoka `flatsql`, bazy plikowe, natywny benchmark |
-| Badania (`bench/`, `docs/research/`) | porównanie Flat-SQL (WASM i natywnie) z silnikami SQL w WebAssembly (sql.js, SQLite WASM, wa-sqlite, PGlite, DuckDB-Wasm), AlaSQL, bazami na IndexedDB (Dexie.js, PouchDB, RxDB) i czystym JS; Local-First vs Cloud-First; trwałość zapisów, zimny start, pamięć, pauza checkpointu |
-| Testy | 94 testy w Rust (w tym odtwarzanie po ucięciu WAL w każdym bajcie, wszystkie stany po awarii dopuszczone przez model systemu plików, losowe sesje offline wielu replik z przesuniętymi zegarami i podziałami sieci) + 27 testów end-to-end w Node (scenariusze offline z prawdziwym serwerem, zegar urządzenia, konflikty schematu, magazyny przeglądarki); opisy i wyniki: [docs/research/tests-results.md](docs/research/tests-results.md) |
+1. Zapytania wykonywane lokalnie: odczyt i zapis kończą się w pamięci urządzenia, więc czas odpowiedzi nie zależy od sieci ([ADR-0001](docs/adr/0001-zapytania-lokalne-bez-serwera.md)).
+2. Praca offline z synchronizacją w tle: zmiany czekają w kolejce na urządzeniu i trafiają na serwer, gdy wróci połączenie; serwer koordynuje repliki ([ADR-0002](docs/adr/0002-local-first-z-serwerem-koordynujacym.md)).
+3. Dane domyślnie lokalne: nic nie opuszcza urządzenia, dopóki aplikacja nie włączy synchronizacji ([ADR-0003](docs/adr/0003-privacy-by-design-dane-domyslnie-lokalne.md)).
+4. Płaski model danych: tabela adresowana kluczem, jedno zapytanie dotyczy jednej tabeli, plan jest prosty i widoczny w `EXPLAIN` ([ADR-0004](docs/adr/0004-dialekt-flat-sql-bez-zlaczen.md)).
+5. Jeden rdzeń wszędzie: ten sam kod bez operacji wejścia/wyjścia i bez zależności w przeglądarce, na serwerze i natywnie ([ADR-0005](docs/adr/0005-rdzen-rust-bez-io-i-zaleznosci.md)).
+
+Silnik ma być najlepszy w swojej kategorii: mała baza SQL na dane operacyjne aplikacji, działająca w przeglądarce bez konfiguracji. Nie konkuruje z silnikami analitycznymi ani z pełnym SQL baz serwerowych ([zastosowania](docs/research/use-cases.md)).
+
+## Najważniejsze wyniki
+
+Benchmark 2, 28 października 2026: tabela 100 000 wierszy, Microsoft Edge 156 na laptopie z AMD Ryzen 5 4600H, mediana z 10 procesów, wynik jako obiekty JavaScript. Prototyp i wersję po optymalizacjach zmierzono w tej samej sesji na przemian ([benchmark-results.md](docs/research/benchmark-results.md)).
+
+| Operacja | Prototyp | Po optymalizacjach | Krotność |
+|---|---:|---:|---:|
+| odczyt po kluczu | 8,78 µs | 3,28 µs | 2,7× |
+| `COUNT(*)` po indeksie | 437 µs | 1,90 µs | 230× |
+| pełny przegląd z filtrem | 7,83 ms | 4,40 ms | 1,8× |
+| `GROUP BY` (100 grup) | 15,6 ms | 9,38 ms | 1,7× |
+| pobranie 10 000 wierszy | 11,4 ms | 1,55 ms | 7,3× |
+| `UPDATE` 10% wierszy | 30,9 ms | 15,4 ms | 2,0× |
+| odtworzenie bazy ze snapshotu | 115 ms | 46,4 ms | 2,5× |
+| najdłuższa pauza checkpointu (IndexedDB) | 40,3 ms | 2,60 ms | 16× |
+| trwałe zatwierdzenie jednego wiersza (IndexedDB) | 376 µs | 364 µs | bez zmian |
+
+Na tle silników z Benchmarku 1 wersja po optymalizacjach jest szybsza od sql.js i oficjalnego SQLite WASM we wszystkich odczytach (od 1,6 raza w pełnym przeglądzie do 33–36 razy w `COUNT(*)` po indeksie) i ma najtańsze trwałe zatwierdzenie w grupie trwałego zapisu. Wolniejsza jest we wstawianiu (1,28 raza wobec sql.js), w `UPDATE` (do 1,75 raza), w snapshocie (7–15 razy) i odtworzeniu bazy (29–39 razy), bo SQLite kopiuje strony pliku. Pliki silnika pobierane przy starcie strony mają po kompresji 287 KiB, najmniej wśród silników SQL w WebAssembly. Lokalny odczyt po kluczu z tekstem SQL trwa około 10–14 µs, a ten sam odczyt przez serwer z opóźnieniem sieci 20–100 ms trwa tyle co opóźnienie, czyli trzy do czterech rzędów wielkości dłużej. W WebAssembly operacje wykonywane w całości w silniku są tak szybkie jak natywnie; narzut leży tylko na granicy z JavaScriptem.
+
+## Architektura
+
+```mermaid
+flowchart LR
+  subgraph Browser["Przeglądarka (klient)"]
+    UI["Aplikacja<br/>web/app.js"] --> Bridge["Most JavaScript<br/>FlatDB · SyncClient"]
+    Bridge --> Engine["Silnik Flat-SQL<br/>(Rust → .wasm)"]
+    Bridge --> IDB[("IndexedDB<br/>snapshot + WAL")]
+    SW["Service Worker"] -.-> UI
+  end
+  subgraph Server["Serwer (Node.js)"]
+    Hub["Synchronizacja<br/>/sync/push · /sync/pull"] --> Engine2["Ten sam silnik .wasm"]
+    Api["API zapytań<br/>/api/query"] --> Engine2
+    Engine2 --> Files[("snapshot.fsql<br/>wal.fsql")]
+  end
+  CLI["CLI flatsql<br/>(natywnie)"] --> Files
+  Bridge <-- "binarne paczki zmian (HTTP)" --> Hub
+```
+
+Silnik nie wykonuje operacji wejścia/wyjścia. Każda zatwierdzona transakcja zostaje zakodowana jako ramka dziennika zapisu z wyprzedzeniem (WAL) w buforze, a host (most JavaScript w przeglądarce i Node.js, `Persistent` w Rust) zapisuje te bajty do swojego magazynu. Dlatego ten sam rdzeń działa w przeglądarce, na serwerze i natywnie.
+
+Zapytanie jest w całości lokalne i synchroniczne:
+
+```mermaid
+sequenceDiagram
+  participant App as Aplikacja
+  participant B as FlatDB (JS)
+  participant E as Silnik (WASM)
+  App->>B: query("SELECT … WHERE id = ?", [42])
+  B->>E: run(instrukcja, parametry)
+  E->>E: plan (wyszukanie po kluczu) → wykonanie
+  E-->>B: wynik w binarnym buforze
+  B-->>App: wiersze (kilka µs, bez sieci)
+```
+
+Zapis kończy się w pamięci, a WAL trafia do IndexedDB w najbliższym mikrozadaniu, jedną transakcją dla wszystkich zatwierdzeń z danej chwili:
+
+```mermaid
+sequenceDiagram
+  participant App as Aplikacja
+  participant B as FlatDB (JS)
+  participant E as Silnik (WASM)
+  participant S as IndexedDB
+  App->>B: exec("INSERT …")
+  B->>E: exec → dziennik wycofania + ramka WAL + wpis w outboksie
+  E-->>B: wynik (synchronicznie)
+  B-->>App: wynik
+  Note over B: queueMicrotask
+  B->>E: takeWal()
+  B->>S: add(bajty WAL)
+  Note over B,S: WAL > próg → snapshot krokami + wyczyszczenie WAL
+```
+
+Synchronizacja to idempotentne rundy wysłania i pobrania zmian, które nie blokują aplikacji:
+
+```mermaid
+sequenceDiagram
+  participant C as SyncClient
+  participant E as Silnik (klient)
+  participant H as Serwer
+  C->>E: exportOutbox()
+  C->>H: POST /sync/push (paczka binarna)
+  H->>H: applyChanges (ostatni zapis wygrywa) → log[seq]
+  H-->>C: 200 OK
+  C->>E: ackOutbox(lastSeq) (zapisane w WAL)
+  C->>H: GET /sync/pull?since=kursor&epoch=…
+  H-->>C: zmiany innych klientów + nowy kursor
+  C->>E: applyChanges
+  C->>C: flush WAL, zapis kursora
+```
+
+Przy starcie aplikacja wczytuje snapshot i odtwarza ramki WAL o numerze większym niż w snapshocie; urwana końcówka WAL jest odrzucana. Kolejka zmian do wysłania (outbox) odbudowuje się z WAL, więc przetrwa zamknięcie aplikacji offline.
+
+## Moduły
+
+| Moduł | Ścieżka | Odpowiedzialność |
+|---|---|---|
+| [Rdzeń silnika](crates/flatsql-core/README.md) | `crates/flatsql-core/` | planowanie i wykonanie zapytań, transakcje, WAL, synchronizacja; Rust bez zależności |
+| ↳ [język Flat-SQL](crates/flatsql-core/src/sql/README.md) | `crates/flatsql-core/src/sql/` | lekser, parser i specyfikacja języka |
+| ↳ [składowanie](crates/flatsql-core/src/storage/README.md) | `crates/flatsql-core/src/storage/` | snapshot, WAL, magazyny, formaty binarne |
+| ↳ [testy rdzenia](crates/flatsql-core/tests/README.md) | `crates/flatsql-core/tests/` | testy trwałości, zbieżności replik i semantyki zapytań |
+| [Wiązania WebAssembly](crates/flatsql-wasm/README.md) | `crates/flatsql-wasm/` | API silnika dla JavaScriptu, przekazywanie wyników |
+| [CLI](crates/flatsql-cli/README.md) | `crates/flatsql-cli/` | powłoka `flatsql`, bazy w plikach, benchmark natywny |
+| [Most JavaScript](bridge/README.md) | `bridge/` | `FlatDB`, `SyncClient`, magazyny IndexedDB, plikowy i w pamięci, typy TypeScript |
+| [Serwer synchronizacji](server/README.md) | `server/` | synchronizacja, API zapytań, serwowanie demo |
+| [Aplikacja demonstracyjna](web/README.md) | `web/` | konsola SQL, panel synchronizacji, praca offline |
+| [Testy end-to-end](test/README.md) | `test/` | moduł, most i serwer razem, scenariusze offline |
+| [Narzędzie pomiarowe](bench/README.md) | `bench/` | benchmarki i instrukcja odtworzenia badań |
+| [Dokumentacja](#dokumentacja) | `docs/` | badania, literatura, decyzje projektowe, kierunki rozwoju |
+
+`pkg/` powstaje przy budowaniu i zawiera moduł WebAssembly z kodem wiązań.
 
 ## Szybki start
 
-### Wymagania
-
-- [Rust](https://rustup.rs) (stable) z targetem WebAssembly: `rustup target add wasm32-unknown-unknown`
-- [wasm-pack](https://rustwasm.github.io/wasm-pack/) (`cargo install wasm-pack`)
-- [Node.js](https://nodejs.org) 22 lub nowszy
-
-Na Windows potrzebne są też Build Tools for Visual Studio (linker MSVC).
-
-### Budowanie i uruchomienie
+Wymagania: [Rust](https://rustup.rs) (wersję i cel WebAssembly ustawia `rust-toolchain.toml`), [wasm-pack](https://rustwasm.github.io/wasm-pack/) i [Node.js](https://nodejs.org) 22 lub nowszy; w Windows także Build Tools for Visual Studio. Wersje użyte w pomiarach: [bench/README.md](bench/README.md#wymagania).
 
 ```bash
 npm install
@@ -86,13 +152,7 @@ npm run build
 npm start
 ```
 
-`npm run build` kompiluje silnik do `pkg/` (moduł `.wasm` + kod JS z `wasm-bindgen`). `npm start` uruchamia serwer pod adresem <http://127.0.0.1:8080>: aplikację demo, synchronizację i API zapytań. Dane serwera można zapisywać na dysku:
-
-```bash
-npm run start:persistent
-```
-
-### Testy
+`npm run build` kompiluje silnik do `pkg/`, a `npm start` uruchamia serwer z aplikacją demonstracyjną pod adresem <http://127.0.0.1:8080> ([scenariusz demonstracji](web/README.md#scenariusz-demonstracji)). Testy:
 
 ```bash
 cargo test --workspace
@@ -102,239 +162,71 @@ cargo test --workspace
 npm test
 ```
 
-### Benchmarki
-
-```bash
-npm run bench
-```
-
-```bash
-npm run bench:full
-```
-
-`bench` mierzy silniki w Node.js, `bench:full` dodatkowo wersję natywną (narzut WebAssembly) i przeglądarkę (Microsoft Edge sterowany przez playwright-core). Każdy pomiar powtarza się w 10 nowych procesach (`--runs N`), a surowe wyniki trafiają do `bench/results/`; tabele i wykresy tworzy `node docs/research/data/benchmark-1/make-report.mjs KATALOG`. `bench:serve` uruchamia stronę do pomiarów ręcznych (inna przeglądarka, telefon). Opis narzędzia i pomiar innej wersji silnika: [bench/README.md](bench/README.md); metodyka: [docs/research/benchmark-scenario.md](docs/research/benchmark-scenario.md).
-
-## Korzystanie
-
-### Aplikacja demo
-
-1. `npm run build && npm start`, otwórz <http://127.0.0.1:8080>.
-2. Kliknij **Dane: ekwipunek gry** (2000 przedmiotów w jednej transakcji) i wybierz zapytanie z listy **Przykłady** – czas wykonania jest pokazywany w mikrosekundach.
-3. Zaznacz **Symuluj brak sieci**, wykonaj kilka `INSERT`/`UPDATE` – zmiany czekają w outboksie; po odznaczeniu zostają wysłane.
-4. Test prawdziwego offline: zatrzymaj serwer (`Ctrl+C`), odśwież stronę – aplikacja startuje z cache Service Workera, dane wczytuje z IndexedDB, zapisy działają. Po ponownym `npm start` oczekujące zmiany są automatycznie wysłane.
-5. Otwórz stronę w drugiej przeglądarce lub oknie prywatnym, aby zobaczyć replikację między klientami.
-
-### JavaScript (WASM-Bridge)
+Użycie w kodzie aplikacji:
 
 ```js
 import { FlatDB, SyncClient } from './bridge/index.js';
 
 const db = await FlatDB.open({ name: 'my-app' }); // w przeglądarce domyślnie IndexedDB
-// open prosi też o trwały magazyn (navigator.storage.persist); wynik: await db.persistence
+db.exec('CREATE TABLE IF NOT EXISTS notes (id INT PRIMARY KEY, body TEXT)');
+db.exec("INSERT INTO notes VALUES (1, 'pierwsza notatka')");
+const rows = db.query('SELECT body FROM notes WHERE id = ?', [1]); // synchronicznie
 
-db.exec(`CREATE TABLE IF NOT EXISTS inventory (
-  id INT PRIMARY KEY, player TEXT NOT NULL, item TEXT, qty INT)`);
-db.exec("INSERT INTO inventory VALUES (1, 'ayla', 'sword', 1)");
-
-const rows = db.query('SELECT item, qty FROM inventory WHERE player = ?', ['ayla']);
-// [{ item: 'sword', qty: 1 }] – synchronicznie, bez sieci
-
-await db.flush();                       // zmiany są trwałe w IndexedDB
-// FlatDB.open({ …, durability: 'strict' }) – flush() czeka na zapis na dysk
-// (domyślnie decyduje przeglądarka; Chrome 121+: po przekazaniu systemowi)
-
-const sync = new SyncClient(db, { url: 'https://example.org' });
-await sync.start();                     // wysyła outbox / pobiera zmiany w tle
+await new SyncClient(db, { url: 'https://example.org' }).start(); // synchronizacja w tle
 ```
 
-W Node.js zamiast `bridge/index.js` importuje się `bridge/node.js` (ładuje plik `.wasm` z dysku i udostępnia `FsStore`); magazyn trzeba tam podać jawnie: `FlatDB.open({ store: new FsStore('dane') })` albo `new MemoryStore()` dla danych tylko w pamięci. Pełne API: [bridge/index.d.ts](bridge/index.d.ts).
+Opcje magazynu, trwałości i synchronizacji: [bridge/README.md](bridge/README.md); język: [sql/README.md](crates/flatsql-core/src/sql/README.md); CLI i Rust: [flatsql-cli](crates/flatsql-cli/README.md), [flatsql-core](crates/flatsql-core/README.md#interfejs).
 
-### CLI
+## Odtworzenie badań
 
-```bash
-cargo run --release -p flatsql-cli -- moja-baza
-```
-
-```text
-flatsql> CREATE TABLE notes (id INT PRIMARY KEY, body TEXT);
-flatsql> INSERT INTO notes VALUES (1, 'zażółć gęślą jaźń');
-flatsql> EXPLAIN SELECT * FROM notes WHERE id = 1;
-flatsql> .stats
-```
-
-Katalog bazy zawiera `snapshot.fsql` i `wal.fsql` – ten sam format, który zapisuje serwer Node (`--data`), więc bazę serwera można otworzyć w CLI. Opcje: `-e SQL`, `-f plik.sql`, `--no-fsync`, `flatsql bench`.
-
-### Rust
-
-```rust
-use flatsql_core::Database;
-
-let mut db = Database::new(1);
-db.execute("CREATE TABLE items (id INT PRIMARY KEY, name TEXT, qty INT)")?;
-db.execute("INSERT INTO items VALUES (1, 'sword', 1), (2, 'potion', 5)")?;
-let result = db.execute("SELECT name FROM items WHERE qty > 2")?;
-let wal_bytes = db.take_wal();      // do zapisania przez hosta
-```
-
-## Architektura
-
-```mermaid
-flowchart LR
-  subgraph Browser["Przeglądarka (klient Local-First)"]
-    UI["Aplikacja / demo<br/>web/app.js"] --> Bridge["WASM-Bridge<br/>FlatDB · SyncClient"]
-    Bridge --> Engine["Silnik Flat-SQL<br/>(Rust → .wasm)"]
-    Bridge --> IDB[("IndexedDB<br/>snapshot + WAL + meta")]
-    SW["Service Worker<br/>cache aplikacji"] -.-> UI
-  end
-  subgraph Edge["Serwer / węzeł edge (Node.js)"]
-    Hub["Sync hub<br/>/sync/push · /sync/pull"] --> Engine2["Ten sam silnik .wasm"]
-    Api["Cloud API<br/>/api/query"] --> Engine2
-    Engine2 --> Files[("snapshot.fsql<br/>wal.fsql")]
-  end
-  CLI["CLI flatsql<br/>(natywnie)"] --> Files
-  Bridge <-- "binarne paczki zmian (HTTP)" --> Hub
-```
-
-Silnik nie wykonuje żadnych operacji wejścia/wyjścia. Każda zatwierdzona transakcja zostaje zakodowana jako ramka WAL w buforze, a host (JavaScript w przeglądarce, `Persistent` w Rust) zapisuje te bajty do swojego magazynu. Dzięki temu ten sam rdzeń działa w przeglądarce, w Node.js, na węźle brzegowym i natywnie (np. pod panelem WinUI).
-
-| Warstwa | Odpowiedzialność |
-|---|---|
-| `sql` | tokenizacja, parser rekurencyjny zstępujący, AST |
-| `expr` | wiązanie nazw kolumn, zwijanie stałych, ewaluacja (szybka ścieżka dla kolumn i literałów, osobny ewaluator predykatów) |
-| `plan` | wybór ścieżki dostępu z koniunkcji `WHERE`, opis do `EXPLAIN` |
-| `exec` | SELECT (strumieniowo, top-k, grupowanie), INSERT/UPDATE/DELETE, DDL |
-| `db` | katalog tabel, transakcje (undo log, atomowość instrukcji), produkcja WAL, odtwarzanie, API synchronizacji |
-| `table` | wiersze w `BTreeMap` po kluczu głównym, indeksy wtórne, tombstone'y |
-| `storage` | kodek binarny, ramki WAL, snapshot, `Storage` (plik, pamięć), `Persistent` |
-| `sync` | HLC, zmiany, paczki, outbox |
-
-Szczegóły, formaty plików i decyzje projektowe: [docs/architecture.md](docs/architecture.md).
-
-## Przepływ danych
-
-**Zapytanie** – w całości lokalne i synchroniczne:
-
-```mermaid
-sequenceDiagram
-  participant App as Aplikacja
-  participant B as FlatDB (JS)
-  participant E as Silnik (WASM)
-  App->>B: query("SELECT … WHERE id = ?", [42])
-  B->>E: run(stmt, params)
-  E->>E: wiązanie → plan (PK LOOKUP) → wykonanie
-  E-->>B: { columns, rows } (obiekty JS lub JSON)
-  B-->>App: wiersze (≈10 µs, bez sieci)
-```
-
-**Zapis i trwałość** – zapis kończy się w pamięci, WAL trafia do IndexedDB w najbliższym mikrozadaniu jedną transakcją IndexedDB dla wszystkich zatwierdzeń z danej chwili (group commit):
-
-```mermaid
-sequenceDiagram
-  participant App as Aplikacja
-  participant B as FlatDB (JS)
-  participant E as Silnik (WASM)
-  participant S as IndexedDB
-  App->>B: exec("INSERT …")
-  B->>E: exec → undo log + ramka WAL + wpis w outboksie
-  E-->>B: wynik (synchronicznie)
-  B-->>App: wynik
-  Note over B: queueMicrotask
-  B->>E: takeWal()
-  B->>S: add(bajty WAL)
-  Note over B,S: WAL > próg → snapshot + wyczyszczenie WAL w jednej transakcji
-```
-
-**Synchronizacja** – idempotentne rundy push/pull, bez blokowania aplikacji:
-
-```mermaid
-sequenceDiagram
-  participant C as SyncClient
-  participant E as Silnik (klient)
-  participant H as Serwer
-  C->>E: exportOutbox()
-  C->>H: POST /sync/push (paczka binarna)
-  H->>H: applyChanges (LWW) → log[seq]
-  H-->>C: 200 OK
-  C->>E: ackOutbox(lastSeq) (zapisane w WAL)
-  C->>H: GET /sync/pull?since=kursor&epoch=…
-  H-->>C: zmiany innych klientów + nowy kursor
-  C->>E: applyChanges (LWW)
-  C->>C: flush WAL, zapis kursora
-```
-
-**Start aplikacji / odtwarzanie** – snapshot + odtworzenie ramek WAL o LSN większym niż w snapshocie; urwana końcówka WAL (zamknięta karta, awaria) jest odrzucana i od razu sprzątana checkpointem. Outbox (zmiany jeszcze niewysłane) jest odbudowywany z WAL, więc przetrwa zamknięcie aplikacji w trybie offline.
-
-## Tryby działania w przeglądarce
-
-Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego **wątek i magazyn wybiera aplikacja przy otwarciu bazy, a nie silnik**. Magazyn podaje się parametrem `store` w `FlatDB.open` (dziś `IndexedDbStore` i `MemoryStore`, w Node.js także `FsStore`); bez niego przeglądarka używa `IndexedDbStore`. Inaczej jest w SQLite, którego magazyn czyta strony z dysku synchronicznie z wnętrza silnika, przez co SQLite z trwałością w przeglądarce musi działać w Web Workerze.
-
-| | Wątek główny – tryb domyślny (zaimplementowany) | Web Worker – opcja (planowana: [todo_future 1.1, 1.5](docs/todo_future.md)) |
-|---|---|---|
-| API | synchroniczne – `db.exec()` od razu zwraca wynik | asynchroniczne – wynik przychodzi wiadomością z workera |
-| Magazyn | IndexedDB | IndexedDB albo OPFS z szybkim dostępem synchronicznym (dostępnym tylko w Workerze) |
-| Długie operacje (checkpoint, otwarcie dużej bazy) | blokują stronę, więc muszą być krótkie | nie blokują strony |
-| Wiele kart | dziś blokada Web Locks w demo – zapisuje tylko pierwsza karta | jeden `SharedWorker` obsługuje wszystkie karty |
-| Integracja | jeden import; działa w rozszerzeniach, widżetach na cudzych stronach i na zwykłym hostingu | osobny plik workera, konfiguracja bundlera |
-| Koszt zapytania | ok. 10 µs (odczyt po kluczu) | dodatkowo przesłanie zapytania i wyniku między wątkami (do zmierzenia – [todo 4.12](docs/todo.md)) |
-| Nagłówki COOP/COEP | niepotrzebne | niepotrzebne |
-
-**Kiedy który:** wątek główny – małe i średnie dane, gry, rozszerzenia przeglądarki, dodanie bazy do istniejącej strony; Worker – duże bazy, wiele kart, aplikacje w rodzaju Notion. Wielowątkowy WASM (wymagający nagłówków COOP/COEP) nie jest planowany w żadnym trybie.
-
-**Dlaczego domyślnie IndexedDB, a nie OPFS:** Flat-SQL czyta z pamięci, a na dysk zapisuje tylko małe ramki WAL (trwałe zatwierdzenie ok. 0,34 ms). Wolne są obliczenia – kodowanie snapshotu i odtwarzanie bazy – których szybszy dysk nie przyspieszy. Szybki interfejs OPFS działa tylko w Workerze, a IndexedDB pozwala zapisać snapshot i wyczyścić WAL w jednej transakcji.
-
-Uzasadnienie: [ADR-0005](docs/adr/0005-rdzen-rust-bez-io-i-zaleznosci.md), [ADR-0012](docs/adr/0012-indexeddb-domyslnie-opfs-jako-opcja.md), [ADR-0013](docs/adr/0013-watek-glowny-domyslnie-worker-jako-opcja.md).
-
-## Struktura repozytorium
-
-```text
-crates/
-  flatsql-core/      rdzeń silnika (Rust, bez zależności)
-  flatsql-wasm/      wiązania wasm-bindgen
-  flatsql-cli/       powłoka flatsql i natywny benchmark
-bridge/              WASM-Bridge: FlatDB, SyncClient, magazyny, typy TS
-server/              serwer synchronizacji / edge / cloud API (Node.js)
-web/                 aplikacja demo, Service Worker
-bench/               narzędzie pomiarowe: obciążenie, adaptery silników, runner (Node.js, natywnie, przeglądarka)
-test/                testy end-to-end (node:test)
-docs/                architektura, specyfikacja Flat-SQL, badania
-pkg/                 (generowane) wynik npm run build
-```
-
-## Wyniki badań w skrócie
-
-100 000 wierszy, AMD Ryzen 5 4600H, Windows 11, Node.js 22 (pełne tabele i przeglądarka: [docs/research/benchmark-results.md](docs/research/benchmark-results.md)).
-
-| Pomiar | Flat-SQL (WASM) | SQLite (sql.js) | Flat-SQL natywnie |
-|---|---:|---:|---:|
-| PK lookup (prepared) | 9,7 µs | 20,3 µs | 2,3 µs |
-| GROUP BY (100 grup) | 26,4 ms | 130,3 ms | 15,1 ms |
-| ORDER BY … LIMIT 10 | 7,1 ms | 10,6 ms | 6,5 ms |
-| Lookup po indeksie + COUNT | 573 µs | 100 µs | 442 µs |
-| Insert (1 transakcja) | 180 tys. wierszy/s | 291 tys. wierszy/s | 447 tys. wierszy/s |
-| Rozmiar modułu (gzip) | 206 KiB | 315 KiB | – |
-
-| PK lookup | średnio |
-|---|---:|
-| lokalnie (WASM w procesie) | 0,011 ms |
-| cloud API, localhost | 0,63 ms |
-| cloud API, RTT 20 / 50 / 100 ms | 20,9 / 52,3 / 102,5 ms |
-
-W przeglądarce trwałe zatwierdzenie pojedynczej transakcji (WAL → IndexedDB) trwa ok. 0,34 ms, wobec 8,7 ms przy podejściu sql.js (eksport całej bazy 50 tys. wierszy po każdej zmianie).
-
-## Ograniczenia i dalsze prace
-
-- **Panel WinUI 3** (C#) – kolejny etap: komunikacja z silnikiem przez FFI (biblioteka `cdylib` z interfejsem C) lub named pipes; rdzeń jest już niezależny od środowiska.
-- Dane są w całości w pamięci (model przeglądarkowego „working set”); bardzo duże zbiory wymagałyby stronicowanego magazynu (np. OPFS w Web Workerze).
-- Wiersze jako osobne alokacje w `BTreeMap` – wolniejsze od stronicowego formatu SQLite przy odtwarzaniu snapshotu i lookupach przez indeks; kierunki optymalizacji opisane w wynikach badań.
-- Synchronizacja LWW per wiersz (bez scalania pól), zmiany schematu replikowane w uproszczony sposób (różne definicje tej samej tabeli są zgłaszane jako konflikt schematu, a wiersze drugiej definicji odrzucane), brak uwierzytelniania na serwerze (prototyp, nasłuch na `127.0.0.1`).
-- Flat-SQL: brak `CASE`, podzapytań i indeksów złożonych/unikalnych – zgodnie z założeniem „płaskiego” modelu część z nich nie jest planowana.
+[bench/README.md](bench/README.md) opisuje krok po kroku trzy poziomy sprawdzenia wyników: odtworzenie wszystkich tabel i wykresów z zapisanych surowych wyników (kilka sekund, tylko Node.js), pomiar kontrolny (około minuty) i pełne powtórzenie Benchmarku 1 i 2 na dwóch wersjach silnika, `v1-prototyp` i `v2-optymalizacja`.
 
 ## Dokumentacja
 
-- [Architektura i formaty danych](docs/architecture.md)
-- [Rejestr decyzji projektowych (ADR)](docs/adr/README.md)
-- [Specyfikacja Flat-SQL](docs/flat-sql.md)
-- [Analiza porównawcza silników baz danych WASM](docs/research/wasm-engines-comparison.md)
-- [Scenariusz badawczy i metodyka benchmarków](docs/research/benchmark-scenario.md)
-- [Wyniki benchmarków i walidacji offline](docs/research/benchmark-results.md)
-- [Prezentacja projektu](docs/ProductPresentation.pdf)
+| Pytanie | Dokument |
+|---|---|
+| Jak działa silnik i z czego się składa? | README modułów (tabela wyżej) |
+| Dlaczego tak go zaprojektowano? | [rejestr decyzji projektowych (ADR)](docs/adr/README.md) |
+| Jakie są inne silniki baz w WebAssembly i dlaczego te wybrano do porównania? | [analiza porównawcza](docs/research/wasm-engines-comparison.md) |
+| Jak mierzono? | [scenariusz badawczy i metodyka](docs/research/benchmark-scenario.md) |
+| Jakie są wyniki pomiarów? | [Benchmark 1 i 2](docs/research/benchmark-results.md), [pojedyncze optymalizacje](docs/research/optimization-results.md) |
+| Czy silnik dotrzymuje gwarancji trwałości i zbieżności? | [metodyka testów](docs/research/tests-methodology.md), [wyniki testów](docs/research/tests-results.md) |
+| Jak projekt wypada na tle literatury? | [Flat-SQL na tle literatury](docs/references/literature.md), [indeks literatury](docs/references/README.md) |
+| Do czego się nadaje, a do czego nie? | [zastosowania](docs/research/use-cases.md) |
+| Co dalej? | [kierunki rozwoju](docs/future/README.md) |
+| Jaki był pierwotny pomysł na produkt? | [prezentacja projektu](docs/presentation/v1.pdf) |
+
+Listy zadań: [docs/todo.md](docs/todo.md) (prace bieżące) i [docs/future/todo.md](docs/future/todo.md) (rozszerzenia).
+
+## Ograniczenia
+
+- Dane są w całości w pamięci, więc baza musi się w niej zmieścić (moduł `wasm32` ma najwyżej 4 GiB).
+- Konflikty między replikami rozstrzyga reguła „ostatni zapis wygrywa” dla całego wiersza: współbieżne zmiany różnych kolumn jednego wiersza nie są scalane, a unikalność klucza głównego jest sprawdzana tylko lokalnie.
+- Serwer synchronizacji to prototyp: jedna baza dla wszystkich klientów, log tylko w pamięci, brak uwierzytelniania; nasłuchuje na `127.0.0.1`.
+- Zapisuje jedna karta przeglądarki; kolejne pracują na kopii w pamięci.
+- Język nie ma `CASE`, podzapytań, złączeń ani indeksów złożonych; złączenia są poza modelem z definicji.
+
+Kierunki rozwoju według komponentów: [docs/future/README.md](docs/future/README.md).
+
+## Słowniczek
+
+| Pojęcie | Znaczenie |
+|---|---|
+| WebAssembly (WASM) | format kodu wykonywanego przez przeglądarkę i Node.js z szybkością bliską kodu natywnego; Flat-SQL kompiluje się do niego z Rust |
+| Local-First | aplikacja trzyma dane na urządzeniu, działa bez sieci, a serwer służy do synchronizacji i kopii |
+| IndexedDB | wbudowana w przeglądarkę baza klucz–wartość na dysku; Flat-SQL zapisuje w niej WAL i snapshot |
+| OPFS | prywatny system plików strony w przeglądarce; szybki dostęp ma tylko z Web Workera |
+| Web Worker | osobny wątek strony, który komunikuje się z wątkiem głównym wiadomościami |
+| WAL | dziennik zapisu z wyprzedzeniem: zatwierdzone zmiany dopisywane na końcu pliku, z którego po awarii odtwarza się stan |
+| snapshot, checkpoint | pełny obraz bazy zapisany w danej chwili; checkpoint zapisuje snapshot i czyści WAL |
+| zatwierdzanie grupowe | zapis wielu zatwierdzeń naraz jedną operacją na dysku (ang. *group commit*) |
+| `fsync` | wymuszenie fizycznego zapisu danych z bufora systemu na dysk |
+| outbox | kolejka lokalnych zmian czekających na wysłanie do serwera |
+| HLC | hybrydowy zegar logiczny: czas fizyczny połączony z licznikiem, nigdy się nie cofa; daje znaczniki zmian |
+| „ostatni zapis wygrywa” (LWW) | reguła rozstrzygania konfliktów: z dwóch zmian tego samego wiersza zostaje ta z późniejszym znacznikiem |
+| znacznik usunięcia | zapamiętany znacznik usuniętego wiersza, który chroni przed jego przywróceniem przez spóźnioną zmianę (ang. *tombstone*) |
+| CRDT | typ danych, którego repliki zawsze dochodzą do tego samego stanu bez koordynacji |
+| replikacja częściowa | klient przechowuje tylko potrzebną mu część bazy |
+| granica JavaScript–WebAssembly | koszt przekazywania parametrów i wyników między JavaScriptem a modułem WebAssembly |
+| indeks pokrywający | indeks zawierający wszystkie dane potrzebne zapytaniu, więc nie trzeba czytać wierszy |
+| COOP/COEP | nagłówki HTTP włączające izolację strony, wymagane m.in. przez wątki WebAssembly |

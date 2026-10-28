@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (silnik, [architecture.md §4.1](../architecture.md)) |
+| Data | 2026-10-06 (silnik, [flatsql-core/src/storage/README.md](../../crates/flatsql-core/src/storage/README.md#model-snapshot-i-wal)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0006, ADR-0008, ADR-0010, ADR-0011, ADR-0016; todo 1.2, 1.6, 2.6 |
 

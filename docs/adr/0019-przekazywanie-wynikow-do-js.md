@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | zastąpiona przez [ADR-0046](0046-binarny-format-wyniku.md) (wcześniej tworzenie obiektu wyniku i zalecenie JSON dla wyników jednowierszowych zastąpione przez [ADR-0045](0045-obiekt-wyniku-tworzony-w-js.md)) |
-| Data | 2026-10-06 (`flatsql-wasm`, [architecture.md §7](../architecture.md)); kierunek doprecyzowany 2026-10-20 |
+| Data | 2026-10-06 (`flatsql-wasm`, [flatsql-wasm/README.md](../../crates/flatsql-wasm/README.md#przekazywanie-wyników)); kierunek doprecyzowany 2026-10-20 |
 | Rodzaj | architektura |
 | Powiązane | ADR-0005, ADR-0011; todo 2.3, 2.4 |
 

@@ -4,24 +4,20 @@ Rdzeń literatury projektu: silnik SQL w Rust kompilowany do WebAssembly, płask
 
 | Plik / katalog | Zawartość |
 |---|---|
-| [conclusions.md](conclusions.md) | wnioski z analizy prototypu i literatury: pozycja na tle innych rozwiązań, kierunek rozwoju, słowniczek |
-| [literature-comparison.md](literature-comparison.md) | porównanie implementacji z wynikami badań, obszar po obszarze, z rekomendacjami |
+| [literature.md](literature.md) | Flat-SQL na tle literatury: tezy prac sprawdzone pomiarami i testami, własności bez pomiaru, wkład projektu |
 | [search-methodology.md](search-methodology.md) | jak szukano, audyt pokrycia atutów projektu, kryteria doboru rdzenia, ograniczenia |
-| [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md) | notatka do pracy poleconej przez promotora [P2] |
-| [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md) | notatka do książki poleconej przez promotora [P1], z mapą rozdziałów na moduły |
-| [../research/literature-verification.md](../research/literature-verification.md) | tezy prac rdzenia a wyniki benchmarków i testów: co się potwierdziło, co nie, co zastosowano bez pomiaru |
 | `papers/zastosowane/` | 7 plików PDF: prace zastosowane w projekcie, których tez pomiar nie sprawdzał |
 | `papers/potwierdzone/` | 20 plików PDF: prace, których tezy potwierdziły benchmarki lub testy |
 | `papers/niepotwierdzone/` | 2 pliki PDF: prace, których sugestie pomiar sprawdził i w tym silniku się nie sprawdziły |
-| `papers/_poza-rdzeniem/` | 55 plików PDF odrzuconych w rewizjach (§13) – zachowane, nie usunięte |
+| `papers/_poza-rdzeniem/` | prace odrzucone w rewizjach; liczby i kryteria: [search-methodology.md §4](search-methodology.md#4-dobór-rdzenia) |
 
 > **Prawa autorskie.** Pliki w `papers/` służą do własnej nauki. Wiele z nich to wersje autorskie z dopiskiem „for personal use, not for redistribution” albo kopie z serwisów kursów uniwersyteckich, dlatego katalog jest wykluczony z repozytorium i nie należy go publikować. W pracy dyplomowej cytuje się wersję wydawniczą (DOI), nie lokalną kopię.
 
 ## Jak czytać wpisy
 
-Każdy wpis ma identyfikator używany w pozostałych dokumentach, opis bibliograficzny, plik, streszczenie i odpowiedź na pytanie, **co z pracy wynika dla Flat-SQL**, oraz zadania, które się na nią powołują ([todo.md](../todo.md) – optymalizacja prototypu, [todo_future.md](../todo_future.md) – rozszerzenia). Hipotezy H1–H6 pochodzą z [benchmark-scenario.md](../research/benchmark-scenario.md).
+Każdy wpis ma identyfikator używany w pozostałych dokumentach, opis bibliograficzny, plik, streszczenie i odpowiedź na pytanie, **co z pracy wynika dla Flat-SQL**, oraz zadania, które się na nią powołują ([todo.md](../todo.md) – optymalizacja prototypu, [future/todo.md](../future/todo.md) – rozszerzenia). Hipotezy H1–H6 pochodzą z [benchmark-scenario.md](../research/benchmark-scenario.md).
 
-**Identyfikatory zachowano z poprzedniej wersji bazy**, żeby nie unieważniać odwołań; luki w numeracji to pozycje przeniesione poza rdzeń (§13). Nowe prace z rewizji: [C9]–[C11], [L27]–[L28], [M2]–[M3], [S10]. Rewizja z 22.10.2026 ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-pracy.md)): do rdzenia wróciła [W6], a [C8], [L8], [L11], [L20], [L26] i [M3] przeszły poza rdzeń. Rewizja z 28.10.2026 ([ADR-0052](../adr/0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md)): [L24], [C11], [M1], [E1] i [B5] przeszły poza rdzeń, bo projekt ich nie zastosował, a pomiar nie sprawdzał ich tez.
+**Identyfikatory zachowano z poprzedniej wersji bazy**, żeby nie unieważniać odwołań; luki w numeracji to pozycje przeniesione poza rdzeń ([search-methodology.md §4](search-methodology.md#4-dobór-rdzenia)). Nowe prace z rewizji: [C9]–[C11], [L27]–[L28], [M2]–[M3], [S10]. Rewizja z 22.10.2026 ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-pracy.md)): do rdzenia wróciła [W6], a [C8], [L8], [L11], [L20], [L26] i [M3] przeszły poza rdzeń. Rewizja z 28.10.2026 ([ADR-0052](../adr/0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md)): [L24], [C11], [M1], [E1] i [B5] przeszły poza rdzeń, bo projekt ich nie zastosował, a pomiar nie sprawdzał ich tez.
 
 Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przeglądarce i porównywane silniki · [L] Local-First, CRDT, synchronizacja · [C] replikacja, zegary, praca offline · [S] składowanie i odtwarzanie · [M] model danych i zapytania · [E] edge computing · [B] metodyka pomiarów · [V] prywatność · [X] do pobrania · [Q] dokumentacja platform i źródła branżowe.
 
@@ -50,13 +46,13 @@ Kategorie: [P] polecone przez promotora · [W] WebAssembly · [D] bazy w przegl�
 
 ## Podział rdzenia według wyniku weryfikacji
 
-Kryterium rdzenia od 28.10.2026 ([ADR-0052](../adr/0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md)): projekt zastosował pracę (mechanizm, metodę albo uzasadnienie decyzji) albo benchmark lub test sprawdził jej tezę. Katalog w `papers/` wynika z oceny w [literature-verification.md](../research/literature-verification.md): praca, której tezę sprawdzono, trafia do katalogu według wyniku, nawet jeśli projekt ją też zastosował.
+Kryterium rdzenia od 28.10.2026 ([ADR-0052](../adr/0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md)): projekt zastosował pracę (mechanizm, metodę albo uzasadnienie decyzji) albo benchmark lub test sprawdził jej tezę. Katalog w `papers/` wynika z oceny w [literature-verification.md](literature.md): praca, której tezę sprawdzono, trafia do katalogu według wyniku, nawet jeśli projekt ją też zastosował.
 
 | Katalog | Prace | Kryterium |
 |---|---|---|
-| `papers/potwierdzone/` | [P2], [D1], [D2], [D4], [L1], [L2], [L27], [L28], [C2], [C7], [C9], [C10], [S1], [S4], [S8], [S10], [M2], [B1], [B3] | teza sprawdzona benchmarkiem lub testem i potwierdzona ([weryfikacja §4](../research/literature-verification.md#4-tezy-potwierdzone)); [C2] z rozszerzeniem: samo odrzucanie znaczników nie wystarcza |
-| `papers/niepotwierdzone/` | [W1], [W11] | praca sugerowała wynik, który pomiar sprawdził i w tym silniku wykluczył ([weryfikacja §5](../research/literature-verification.md#5-tezy-niepotwierdzone)) |
-| `papers/zastosowane/` | [P1] (notatki do wykładu), [W2], [W6], [D5], [C3], [S6], [V1] | projekt przejął z pracy mechanizm, metodę albo uzasadnienie, ale pomiar nie mógł sprawdzić tezy ([weryfikacja §6](../research/literature-verification.md#6-prace-zastosowane-bez-sprawdzenia-pomiarem)) |
+| `papers/potwierdzone/` | [P2], [D1], [D2], [D4], [L1], [L2], [L27], [L28], [C2], [C7], [C9], [C10], [S1], [S4], [S8], [S10], [M2], [B1], [B3] | teza sprawdzona benchmarkiem lub testem i potwierdzona ([literature.md §3](literature.md#3-tezy-potwierdzone)); [C2] z rozszerzeniem: samo odrzucanie znaczników nie wystarcza |
+| `papers/niepotwierdzone/` | [W1], [W11] | praca sugerowała wynik, który pomiar sprawdził i w tym silniku wykluczył ([literature.md §4](literature.md#4-tezy-niepotwierdzone)) |
+| `papers/zastosowane/` | [P1] (notatki do wykładu), [W2], [W6], [D5], [C3], [S6], [V1] | projekt przejął z pracy mechanizm, metodę albo uzasadnienie, ale pomiar nie mógł sprawdzić tezy ([literature.md §5](literature.md#5-prace-zastosowane-bez-sprawdzenia-pomiarem)) |
 
 Prace cytowane w opisie optymalizacji wyrażeń bez identyfikatora (Boncz i in., MonetDB/X100; Kersten i in., PVLDB 2018) nie są w indeksie; ich teza o koszcie interpretacji wiersz po wierszu zgadza się z rozbiciem kosztów pełnego skanu (65% czasu w interpreterze).
 
@@ -96,18 +92,16 @@ Kryterium rdzenia ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-prac
 
 - **[P1]** Kleppmann M. *Designing Data-Intensive Applications: The Big Ideas Behind Reliable, Scalable, and Maintainable Systems.* O'Reilly Media, 2017. ISBN 978-1-449-37332-0.
   Wydanie polskie: *Przetwarzanie danych w dużej skali. Niezawodność, skalowalność i łatwość konserwacji systemów*, Helion, Gliwice 2018 (ISBN wg Goodreads 978-83-283-4065-7, wg katalogu TUM 978-83-283-4066-4 – sprawdzić na egzemplarzu). Wydanie 2: Kleppmann M., Riccomini C., O'Reilly, 2026.
-  **Plik:** brak (książka komercyjna). Bezpłatne uzupełnienie autora: notatki do wykładu *Distributed Systems*, University of Cambridge 2021/22 – [papers/zastosowane/kleppmann-distributed-systems-lecture-notes.pdf](papers/zastosowane/kleppmann-distributed-systems-lecture-notes.pdf) (zegary, rozgłaszanie, replikacja, CRDT). Bibliografie rozdziałów: [github.com/ept/ddia-references](https://github.com/ept/ddia-references). Notatka: [notes/ddia-kleppmann.md](notes/ddia-kleppmann.md).
-  — Podręcznik systemów danych: bazy w pamięci, log i snapshot (rozdz. 3), kodowanie i ewolucja formatów (4), klienci offline jako replikacja multi-leader i LWW (5), wykonanie szeregowe (7), zawodność zegarów (8), granice spójności ostatecznej (9), CDC i kompaktowanie logu (11), klienci ze stanem i model push (12). **Dla projektu:** teoretyczna podstawa niemal każdej decyzji z [architecture.md](../architecture.md). **Zadania:** todo 0.2, 1.1, 2.1; future 6.1, 6.2, §7, 12.1, 12.4.
+  — Podręcznik systemów danych: bazy w pamięci, log i snapshot (rozdz. 3), kodowanie i ewolucja formatów (4), klienci offline jako replikacja multi-leader i LWW (5), wykonanie szeregowe (7), zawodność zegarów (8), granice spójności ostatecznej (9), CDC i kompaktowanie logu (11), klienci ze stanem i model push (12). **Dla projektu:** teoretyczna podstawa niemal każdej decyzji z [flatsql-core/README.md](../../crates/flatsql-core/README.md). **Zadania:** todo 0.2, 1.1, 2.1; future 6.1, 6.2, §7, 12.1, 12.4.
 
 - **[P2]** Haas A., Rossberg A., Schuff D. L., Titzer B. L., Holman M., Gohman D., Wagner L., Zakai A., Bastien J. F. *Bringing the Web up to Speed with WebAssembly.* PLDI 2017, ACM, s. 185–200. DOI: [10.1145/3062341.3062363](https://doi.org/10.1145/3062341.3062363). Wersja skrócona: Rossberg A. i in., Communications of the ACM 61(12), 2018, s. 107–115, DOI: [10.1145/3282510](https://doi.org/10.1145/3282510).
-  **Plik:** [papers/potwierdzone/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf](papers/potwierdzone/2017-haas-bringing-the-web-up-to-speed-with-webassembly-pldi.pdf); wersja CACM: [papers/potwierdzone/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf](papers/potwierdzone/2018-rossberg-bringing-the-web-up-to-speed-with-webassembly-cacm.pdf). Notatka: [notes/haas-2017-webassembly.md](notes/haas-2017-webassembly.md).
   — Artykuł wprowadzający WebAssembly: bezpieczny, szybki, przenośny i zwarty kod; pamięć liniowa izolowana od kodu i stosu silnika; formalna semantyka. W PolyBenchC 7 z 24 programów w granicy 10% kodu natywnego, prawie wszystkie poniżej 2×; kod o 33,7% szybszy od asm.js przy 62,5% jego rozmiaru. **Dla projektu:** punkt odniesienia dla H2, rozmiaru modułu i argumentu „izolowanej piaskownicy”; artykuł nie mierzy kosztu granicy JS↔WASM (H3). **Zadania:** todo 1.8.
 
 ## 2. WebAssembly – wydajność i bezpieczeństwo
 
 - **[W1]** Jangda A., Powers B., Berger E. D., Guha A. *Not So Fast: Analyzing the Performance of WebAssembly vs. Native Code.* USENIX ATC 2019.
   **Plik:** [papers/niepotwierdzone/2019-jangda-not-so-fast-webassembly-vs-native.pdf](papers/niepotwierdzone/2019-jangda-not-so-fast-webassembly-vs-native.pdf).
-  — SPEC CPU przez Browsix-Wasm: średnio 1,55× wolniej w Chrome i 1,45× w Firefoksie, maksymalnie 2,5×. Przyczyny: więcej dostępów do pamięci (presja na rejestry), sprawdzanie stosu przy każdym wywołaniu, większy kod. **Dla projektu:** podstawa przedziału 1,2–3× w H2. **Wynik:** teza niepotwierdzona – operacje wykonywane w silniku mają w WebAssembly 0,82–1,13 czasu natywnego, a narzut leży na granicy JS↔WASM, którą praca uznaje za pomijalną ([weryfikacja §5.1](../research/literature-verification.md#51-narzut-webassembly-względem-kodu-natywnego)).
+  — SPEC CPU przez Browsix-Wasm: średnio 1,55× wolniej w Chrome i 1,45× w Firefoksie, maksymalnie 2,5×. Przyczyny: więcej dostępów do pamięci (presja na rejestry), sprawdzanie stosu przy każdym wywołaniu, większy kod. **Dla projektu:** podstawa przedziału 1,2–3× w H2. **Wynik:** teza niepotwierdzona – operacje wykonywane w silniku mają w WebAssembly 0,82–1,13 czasu natywnego, a narzut leży na granicy JS↔WASM, którą praca uznaje za pomijalną ([literature.md §4.1](literature.md#41-narzut-webassembly-względem-kodu-natywnego)).
 
 - **[W2]** Lehmann D., Kinder J., Pradel M. *Everything Old is New Again: Binary Security of WebAssembly.* USENIX Security 2020.
   **Plik:** [papers/zastosowane/2020-lehmann-binary-security-of-webassembly.pdf](papers/zastosowane/2020-lehmann-binary-security-of-webassembly.pdf).
@@ -119,7 +113,7 @@ Kryterium rdzenia ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-prac
 
 - **[W11]** Yan Y., Tu T., Zhao L., Zhou Y., Wang W. *Understanding the Performance of WebAssembly Applications.* IMC 2021. DOI: [10.1145/3487552.3487827](https://doi.org/10.1145/3487552.3487827).
   **Plik:** [papers/niepotwierdzone/2021-yan-understanding-performance-webassembly-applications.pdf](papers/niepotwierdzone/2021-yan-understanding-performance-webassembly-applications.pdf).
-  — WASM vs JS w Chrome, Firefoksie i Edge przy różnych poziomach optymalizacji: optymalizacje LLVM nie są dostrojone do WASM i bywają szkodliwe, wyniki silnie zależą od przeglądarki, WASM zużywa znacznie więcej pamięci niż JS. **Dla projektu:** podstawa porównania poziomów optymalizacji i pomiaru pamięci. **Wynik:** teza niepotwierdzona – `opt-level = "s"` i `"z"` wolniejsze o 25–78%, `opt-level = 3` najszybszy; teza o pamięci nierozstrzygnięta ([weryfikacja §5.2](../research/literature-verification.md#52-poziomy-optymalizacji-kompilatora)). **Zadania:** todo 2.5, 2.7, 4.4.
+  — WASM vs JS w Chrome, Firefoksie i Edge przy różnych poziomach optymalizacji: optymalizacje LLVM nie są dostrojone do WASM i bywają szkodliwe, wyniki silnie zależą od przeglądarki, WASM zużywa znacznie więcej pamięci niż JS. **Dla projektu:** podstawa porównania poziomów optymalizacji i pomiaru pamięci. **Wynik:** teza niepotwierdzona – `opt-level = "s"` i `"z"` wolniejsze o 25–78%, `opt-level = 3` najszybszy; teza o pamięci nierozstrzygnięta ([literature.md §4.2](literature.md#42-poziomy-optymalizacji-kompilatora)). **Zadania:** todo 2.5, 2.7, 4.4.
 
 ## 3. Bazy danych w przeglądarce i porównywane silniki
 
@@ -143,7 +137,7 @@ Kryterium rdzenia ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-prac
 
 - **[L1]** Kleppmann M., Wiggins A., van Hardenberg P., McGranaghan M. *Local-First Software: You Own Your Data, in spite of the Cloud.* Onward! 2019, s. 154–178. DOI: [10.1145/3359591.3359737](https://doi.org/10.1145/3359591.3359737).
   **Plik:** [papers/potwierdzone/2019-kleppmann-local-first-software.pdf](papers/potwierdzone/2019-kleppmann-local-first-software.pdf).
-  — Siedem ideałów oprogramowania local-first (brak spinnerów, wiele urządzeń, sieć opcjonalna, współpraca, długowieczność danych, prywatność, kontrola użytkownika); CRDT jako fundament; magazyn przeglądarki bywa czyszczony razem z ciasteczkami. **Dla projektu:** główna rama oceny architektury ([literature-comparison.md §3](literature-comparison.md#3-ideały-local-first)). **Zadania:** todo 1.5; future 1.3, 4.3.
+  — Siedem ideałów oprogramowania local-first (brak spinnerów, wiele urządzeń, sieć opcjonalna, współpraca, długowieczność danych, prywatność, kontrola użytkownika); CRDT jako fundament; magazyn przeglądarki bywa czyszczony razem z ciasteczkami. **Dla projektu:** główna rama oceny architektury ([literature.md](literature.md)). **Zadania:** todo 1.5; future 1.3, 4.3.
 
 - **[L2]** Shapiro M., Preguiça N., Baquero C., Zawirski M. *A comprehensive study of Convergent and Commutative Replicated Data Types.* INRIA, RR-7506, 2011.
   **Plik:** [papers/potwierdzone/2011-shapiro-comprehensive-study-crdt.pdf](papers/potwierdzone/2011-shapiro-comprehensive-study-crdt.pdf) (kopia z serwisu kursu IISc; oryginał: HAL inria-00555588).
@@ -212,7 +206,7 @@ Kryterium rdzenia ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-prac
 
 ## 8. Edge computing
 
-Jedyna praca tej kategorii, [E1], przeszła 28.10.2026 poza rdzeń (§13).
+Jedyna praca tej kategorii, [E1], przeszła 28.10.2026 poza rdzeń.
 
 ## 9. Metodyka pomiarów
 
@@ -222,14 +216,14 @@ Jedyna praca tej kategorii, [E1], przeszła 28.10.2026 poza rdzeń (§13).
 
 - **[B3]** Raasveldt M., Holanda P., Gubner T., Mühleisen H. *Fair Benchmarking Considered Difficult: Common Pitfalls In Database Performance Testing.* DBTest 2018. DOI: [10.1145/3209950.3209955](https://doi.org/10.1145/3209950.3209955).
   **Plik:** [papers/potwierdzone/2018-raasveldt-fair-benchmarking-considered-difficult.pdf](papers/potwierdzone/2018-raasveldt-fair-benchmarking-considered-difficult.pdf).
-  — Pułapki: brak powtarzalności, nieoptymalny system porównywany, „jabłka i pomarańcze”, nadmierne strojenie, przebiegi zimne i gorące, niepoprawne wyniki. **Dla projektu:** lista kontrolna dla [benchmark-scenario.md](../research/benchmark-scenario.md) ([porównanie §8](literature-comparison.md#8-metodyka-benchmarków)). **Zadania:** todo 0.1, 4.1, 4.3, 4.6.
+  — Pułapki: brak powtarzalności, nieoptymalny system porównywany, „jabłka i pomarańcze”, nadmierne strojenie, przebiegi zimne i gorące, niepoprawne wyniki. **Dla projektu:** lista kontrolna dla [benchmark-scenario.md](../research/benchmark-scenario.md) ([porównanie §8](literature.md)). **Zadania:** todo 0.1, 4.1, 4.3, 4.6.
 
 
 ## 10. Prywatność
 
 - **[V1]** Cavoukian A. *Privacy by Design: The 7 Foundational Principles – Implementation and Mapping of Fair Information Practices.* Information and Privacy Commissioner of Ontario.
   **Plik:** [papers/zastosowane/2009-cavoukian-privacy-by-design-principles.pdf](papers/zastosowane/2009-cavoukian-privacy-by-design-principles.pdf) (kopia z serwisu kursu University of Waterloo).
-  — Siedem zasad Privacy by Design (prywatność domyślnie, ochrona w całym cyklu życia, przejrzystość) z mapowaniem na zasady FIP. Uzupełnienie prawne: art. 25 RODO. **Dla projektu:** źródło pojęcia z README; pozwala ocenić, które zasady prototyp spełnia ([porównanie §2.4](literature-comparison.md#24-izolacja-bezpieczeństwo-i-privacy-by-design)). **Zadania:** todo 0.1; future 4.4, 5.6.
+  — Siedem zasad Privacy by Design (prywatność domyślnie, ochrona w całym cyklu życia, przejrzystość) z mapowaniem na zasady FIP. Uzupełnienie prawne: art. 25 RODO. **Dla projektu:** źródło pojęcia z README; pozwala ocenić, które zasady prototyp spełnia ([porównanie §2.4](literature.md)). **Zadania:** todo 0.1; future 4.4, 5.6.
 
 ---
 
@@ -256,70 +250,4 @@ Nie są to publikacje naukowe, ale opisują zachowanie platform, od którego zal
 - **[Q11]** Repozytoria systemów porównywanych w [wasm-engines-comparison.md](../research/wasm-engines-comparison.md): sql.js, wa-sqlite, PGlite, DuckDB-Wasm, GlueSQL, Turso, cr-sqlite, ElectricSQL, PowerSync.
 - **[Q12]** Wiele kart: MDN [Web Locks API](https://developer.mozilla.org/docs/Web/API/Web_Locks_API) i [SharedWorker](https://developer.mozilla.org/docs/Web/API/SharedWorker) (Baseline 2026 – Chrome na Androidzie przywrócił `SharedWorker` w wersji 148, kwiecień 2026); wdrożenie Notion: [How we sped up Notion in the browser with WASM SQLite](https://www.notion.com/blog/how-we-sped-up-notion-in-the-browser-with-wasm-sqlite).
 - **[Q13]** WebAssembly JS String Builtins: [MDN](https://developer.mozilla.org/docs/WebAssembly/JavaScript_builtins), [przegląd W3C TAG](https://tag-github-bot.w3.org/gh/w3ctag/design-reviews/940) – mechanizm dla języków, które chcą używać łańcuchów JS jako własnych (GC); Rust trzyma tekst w pamięci liniowej, więc kopiowania nie unika.
-- Źródła o wdrożeniach (Notion, Actual Budget, Linear, Community Health Toolkit, PowerSync, LiteFS, Turso i in.): [research/real-world-usage.md §5](../research/real-world-usage.md#5-źródła).
-
-## 13. Pozycje poza rdzeniem
-
-Pliki przeniesiono do `papers/_poza-rdzeniem/`. Kryteria wyłączenia: [search-methodology.md §4](search-methodology.md#4-dobór-rdzenia); od 22.10.2026 także brak podrozdziału pracy, w którym praca byłaby cytowana ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-pracy.md)), a od 28.10.2026 praca, której projekt nie zastosował i której tezy pomiar nie sprawdzał ([ADR-0052](../adr/0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md)). Pozycje można przywrócić, jeśli praca dyplomowa obejmie dany wątek. Dokumenty badań (`docs/research/`), z których powstaje tekst pracy, przywołują prace spoza rdzenia opisowo; analizy w `references/`, listy zadań, dokumenty planowania i zapisy ADR zachowują identyfikatory, które rozwiązuje ta tabela.
-
-| ID | Praca | Powód wyłączenia |
-|---|---|---|
-| [L24] | Yu, Ignat, relacje replikowane bez konfliktów, IEEE SMDS 2020 | LWW per kolumna i kompensacja naruszeń więzów to tylko kierunek rozwoju; projekt mechanizmu nie zastosował, a pomiar nie sprawdzał tezy (28.10.2026) |
-| [C11] | Ramasubramanian i in., Cimbiosys, NSDI 2009 | replikacja częściowa poza zakresem pracy; bez zastosowania i bez pomiaru (28.10.2026) |
-| [M1] | Stonebraker, Pavlo, SIGMOD Record 2024 | krytyka modelu bez złączeń i trend „SQL nad klucz–wiersz”; pozycjonowanie bez zastosowania, przewidywalność kosztu sprawdzoną pomiarem opisuje [M2] (28.10.2026) |
-| [E1] | Shi i in., edge computing, IEEE IoT J. 2016 | sama definicja pojęcia „edge”; bez zastosowania, a interpretację H1 dają [L1] i [D4] (28.10.2026) |
-| [B5] | Cooper i in., YCSB, SoCC 2010 | rozkład Zipfa nie został użyty w obciążeniu; zostaje tylko zagrożeniem dla trafności, opisanym w scenariuszu słowami (28.10.2026) |
-| [P2a] | Rossberg i in., CACM 2018 | wersja [P2] – dołączona do jego wpisu (plik w `papers/`) |
-| [L23] | Kleppmann, notatki do wykładu | dołączone do wpisu [P1] (plik w `papers/`) |
-| [W3] | Hilbig i in., binaria WASM, WWW 2021 | kontekst zastosowań WASM, bez wpływu na decyzje |
-| [W4] | Bosamiya i in., dowodliwa piaskownica, USENIX Sec 2022 | dotyczy implementacji środowisk uruchomieniowych, nie aplikacji |
-| [W5] | Zhang i in., przegląd środowisk WASM, 2024 | przegląd ogólny; [P2], [W1] wystarczają |
-| [W7] | Wasm-R3, OOPSLA 2024 | argument za realistycznym obciążeniem pokrywa [B5] |
-| [W8] | He i in., WASM w przemyśle, 2025 | kontekst |
-| [W9] | Corrias i in., podatności webowe w WASM, 2026 | preprint; tezę pokrywa recenzowane [W2] |
-| [W10] | Specyfikacja WebAssembly 3.0 | po usunięciu zadania o JS String Builtins nie jest potrzebna; stan standardu – [Q6] |
-| [D3] | Haffner, Dittrich, kompilacja SQL do WASM, 2021 | JIT zapytań nie opłaca się przy zapytaniach trwających mikrosekundy; brak zadania |
-| [L3] | Preguiça, przegląd CRDT, 2018 | zastąpiony aktualnym przeglądem [L28] |
-| [L4] | Gomes i in., weryfikacja SEC, OOPSLA 2017 | formalna weryfikacja poza zakresem pracy |
-| [L5] | Kleppmann, Beresford, JSON CRDT, 2017 | model dokumentowy, nie płaskie tabele |
-| [L6] | Almeida i in., delta-state, 2016 | pokryty przez [L28] (ten sam autor) |
-| [L7] | Baquero i in., pure op-based, 2017 | kryterium stabilności przyczynowej pokryte przez [L28] |
-| [L8] | Lopes i in., Antidote SQL, 2019 | w pracy tylko jedna uwaga w podrozdz. 3.3 (trudność replikacji leży w więzach); dialekt uzasadniają [C7], [M2], [M1], aktualizacje przemienne – [C9], [L2]; preprint (22.10.2026) |
-| [L9] | Edwards i in., zmiany schematu na żywo, 2023 | problem otwarty opisany też w [L26], które daje rozwiązanie |
-| [L10] | Edwards, Petricek, Baseline, 2025 | preprint; wersjonowanie danych poza planami |
-| [L11] | Kuessner i in., szyfrowane typy replikowane, PLF 2022 | w pracy szyfrowanie end-to-end to tylko kierunek rozwoju; tezę „serwer przechowuje szyfrogram” daje recenzowane [L1] (ideał 6), a to preprint warsztatowy (22.10.2026) |
-| [L12] | Kleppmann, Howard, BEC, 2020 | dotyczy sieci bez zaufanego serwera; Flat-SQL ma serwer jako autorytet |
-| [L13] | Merkle-CRDTs, 2020 | synchronizacja bez serwera – poza architekturą |
-| [L14] | Meyer, uzgadnianie zakresów, 2023 | zadanie przeniesione do przyszłych i uzależnione od trwałego logu (future 3.7) |
-| [L15] | Collabs, 2022 | biblioteka współpracy, bez wpływu na projekt |
-| [L16] | Gentle, Kleppmann, Eg-walker, 2025 | edycja tekstu poza silnikiem; wystarcza [L1] |
-| [L17] | Sal, 2026 | formalna weryfikacja, preprint |
-| [L18] | Jacob i in., kontrola dostępu local-first, 2026 | kontrola dostępu bez zaufanego serwera; preprint |
-| [L19] | Datalog dla CRDT, 2026 | formalna specyfikacja, preprint |
-| [L20] | Niinikoski, praca magisterska, 2025 | model hybrydowy z serwerem koordynującym uzasadniają recenzowane [C9] i [C3]; praca dyplomowa jako słabsze źródło tej samej tezy (22.10.2026) |
-| [L21] | Niinikoski, Fagerholm, materiały uzupełniające | sam artykuł niedostępny – [X6] |
-| [L22] | Otsamo, praca licencjacka, 2025 | słabsze źródło tez obecnych w [L1] i [C9] |
-| [L25] | Tomter, praca magisterska, 2021 | powiela [L24] (wersja na SQLite) |
-| [L26] | Litt i in., Cambria, PaPoC 2021 | problem ewolucji schematu opisują [L1] i [P1] rozdz. 4; soczewki to odrzucona alternatywa z ADR-0027 (etap po pracy), a todo 1.7 tylko zgłasza konflikt (22.10.2026) |
-| [C1] | Lamport 1978 | porządek znaczników opisany w [C2] i [P1] rozdz. 9 |
-| [C4] | Dynamo, SOSP 2007 | argument za dostępem po kluczu pokrywa [C7]; LWW – [C9] |
-| [C5] | Cassandra, 2010 | artykuł nie opisuje CQL; analogię z CQL daje [M1] |
-| [C6] | Bigtable, OSDI 2006 | atomowość per wiersz pokrywają [C7] i [L27] |
-| [C8] | Bailis i in., HAT, PVLDB 2013 | w pracy tylko jedna uwaga w podrozdz. 8.5 (MAV jako opcja na później); atomowość wiersza uzasadniają [C7] i [L27], potrzebę koordynacji przy płatnościach – [C9] i [P1] rozdz. 9 (22.10.2026) |
-| [S2] | ARIES, TODS 1992 | WAL opisany w [P1] rozdz. 3 i 7; Flat-SQL ma log tylko-redo |
-| [S3] | LSM-tree, 1996 | kierunek dla checkpointu lepiej pokrywa [S10] |
-| [S5] | Harizopoulos i in., OLTP, SIGMOD 2008 | wniosek zawarty w [S4] |
-| [S7] | SiloR, OSDI 2014 | równoległe odtwarzanie wymaga wątków, czyli COOP/COEP – sprzeczne z atutem |
-| [S9] | Zheng i in., awarie zasilania, OSDI 2014 | model awarii pokrywa [S8] |
-| [M3] | Gupta, Mumick, utrzymanie widoków, IEEE Data Eng. Bull. 1995 | podstawa tylko future 5.1; kierunek zapytań reaktywnych w pracy uzasadnia [D4]; oceniona ze streszczenia, bez pliku (22.10.2026) |
-| [E2] | Satyanarayanan, 2017 | definicję edge daje [E1] |
-| [E3] | Hall, Ramachandran, 2019 | funkcje serverless, nie bazy |
-| [E4] | Sledge, 2020 | środowisko uruchomieniowe, nie bazy |
-| [E5] | Faasm, 2020 | „snapshot jako obraz pamięci” łamie wspólny format plików Rust/WASM – zadanie usunięte |
-| [E6] | Ménétrey i in., 2022 | artykuł pozycyjny; teza zweryfikowana przez sam prototyp |
-| [E7] | Colosi i in., 2025 | warsztat; wniosek pokrywają [D1] i H1 |
-| [E8] | Lumos, 2025 | WASM poza przeglądarką, serializacja I/O kontenerów |
-| [B2] | Barrett i in., rozgrzewka VM, 2017 | uzupełnia [B1]; wystarcza jedno źródło |
-| [B4] | Taipalus, przegląd porównań DBMS, 2023 | wniosek pokrywa [B3] |
-| [B6] | Schwarz i in., zegary w JS, 2017 | rozdzielczość zegarów opisuje [Q5] |
-| [Q9], [Q10] | wystąpienia Kleppmanna; FOSDEM i Smashing Magazine | bez bezpośredniego zastosowania; LWW per pole pokrywa [L24] |
+- Źródła o wdrożeniach (Notion, Actual Budget, Linear, Community Health Toolkit, PowerSync, LiteFS, Turso i in.): [research/use-cases.md](../research/use-cases.md#8-źródła).

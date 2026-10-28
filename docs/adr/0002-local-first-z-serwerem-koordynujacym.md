@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-06-02 (README); model serwera doprecyzowany 2026-10-18 ([use-cases.md §1](../use-cases.md)) |
+| Data | 2026-06-02 (README); model serwera doprecyzowany 2026-10-18 ([use-cases.md](../research/use-cases.md)) |
 | Rodzaj | założenie |
 | Powiązane | ADR-0001, ADR-0015–ADR-0018; future §2, §3 |
 
@@ -20,7 +20,7 @@ README zakłada „pełną funkcjonalność offline połączoną z asynchroniczn
 ## Uzasadnienie
 
 - Klient pracujący offline z trwałym logiem zmian i reintegracją po połączeniu to sprawdzony wzorzec ([C10], [C3]); aplikacje mobilne bez takiego mechanizmu tracą dane [L27].
-- W praktyce wykonalne są modele hybrydowe z minimalną koordynacją serwera, w pełni bezserwerowe systemy rzadko [L20]; tak działają też analizowane wdrożenia (Actual Budget, Linear, PowerSync – [real-world-usage.md](../research/real-world-usage.md)).
+- W praktyce wykonalne są modele hybrydowe z minimalną koordynacją serwera, w pełni bezserwerowe systemy rzadko [L20]; tak działają też analizowane wdrożenia (Actual Budget, Linear, PowerSync – [use-cases.md](../research/use-cases.md)).
 - Część operacji wymaga koordynacji z natury: zapobieganie podwójnemu wydaniu środków, unikalność między replikami ([C8], [C9], [P1] rozdz. 9).
 
 ## Odrzucone alternatywy

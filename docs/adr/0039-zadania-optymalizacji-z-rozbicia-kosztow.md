@@ -9,7 +9,7 @@
 
 ## Kontekst
 
-Benchmark 1 ([benchmark-results.md §1](../research/benchmark-results.md#1-benchmark-1-prototyp-przed-optymalizacjami)) dał listę słabych stron prototypu S1–S11, a [hyphotetical-optimalizations.md](../hyphotetical-optimalizations.md) – hipotezy O1–O13 spoza zadań 2.1–2.8. Hipotezy miały trafić do listy zadań dopiero po potwierdzeniu pomiarem. Pomiar pomocniczy rozbicia kosztów silnika ([benchmark-results.md §1.12](../research/benchmark-results.md#112-rozbicie-kosztów-silnika-pomiar-pomocniczy)) pokazał trzy przyczyny, których plan nie obejmował:
+Benchmark 1 ([benchmark-results.md §1](../research/benchmark-results.md#1-benchmark-1-prototyp-przed-optymalizacjami)) dał listę słabych stron prototypu S1–S11, a [hyphotetical-optimalizations.md](https://github.com/best-team-8/dbms-rust-wasm/blob/4ed928f/docs/hyphotetical-optimalizations.md) – hipotezy O1–O13 spoza zadań 2.1–2.8. Hipotezy miały trafić do listy zadań dopiero po potwierdzeniu pomiarem. Pomiar pomocniczy rozbicia kosztów silnika ([benchmark-results.md §1.12](../research/benchmark-results.md#112-rozbicie-kosztów-silnika-pomiar-pomocniczy)) pokazał trzy przyczyny, których plan nie obejmował:
 
 - instrukcja przygotowana przechowuje tylko drzewo składni, więc każde wykonanie od nowa wiąże nazwy, wybiera ścieżkę dostępu i kopiuje nazwy kolumn; wyszukanie wiersza to 9% czasu odczytu po kluczu (2,3 µs natywnie);
 - interpreter wyrażeń zajmuje około 64% czasu pełnego skanu (8,2 ms; ręczna pętla po tym samym drzewie 2,9 ms), więc hipoteza O13, według której głównym kierunkiem jest zwarta reprezentacja wierszy (2.7), była błędna;

@@ -12,7 +12,7 @@
 W prototypie struktura tabel powstaje z instrukcji `CREATE TABLE` / `CREATE INDEX` wykonywanych w kodzie aplikacji (np. [web/app.js](../../web/app.js)), a zmiany struktury trafiają do outboksu i są rozsyłane jak dane (ADR-0016 pkt 1). Skutki:
 
 - dowolne urządzenie może zmienić strukturę wszystkim w przestrzeni – `DROP TABLE` z jednego urządzenia usuwa tabelę na pozostałych;
-- urządzenia nigdy nie aktualizują aplikacji jednocześnie: pracownik w terenie bywa tygodniami offline ze starą wersją, Service Worker trzyma starą wersję strony do przeładowania, telefon jest zaktualizowany, a laptop nie. Dwie wersje z różną definicją tej samej tabeli kończą się konfliktem, a wiersze „obcej” wersji są odrzucane ([literature-comparison.md §4.6](../references/literature-comparison.md#46-ewolucja-schematu), todo 1.7).
+- urządzenia nigdy nie aktualizują aplikacji jednocześnie: pracownik w terenie bywa tygodniami offline ze starą wersją, Service Worker trzyma starą wersję strony do przeładowania, telefon jest zaktualizowany, a laptop nie. Dwie wersje z różną definicją tej samej tabeli kończą się konfliktem, a wiersze „obcej” wersji są odrzucane ([literature.md](../references/literature.md), todo 1.7).
 
 ## Decyzja
 
@@ -24,9 +24,9 @@ W prototypie struktura tabel powstaje z instrukcji `CREATE TABLE` / `CREATE INDE
 ## Uzasadnienie
 
 - **Zgodność wstecz i w przód.** Kleppmann ([P1] rozdz. 4) opisuje ewolucję formatów danych przy współistnieniu starego i nowego kodu: bezpieczne jest dodawanie pól opcjonalnych, a usuwanie i zmiana znaczenia pól łamie zgodność – tak działają Protocol Buffers i Avro. Zasada „tylko dokładanie” przenosi to na tabele.
-- **Problem znany z literatury local-first.** [L1] wskazuje brak autorytatywnego schematu jako problem otwarty; ideał 5 (długowieczność danych) jest dziś oceniony jako spełniony częściowo z powodu braku polityki zgodności wersji ([literature-comparison.md §3](../references/literature-comparison.md#3-ideały-local-first)).
+- **Problem znany z literatury local-first.** [L1] wskazuje brak autorytatywnego schematu jako problem otwarty; ideał 5 (długowieczność danych) jest dziś oceniony jako spełniony częściowo z powodu braku polityki zgodności wersji ([literature.md](../references/literature.md)).
 - **Praktyka.** Dexie (`db.version(n).stores(...)` z funkcją migracji) i PowerSync (struktura lokalnej bazy w kodzie aplikacji klienckiej) trzymają strukturę w kodzie aplikacji, a synchronizują dane.
-- **Zastosowania.** Zbieranie danych w terenie (CHT, DHIS2), aplikacje z pracą offline i gry na kilku urządzeniach ([real-world-usage.md](../research/real-world-usage.md)) wymagają, żeby dane ze starszej wersji aplikacji nie były odrzucane.
+- **Zastosowania.** Zbieranie danych w terenie (CHT, DHIS2), aplikacje z pracą offline i gry na kilku urządzeniach ([use-cases.md](../research/use-cases.md)) wymagają, żeby dane ze starszej wersji aplikacji nie były odrzucane.
 - **Przechowywanie nieznanych kolumn (pkt 4)** jest konieczne przy LWW per wiersz (ADR-0015): gdyby starsza wersja obcinała nieznaną kolumnę, jej `UPDATE` innej kolumny wysłałby wiersz bez tej wartości i skasował ją na wszystkich replikach.
 
 ## Odrzucone alternatywy
@@ -46,4 +46,4 @@ W prototypie struktura tabel powstaje z instrukcji `CREATE TABLE` / `CREATE INDE
 
 ## Źródła
 
-[P1] rozdz. 4, [L1], [L26]; [literature-comparison.md §4.6](../references/literature-comparison.md#46-ewolucja-schematu); [real-world-usage.md](../research/real-world-usage.md); dokumentacja Dexie (wersje schematu) i PowerSync (schemat po stronie klienta).
+[P1] rozdz. 4, [L1], [L26]; [literature.md](../references/literature.md); [use-cases.md](../research/use-cases.md); dokumentacja Dexie (wersje schematu) i PowerSync (schemat po stronie klienta).

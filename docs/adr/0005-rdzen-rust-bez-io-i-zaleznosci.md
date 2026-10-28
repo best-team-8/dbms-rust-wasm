@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (silnik, [architecture.md §1](../architecture.md)) |
+| Data | 2026-10-06 (silnik, [flatsql-core/README.md](../../crates/flatsql-core/README.md)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0011, ADR-0012, ADR-0013; future §9 |
 
@@ -35,4 +35,4 @@ Ten sam silnik ma działać w przeglądarce, w Node.js (serwer synchronizacji, w
 
 ## Źródła
 
-[P2] (cel przenośności WASM); [architecture.md §1, §8](../architecture.md).
+[P2] (cel przenośności WASM); [flatsql-core/README.md](../../crates/flatsql-core/README.md).

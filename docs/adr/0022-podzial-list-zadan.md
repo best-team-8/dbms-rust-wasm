@@ -5,7 +5,7 @@
 | Status | zastąpiona przez [ADR-0029](0029-listy-zadan-wedlug-zakresu-pracy.md) |
 | Data | 2026-10-20 |
 | Rodzaj | proces |
-| Powiązane | ADR-0021; [todo.md](../todo.md), [todo_future.md](../todo_future.md) |
+| Powiązane | ADR-0021; [todo.md](../todo.md), [future/todo.md](../future/todo.md) |
 
 ## Kontekst
 
@@ -14,7 +14,7 @@ Wcześniejsza lista zadań mieszała poprawki istniejącego prototypu z nowymi f
 ## Decyzja
 
 - **[todo.md](../todo.md)** zawiera wyłącznie zadania ulepszające to, co prototyp już ma (silnik, składowanie, istniejący protokół synchronizacji, bridge, serwer-hub, benchmarki, dokumentacja prototypu), wynikające z literatury lub z analizy wdrożeń.
-- **[todo_future.md](../todo_future.md)** zawiera rozszerzenia – nowe możliwości potrzebne dojrzałemu produktowi – pod warunkiem, że nie odbierają atutów projektu (ADR-0001–ADR-0006, ADR-0013).
+- **[future/todo.md](../future/todo.md)** zawiera rozszerzenia – nowe możliwości potrzebne dojrzałemu produktowi – pod warunkiem, że nie odbierają atutów projektu (ADR-0001–ADR-0006, ADR-0013).
 - Zadania usunięte po weryfikacji z literaturą są wymienione z powodem w [todo.md §5](../todo.md).
 
 ## Uzasadnienie
@@ -33,4 +33,4 @@ Wcześniejsza lista zadań mieszała poprawki istniejącego prototypu z nowymi f
 
 ## Źródła
 
-[conclusions.md](../references/conclusions.md), [real-world-usage.md](../research/real-world-usage.md).
+[literature.md](../references/literature.md), [use-cases.md](../research/use-cases.md).

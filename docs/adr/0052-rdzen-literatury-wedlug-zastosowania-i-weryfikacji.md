@@ -5,7 +5,7 @@
 | Status | przyjęta |
 | Data | 2026-10-28 |
 | Rodzaj | proces |
-| Powiązane | ADR-0021, ADR-0031 (zastępuje kryterium i skład rdzenia), ADR-0007, ADR-0050, ADR-0051; zlecenie autora po Benchmarku 2, bez zadania w todo.md (zadania literaturowe dotyczą pracy dyplomowej, [todo.md §5](../todo.md)); [literature-verification.md](../research/literature-verification.md) |
+| Powiązane | ADR-0021, ADR-0031 (zastępuje kryterium i skład rdzenia), ADR-0007, ADR-0050, ADR-0051; zlecenie autora po Benchmarku 2, bez zadania w todo.md (zadania literaturowe dotyczą pracy dyplomowej, [todo.md §5](../todo.md)); [literature.md](../references/literature.md) |
 
 ## Kontekst
 
@@ -16,7 +16,7 @@ ADR-0031 włączało do rdzenia każdą pracę z podrozdziałem w mapie rozdzia�
 1. Praca jest w rdzeniu, jeśli projekt ją zastosował (przejął mechanizm, metodę pomiaru albo uzasadnienie decyzji) albo benchmark lub test sprawdził jej tezę. Warunek z ADR-0031, podrozdział w mapie rozdziałów, obowiązuje dalej jako plan cytowań.
 2. Pliki rdzenia leżą w trzech katalogach `docs/references/papers/`: `potwierdzone/` (teza sprawdzona i potwierdzona, 19 prac: [P2], [D1], [D2], [D4], [L1], [L2], [L27], [L28], [C2], [C7], [C9], [C10], [S1], [S4], [S8], [S10], [M2], [B1], [B3]), `niepotwierdzone/` (praca coś sugerowała, pomiar to sprawdził i w tym silniku wykluczył: [W1], [W11]) i `zastosowane/` (zastosowana, ale bez tezy sprawdzalnej pomiarem: [P1], [W2], [W6], [D5], [C3], [S6], [V1]). Praca zastosowana i sprawdzona trafia do katalogu według wyniku.
 3. [L24], [C11], [M1], [E1] i [B5] przechodzą do `papers/_poza-rdzeniem/` z wpisem w §13 indeksu. Rdzeń liczy 28 prac.
-4. Ocena każdej pracy, z miejscem sprawdzenia i liczbami, jest w [literature-verification.md](../research/literature-verification.md). Dokument jest materiałem do rozdziałów 6–8 pracy, więc nie odwołuje się do ADR ani do zadań.
+4. Ocena każdej pracy, z miejscem sprawdzenia i liczbami, jest w [literature.md](../references/literature.md). Dokument jest materiałem do rozdziałów 6–8 pracy, więc nie odwołuje się do ADR ani do zadań.
 5. Dokumenty badań (`docs/research/`) przywołują prace spoza rdzenia opisowo. Analizy w `references/` (porównanie z literaturą, wnioski), listy zadań i dokumenty planowania zachowują identyfikatory, które rozwiązuje tabela §13 indeksu.
 
 ## Uzasadnienie
@@ -37,7 +37,7 @@ ADR-0031 włączało do rdzenia każdą pracę z podrozdziałem w mapie rozdzia�
 ## Konsekwencje
 
 - Indeks ([references/README.md](../references/README.md)) ma sekcję „Podział rdzenia według wyniku weryfikacji”, zaktualizowane ścieżki plików, wyniki przy [W1] i [W11], mapy bez prac wyłączonych i pięć nowych wierszy w §13. [search-methodology.md §4.2](../references/search-methodology.md#42-rewizja-4--zastosowanie-i-wynik-weryfikacji) opisuje rewizję.
-- [literature-comparison.md](../references/literature-comparison.md) dostał uwagę, że ocena H2 i H3 opiera się na wynikach wstępnych; tabeli z 20.10.2026 nie przepisano.
+- [literature.md](../references/literature.md) dostał uwagę, że ocena H2 i H3 opiera się na wynikach wstępnych; tabeli z 20.10.2026 nie przepisano.
 - [benchmark-scenario.md](../research/benchmark-scenario.md) i [wasm-engines-comparison.md](../research/wasm-engines-comparison.md) przywołują YCSB i relacje replikowane bez konfliktów opisowo.
 - W pracy dyplomowej H2 opisuje się wobec [P2] (zgodne) i [W1] (niezgodne), z wyjaśnieniem różnicy i lekcją metodyczną z wyników wstępnych.
 - Katalog pliku zmienia się, gdy nowy pomiar zmieni ocenę pracy; nowa praca trafia do rdzenia z katalogiem i podrozdziałem w mapie.
@@ -45,4 +45,4 @@ ADR-0031 włączało do rdzenia każdą pracę z podrozdziałem w mapie rozdzia�
 
 ## Źródła
 
-[literature-verification.md](../research/literature-verification.md), [benchmark-results.md §1.10, §3.11](../research/benchmark-results.md), [optimization-results.md §12, §15, §16](../research/optimization-results.md), [tests-results.md](../research/tests-results.md); [P2], [W1], [W11], [B1], [B3], [S8], [S10], [L2], [C2], [C9], [D1], [D2].
+[literature.md](../references/literature.md), [benchmark-results.md §1.10, §3.11](../research/benchmark-results.md), [optimization-results.md §12, §15, §16](../research/optimization-results.md), [tests-results.md](../research/tests-results.md); [P2], [W1], [W11], [B1], [B3], [S8], [S10], [L2], [C2], [C9], [D1], [D2].

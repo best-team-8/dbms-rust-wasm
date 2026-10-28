@@ -25,7 +25,7 @@ Rozważono, kto odpowiada za tożsamość (konta, hasła, logowanie), kto sprawd
 
 ## Uzasadnienie
 
-- **Uwierzytelnianie i tak jest w backendzie.** W zastosowaniach z [real-world-usage.md](../research/real-world-usage.md) – pamięć podręczna danych SaaS, zbieranie danych w terenie, kasy, gry ze studiem i kontami graczy – aplikacja ma już backend z kontami. Programista dopisuje jeden endpoint przekazujący żądania.
+- **Uwierzytelnianie i tak jest w backendzie.** W zastosowaniach z [use-cases.md](../research/use-cases.md) – pamięć podręczna danych SaaS, zbieranie danych w terenie, kasy, gry ze studiem i kontami graczy – aplikacja ma już backend z kontami. Programista dopisuje jeden endpoint przekazujący żądania.
 - **Mniejsza powierzchnia ataku.** Do internetu wystawiony jest tylko backend, który i tak trzeba zabezpieczać. Serwer synchronizacji nie potrzebuje HTTPS, publicznego CORS ani limitów żądań z internetu.
 - **Mało pracy po stronie silnika.** Serwer odczytuje przestrzeń z nagłówka i sprawdza klucz bramki. Nie potrzebuje bibliotek JWT ani konfiguracji wydawców przepustek.
 - **Uznany wzorzec.** ElectricSQL zaleca to samo rozwiązanie („proxy auth”) dla swojej usługi synchronizacji.
@@ -49,4 +49,4 @@ Rozważono, kto odpowiada za tożsamość (konta, hasła, logowanie), kto sprawd
 
 ## Źródła
 
-[real-world-usage.md](../research/real-world-usage.md) §1–4; ElectricSQL, [Auth guide](https://electric-sql.com/docs/guides/auth); PowerSync, [authentication](https://docs.powersync.com/configuration/auth/firebase-auth); [Dexie Cloud – authentication](https://dexie.org/cloud/docs/authentication); [Actual Budget – OpenID](https://actualbudget.org/docs/config/oauth-auth).
+[use-cases.md](../research/use-cases.md) §1–4; ElectricSQL, [Auth guide](https://electric-sql.com/docs/guides/auth); PowerSync, [authentication](https://docs.powersync.com/configuration/auth/firebase-auth); [Dexie Cloud – authentication](https://dexie.org/cloud/docs/authentication); [Actual Budget – OpenID](https://actualbudget.org/docs/config/oauth-auth).

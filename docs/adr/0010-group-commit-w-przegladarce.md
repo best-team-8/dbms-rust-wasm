@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (bridge, [architecture.md §4.3](../architecture.md)) |
+| Data | 2026-10-06 (bridge, [bridge/README.md](../../bridge/README.md#zatwierdzanie-grupowe-i-checkpoint)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0009, ADR-0012, ADR-0013; todo 1.4 |
 

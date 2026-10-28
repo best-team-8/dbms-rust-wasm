@@ -100,7 +100,7 @@ Silniki rozważane, ale niemierzone:
 
 ### 5.1 Powtórzenia i kolejność
 
-Jednostką powtórzenia jest proces. Każdy pomiar (jeden silnik, jeden rodzaj zadania) działa w nowym procesie Node.js albo w nowym procesie przeglądarki z pustym profilem i jest powtarzany co najmniej 10 razy. Kompilator JIT, odśmiecanie pamięci i rozmieszczenie danych w pamięci zmieniają się między procesami bardziej niż między iteracjami jednej pętli, więc dopiero powtórzenie procesu pokazuje zmienność, z którą trzeba porównywać różnice [B1]. Kolejność silników w każdym uruchomieniu jest inna, losowana generatorem o ziarnie równym numerowi uruchomienia; żaden silnik nie jest systematycznie mierzony jako pierwszy po starcie maszyny ani zaraz po innym, obciążającym silniku.
+Jednostką powtórzenia jest proces. Każdy pomiar (jeden silnik, jeden rodzaj zadania) działa w nowym procesie Node.js albo w nowym procesie przeglądarki z pustym profilem i jest powtarzany co najmniej 10 razy. Kompilator JIT, odśmiecanie pamięci i rozmieszczenie danych w pamięci zmieniają się między procesami bardziej niż między iteracjami jednej pętli, więc dopiero powtórzenie procesu pokazuje zmienność, z którą trzeba porównywać różnice [B1]. Pierwsza wersja narzędzia mierzyła każdy silnik w jednym procesie i pokazała narzut WebAssembly 1,1–1,8× w operacjach wykonywanych w całości w silniku; dziesięć procesów w Benchmarku 1 dało w tych samych operacjach 0,89–1,13×. Kolejność silników w każdym uruchomieniu jest inna, losowana generatorem o ziarnie równym numerowi uruchomienia; żaden silnik nie jest systematycznie mierzony jako pierwszy po starcie maszyny ani zaraz po innym, obciążającym silniku.
 
 ### 5.2 Rozgrzewka
 
@@ -159,26 +159,7 @@ Ta sama faza zapisu trwałego co w przeglądarce (wstawienie N wierszy, 100 zatw
 
 ### 5.13 Procedura
 
-```bash
-npm ci
-npm run build
-cargo build --release -p flatsql-cli
-git tag prototyp                      # stan mierzony jako Benchmark 1
-node bench/run.js --targets node,native,browser --runs 10 --out bench/results/benchmark-1
-node docs/research/data/benchmark-1/make-report.mjs bench/results/benchmark-1
-```
-
-Runner zapisuje wynik każdego procesu w osobnym pliku `raw/<środowisko>/<rodzaj>/<silnik>/NN.json` i można go przerwać i wznowić tym samym poleceniem. Skrypt raportu jest samodzielny (tylko moduły wbudowane Node.js) i odtwarza wszystkie tabele i wykresy z surowych wyników; surowe wyniki Benchmarku 1 i skrypt leżą w `docs/research/data/benchmark-1/`.
-
-Późniejszą wersję silnika mierzy się tym samym narzędziem razem z prototypem:
-
-```bash
-node bench/build-version.js prototyp              # worktree tagu z pkg/ i CLI
-node bench/run.js --flatsql bench/versions/prototyp --label prototyp --runs 10
-node bench/run.js --label po-optymalizacjach --runs 10
-```
-
-Pomiar ręczny (inna przeglądarka, telefon) wykonuje się stroną `bench/browser/manual.html` uruchamianą przez `node bench/browser/serve.js`; wynik ma ten sam format co pomiar automatyczny.
+Polecenia, wymagania, czas trwania i sposób sprawdzenia wyniku opisuje instrukcja odtworzenia badań: [bench/README.md](../../bench/README.md). Runner zapisuje wynik każdego procesu w osobnym pliku `raw/<środowisko>/<rodzaj>/<silnik>/NN.json` i można go przerwać i wznowić tym samym poleceniem. Skrypt raportu jest samodzielny (tylko moduły wbudowane Node.js) i odtwarza wszystkie tabele i wykresy z surowych wyników. Narzędzie pochodzi zawsze z bieżącego kodu, a mierzona wersja silnika z osobnej kopii roboczej, więc prototyp (tag `v1-prototyp`) i wersję po optymalizacjach (tag `v2-optymalizacja`) mierzy to samo narzędzie. Pomiar ręczny (inna przeglądarka, telefon) wykonuje się stroną `bench/browser/manual.html`; wynik ma ten sam format co pomiar automatyczny.
 
 ## 6. Walidacja Local-First w warunkach offline (H6)
 
@@ -213,7 +194,7 @@ Prawdziwy serwer HTTP, klienci `FlatDB` + `SyncClient`:
 3. Zatrzymanie serwera → zapis → **odświeżenie strony**: aplikacja startuje z cache Service Workera, dane z IndexedDB, liczba oczekujących zmian zachowana.
 4. Ponowne uruchomienie serwera → zmiany zostają wysłane, serwer zwraca je w zapytaniu przez API.
 
-Kryterium zaliczenia (H6): wszystkie kroki zakończone bez utraty zatwierdzonych (spłukanych) danych i ze zbieżnym stanem replik.
+Kryterium zaliczenia (H6): wszystkie kroki zakończone bez utraty zatwierdzonych (spłukanych) danych i ze zbieżnym stanem replik. Wynik: [tests-results.md §2.5](tests-results.md#25-praca-offline-w-aplikacji-demo).
 
 ## 7. Zagrożenia dla trafności
 

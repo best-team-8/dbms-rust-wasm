@@ -9,7 +9,7 @@
 
 ## Kontekst
 
-Prototyp przyjmował zasadę zapisaną w [architecture.md §2](../architecture.md): ścieżka dostępu zwraca nadzbiór wierszy, a wykonawca sprawdza cały warunek `WHERE` na każdym wierszu kandydującym. Upraszczało to planer, ale Benchmark 1 pokazał koszt tej zasady w dwóch słabościach: `COUNT(*)` po indeksie czytał 1000 wierszy kategorii i trwał 438–457 µs wobec 63–69 µs w SQLite (S1), a zakres klucza ponownie sprawdzał warunek zakresu w każdym wierszu (S2, ponad połowa czasu zapytania według rozbicia kosztów). Dialekt ma jedną tabelę w zapytaniu i indeksy jednokolumnowe (ADR-0004), więc relacja między warunkiem a ścieżką dostępu jest prosta do wyznaczenia.
+Prototyp przyjmował zasadę zapisaną w [flatsql-core/README.md](../../crates/flatsql-core/README.md#droga-zapytania): ścieżka dostępu zwraca nadzbiór wierszy, a wykonawca sprawdza cały warunek `WHERE` na każdym wierszu kandydującym. Upraszczało to planer, ale Benchmark 1 pokazał koszt tej zasady w dwóch słabościach: `COUNT(*)` po indeksie czytał 1000 wierszy kategorii i trwał 438–457 µs wobec 63–69 µs w SQLite (S1), a zakres klucza ponownie sprawdzał warunek zakresu w każdym wierszu (S2, ponad połowa czasu zapytania według rozbicia kosztów). Dialekt ma jedną tabelę w zapytaniu i indeksy jednokolumnowe (ADR-0004), więc relacja między warunkiem a ścieżką dostępu jest prosta do wyznaczenia.
 
 ## Decyzja
 
@@ -33,7 +33,7 @@ Prototyp przyjmował zasadę zapisaną w [architecture.md §2](../architecture.m
 
 ## Konsekwencje
 
-- Opis planera w [architecture.md §2](../architecture.md) zmienia się: ścieżka dostępu nadal może zwrócić nadzbiór, ale wykonawca nie sprawdza ponownie tego, co ścieżka gwarantuje.
+- Opis planera w [flatsql-core/README.md](../../crates/flatsql-core/README.md#droga-zapytania) zmienia się: ścieżka dostępu nadal może zwrócić nadzbiór, ale wykonawca nie sprawdza ponownie tego, co ścieżka gwarantuje.
 - Testy, które sprawdzały użycie indeksu liczbą odczytanych wierszy zapytania `COUNT(*)`, sprawdzają je zapytaniem zwracającym wiersze.
 - Każda nowa ścieżka dostępu musi określić, które koniunkty gwarantuje; test różnicowy planera jest miejscem, które to sprawdza.
 

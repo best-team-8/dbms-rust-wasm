@@ -23,7 +23,7 @@ Dane są domyślnie przetwarzane i przechowywane lokalnie, a synchronizacja jest
 ## Odrzucone alternatywy
 
 - **Opieranie obietnicy na samej piaskownicy WASM** – piaskownica nie chroni danych przed innymi skryptami tej samej strony (IndexedDB jest dostępna dla całej domeny).
-- **Przechowywanie kluczy kryptograficznych w bazie** – odrzucone dla portfeli kryptowalut ([use-cases.md §6](../use-cases.md)).
+- **Przechowywanie kluczy kryptograficznych w bazie** – odrzucone dla portfeli kryptowalut ([use-cases.md](../research/use-cases.md)).
 
 ## Konsekwencje
 

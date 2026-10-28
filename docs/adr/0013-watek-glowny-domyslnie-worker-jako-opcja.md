@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (bridge, [architecture.md §1](../architecture.md)); uzasadnienie doprecyzowane 2026-10-20 |
+| Data | 2026-10-06 (bridge, [flatsql-core/README.md](../../crates/flatsql-core/README.md)); uzasadnienie doprecyzowane 2026-10-20 |
 | Rodzaj | architektura |
 | Powiązane | ADR-0001, ADR-0005, ADR-0006, ADR-0012; todo 2.6, 4.12; future 1.1, 1.5 |
 
