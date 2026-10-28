@@ -36,7 +36,7 @@ Oznaczenia w kolumnie „Dojrzały Flat-SQL”: **tak** – nadaje się bez utra
 | Prisma, Drizzle, Netlify, Firebase, AWS Blocks | PGlite (głównie Node.js) | lokalna baza deweloperska i testy bez Dockera | zgodność z PostgreSQL, szybki start | **nie** | **nie** – jak wyżej |
 | SQL Murder Mystery, SQLime, kursy SQL | sql.js / SQLite WASM | nauka SQL w przeglądarce | standardowy SQL ze złączeniami | **nie** | **nie** – nauka standardowego SQL wymaga standardowego dialektu; możliwa tylko nauka samego Flat-SQL |
 | Wtyczki do notatek z wyszukiwaniem semantycznym, demonstracje Transformers.js, frameworki agentów | PGlite + pgvector | wyszukiwanie po podobieństwie, lokalna pamięć asystentów | rozszerzenie wektorowe | **nie** – brak typu wektorowego | **tak\*** – typ wektorowy i wyszukiwanie podobieństwa pasują do płaskiego modelu (wiersz = wpis z wektorem); dla dużych zbiorów potrzebny indeks przybliżony |
-| **Zeta-Lite** [D5] | własny silnik WASM | pamięć agentów w przeglądarce (preprint) | MVCC, rozgałęzianie bazy, wektory | **nie** | **częściowo** – wektory i punkty przywracania (na bazie numerów LSN w WAL) tak; wiele jednoczesnych, przeplatanych transakcji – nie (jednowątkowe wykonanie to część koncepcji) |
+| **Zeta-Lite** [D5] | własny silnik WASM | pamięć agentów w przeglądarce (preprint) | MVCC, rozgałęzianie bazy, wektory | **nie** | **częściowo** – wektory i punkty przywracania (na bazie numerów LSN w WAL) tak; wiele jednoczesnych, przeplatanych transakcji – nie (jednowątkowe wykonanie to część koncepcji); izolację pracy agentów i niepodzielne scalanie dają gałęzie bazy ([§2 H](#h-wyszukiwanie-semantyczne-i-pamięć-asystentów)) |
 | **LiteFS** (Fly.io) | SQLite z replikami | kopie danych aplikacji blisko użytkowników, dane konfiguracyjne i geolokalizacyjne; zapisy przekazywane do węzła głównego | szybkie odczyty lokalne w wielu regionach | **nie** – brak węzłów edge z bazą główną | **tak** – węzły edge (todo_future 7.1); dla danych zmienianych w wielu miejscach LWW zamiast jednego węzła zapisującego |
 | **Turso** (repliki osadzone) | SQLite / libSQL | lokalne odczyty w µs, aplikacje mobilne, kasy, zbieranie danych w terenie, IoT | lokalna kopia bazy głównej, synchronizacja | **częściowo** – lokalna kopia i synchronizacja są; brak replikacji częściowej i hierarchii węzłów | **tak** |
 | **Cloudflare Durable Objects** | SQLite w każdym obiekcie | jeden obiekt na pokój czatu, grę lub użytkownika | stan i baza przy kodzie, bez osobnego serwera bazy | **nie** – brak backendu `Storage` dla platformy | **tak** – jednowątkowy obiekt ze stanem w pamięci odpowiada modelowi Flat-SQL (todo_future 7.3) |
@@ -58,7 +58,8 @@ Oznaczenia w kolumnie „Dojrzały Flat-SQL”: **tak** – nadaje się bez utra
 | Przetwarzanie kolumnowe dużych zbiorów | koncepcja (silnik wierszowy w pamięci, mały moduł) | nie |
 | Dane większe niż pamięć urządzenia | koncepcja (dane w pamięci) | nie – stronicowanie na OPFS wymaga Web Workera i zmienia architekturę |
 | Scalanie współbieżnej edycji tekstu | koncepcja (LWW na wartościach) | nie w silniku – możliwe przez zewnętrzną bibliotekę CRDT |
-| Wiele jednoczesnych transakcji | koncepcja (wykonanie jednowątkowe) | nie |
+| Wiele jednoczesnych transakcji | koncepcja (wykonanie jednowątkowe) | nie; na jednym urządzeniu izolację i scalanie wszystko albo nic dają gałęzie bazy ([todo_future.md 5.7](../todo_future.md)) |
+| Rozgałęzianie bazy | niedojrzałość (rozszerzenie zgodne z koncepcją) | tak, gałąź jako replika scalana jak zmiany z serwera ([todo_future.md 5.4, 5.7](../todo_future.md)) |
 
 ## 2. Powtarzające się wzorce
 
@@ -94,6 +95,10 @@ Rozszerzenia do wyszukiwania w historii i biblioteki dla rozszerzeń korzystają
 
 Wyraźnie rosnąca kategoria (PGlite + pgvector w wielu projektach, Zeta-Lite). **Bez typu wektorowego Flat-SQL nie ma tu czego szukać** – to warunek konieczny, a nie dodatek.
 
+Po zadaniach zaplanowanych dla tej kategorii Flat-SQL nadawałby się do niej bez utraty atutów w pozostałych zastosowaniach. Potrzebne są typ wektorowy z wyszukiwaniem podobieństwa, wyszukiwanie pełnotekstowe, szyfrowanie end-to-end i gałęzie bazy ([todo_future.md 4.3, 4.4, 5.4–5.8](../todo_future.md)). Zeta-Lite izoluje pracę agentów przez wiele wersji wierszy i rozgałęzianie bazy. W Flat-SQL gałąź może być osobną repliką: powstaje ze snapshotu, zbiera własne zmiany i jest scalana tą samą ścieżką co zmiany z serwera. Scalanie sprawdza, czy wiersze przeczytane i zmienione w gałęzi nie zmieniły się w bazie głównej, i przyjmuje albo wszystkie zmiany gałęzi, albo żadnej. Na jednym urządzeniu daje to wykrywanie konfliktów i niepodzielność, które w Zeta-Lite zapewnia zatwierdzenie transakcji. Odczyty nie sprawdzają przy tym widoczności wersji, więc gry, kasy i zbieranie danych w terenie nie zwalniają. Gałęzie można też trzymać obok siebie i porównywać zapytaniami. Funkcje dla agentów mogą być włączane flagami przy budowie modułu, dzięki czemu moduł podstawowy nie rośnie.
+
+Część ograniczeń zostaje. Utworzenie gałęzi kosztuje kopię bazy, przy 100 000 wierszy około 70 ms i podwójną pamięć. Wielu długich transakcji otwartych naraz na wspólnym stanie nie będzie, a między replikami atomowy pozostaje pojedynczy wiersz. Dopasowanie dojrzałego Flat-SQL jest więc wysokie dla pamięci asystenta jednego użytkownika na kilku urządzeniach, w której liczą się trwałość każdego zapisu, synchronizacja i mały moduł. Dla wielu agentów badających równolegle warianty na wspólnym stanie lepszy pozostaje silnik z wieloma wersjami wierszy. Wektory powiększają snapshot, a czas otwarcia bazy rośnie z jego rozmiarem, dlatego w tej kategorii przydaje się odtwarzanie bazy krokami ([todo_future.md 12.11](../todo_future.md)).
+
 ### I. Kategorie, w których Flat-SQL nie powinien konkurować
 
 - **Analityka i BI** – DuckDB-Wasm (przetwarzanie kolumnowe).
@@ -122,7 +127,7 @@ Wyraźnie rosnąca kategoria (PGlite + pgvector w wielu projektach, Zeta-Lite). 
 | 5 | Repliki konfiguracji i danych pomocniczych na edge | średnie (LiteFS, Turso, Durable Objects) | średnie | węzły edge z bazą główną ([todo_future.md §7](../todo_future.md)) |
 | 6 | Zapisy gier w chmurze | słabe–średnie (js-dos, twórcy indie) | wysokie | nisza; potrzebne migracje i eksport |
 | 7 | Rozszerzenia przeglądarki | słabe (pojedyncze projekty) | średnie | wyszukiwanie pełnotekstowe |
-| 8 | Wyszukiwanie semantyczne i pamięć asystentów | mocne dla kategorii, ale nie dla Flat-SQL | średnie–wysokie po dodaniu typu wektorowego (zgodny z koncepcją) | typ wektorowy i wyszukiwanie podobieństwa – poza obecnymi planami |
+| 8 | Wyszukiwanie semantyczne i pamięć asystentów | mocne dla kategorii, ale nie dla Flat-SQL | wysokie dla pamięci jednego użytkownika na kilku urządzeniach, średnie dla wielu agentów równolegle na wspólnym stanie ([§2 H](#h-wyszukiwanie-semantyczne-i-pamięć-asystentów)) | typ wektorowy, wyszukiwanie pełnotekstowe, gałęzie bazy ze scalaniem warunkowym, szyfrowanie end-to-end ([todo_future.md 4.3, 4.4, 5.4–5.8](../todo_future.md)) |
 
 **Nie celować:** analityka i BI, piaskownice i testy wymagające zgodności z PostgreSQL/SQLite, nauka SQL, współpraca na żywo nad dokumentami.
 
