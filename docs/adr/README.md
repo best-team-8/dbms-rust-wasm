@@ -65,10 +65,11 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0049](0049-checkpoint-krokami.md) | Checkpoint kodowany krokami z zachowaniem wierszy zmienianych w trakcie, snapshot w IndexedDB jako Blob | architektura | przyjęta |
 | [0050](0050-konfiguracja-kompilacji-bez-zmian.md) | Kompilacja modułu WebAssembly bez zmian: opt-level 3, wasm-opt -O3, alokator domyślny, bez SIMD | badania | przyjęta |
 | [0051](0051-porownanie-z-silnikami-z-benchmarku-1.md) | Wersja po optymalizacjach porównywana z silnikami odniesienia z Benchmarku 1, silniki oznaczone według roli | proces | przyjęta |
-| [0052](0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md) | Rdzeń literatury według zastosowania i wyniku weryfikacji: katalogi zastosowane, potwierdzone, niepotwierdzone | proces | przyjęta |
+| [0052](0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md) | Rdzeń literatury według zastosowania i wyniku weryfikacji: katalogi zastosowane, potwierdzone, niepotwierdzone | proces | przyjęta; odrzucenie usunięcia katalogu `_poza-rdzeniem/` zastąpione przez [ADR-0057](0057-prace-poza-rdzeniem-tylko-przywolywane.md) |
 | [0053](0053-galezie-bazy-zamiast-mvcc.md) | Pamięć agentów przez gałęzie bazy ze scalaniem warunkowym, bez wielu wersji wierszy | architektura | przyjęta |
 | [0054](0054-dokumentacja-wedlug-modulow-i-dwie-wersje.md) | Dokumentacja według modułów, jedno źródło każdej informacji i dwie wersje silnika | proces | przyjęta |
 | [0056](0056-pomiar-na-telefonie-po-pracy.md) | Pomiar na telefonie poza zakresem pracy inżynierskiej | proces | przyjęta |
+| [0057](0057-prace-poza-rdzeniem-tylko-przywolywane.md) | Z prac spoza rdzenia zostają tylko przywoływane w dokumentach projektu | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

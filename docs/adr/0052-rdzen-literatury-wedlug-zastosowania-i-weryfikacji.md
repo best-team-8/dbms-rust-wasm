@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; odrzucenie usunięcia katalogu `_poza-rdzeniem/` zastąpione przez ADR-0057 |
 | Data | 2026-10-28 |
 | Rodzaj | proces |
 | Powiązane | ADR-0021, ADR-0031 (zastępuje kryterium i skład rdzenia), ADR-0007, ADR-0050, ADR-0051; zlecenie autora po Benchmarku 2, bez zadania w todo.md (zadania literaturowe dotyczą pracy dyplomowej, [todo.md §5](../todo.md)); [literature.md](../references/literature.md) |

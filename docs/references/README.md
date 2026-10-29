@@ -9,7 +9,7 @@ Rdzeń literatury projektu: silnik SQL w Rust kompilowany do WebAssembly, płask
 | `papers/zastosowane/` | 7 plików PDF: prace zastosowane w projekcie, których tez pomiar nie sprawdzał |
 | `papers/potwierdzone/` | 20 plików PDF: prace, których tezy potwierdziły benchmarki lub testy |
 | `papers/niepotwierdzone/` | 2 pliki PDF: prace, których sugestie pomiar sprawdził i w tym silniku się nie sprawdziły |
-| `papers/_poza-rdzeniem/` | prace odrzucone w rewizjach; liczby i kryteria: [search-methodology.md §4](search-methodology.md#4-dobór-rdzenia) |
+| `papers/_poza-rdzeniem/` | 18 plików PDF: prace spoza rdzenia, na które powołują się dokumenty projektu; liczby i kryteria: [search-methodology.md §4](search-methodology.md#4-dobór-rdzenia) |
 
 > **Prawa autorskie.** Pliki w `papers/` służą do własnej nauki. Wiele z nich to wersje autorskie z dopiskiem „for personal use, not for redistribution” albo kopie z serwisów kursów uniwersyteckich, dlatego katalog jest wykluczony z repozytorium i nie należy go publikować. W pracy dyplomowej cytuje się wersję wydawniczą (DOI), nie lokalną kopię.
 
