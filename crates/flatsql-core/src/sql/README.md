@@ -64,6 +64,7 @@ DELETE FROM tabela [WHERE warunek];
 - Pominięte kolumny przyjmują `NULL`.
 - Duplikat klucza: `INSERT` → błąd `constraint`; `OR IGNORE` → wiersz pominięty; `OR REPLACE` → wiersz zastąpiony.
 - `UPDATE` może zmienić klucz główny (sprawdzana jest unikalność nowego klucza).
+- Unikalność klucza głównego jest sprawdzana tylko w lokalnej replice. Dwa urządzenia, które offline wstawią wiersz o tym samym kluczu, po synchronizacji nie dostają błędu: zostaje wiersz z późniejszym znacznikiem czasu (ostatni zapis wygrywa), a drugi znika bez śladu. Tabele zapisywane offline powinny mieć klucze bez kolizji między urządzeniami: losowy identyfikator wygenerowany w aplikacji (UUID, ULID) w kolumnie `TEXT` albo identyfikator urządzenia w kluczu (np. `'tel-a:17'`). Licznik 1, 2, 3 prowadzony osobno na każdym urządzeniu prowadzi do kolizji.
 - Wynik zawiera `rowsAffected`.
 
 ### Zapytania
@@ -188,4 +189,4 @@ EXPLAIN SELECT * FROM inventory WHERE player = 'ayla' AND qty > 1;
 
 ## 8. Czego język nie ma
 
-`CASE`, podzapytań, złączeń, indeksów złożonych i unikalnych. Złączenia i więzy między tabelami są poza modelem z definicji; `CASE` i pozostałe rozszerzenia opisuje [docs/future/README.md §1.1](../../../../docs/future/README.md#11-rdzeń-silnika). Aplikacja zapisująca offline powinna używać kluczy bez kolizji między urządzeniami (losowych identyfikatorów albo identyfikatora urządzenia w kluczu), bo unikalność klucza głównego jest sprawdzana tylko lokalnie.
+`CASE`, podzapytań, złączeń, indeksów złożonych i unikalnych. Złączenia i więzy między tabelami są poza modelem z definicji; `CASE` i pozostałe rozszerzenia opisuje [docs/future/README.md §1.1](../../../../docs/future/README.md#11-rdzeń-silnika).
