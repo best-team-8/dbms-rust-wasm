@@ -24,11 +24,11 @@ Domyślnie mierzone są konfiguracje „Flat-SQL” i „Flat-SQL (JSON)” w No
 
 ## Wersje mierzone w czasie optymalizacji
 
-W czasie pomiarów każdą zmianę oznaczał tag `po-2.N` (numer zadania), a prototyp tag `prototyp`. Po zakończeniu prac zostały tylko tagi `v1-prototyp` i `v2-optymalizacja`, a manifesty (`describe`), raporty `compare.md` i część skryptów w tym katalogu podają dawne nazwy. Tabela przypisuje je do commitów w kolejności wykonania zmian. Kopię roboczą pod dawną nazwą, potrzebną skryptom z odwołaniem do `bench/versions/po-2.N`, tworzy `node bench/build-version.js <commit> --name po-2.N`; warianty kompilacji z pomiaru 16 (`bench/versions/v25-*`) tworzy skrypt `16-build-options/variants.py`.
+W czasie pomiarów każdą zmianę oznaczał tag `po-2.N` (numer zadania), a prototyp tag `prototyp`. Po zakończeniu prac zostały tylko tagi `v1-prototyp` i `v2-optymalizacja`, a manifesty (`describe`), raporty `compare.md` i część skryptów w tym katalogu podają dawne nazwy. Tabela przypisuje je do commitów w kolejności wykonania zmian. Tag `v1-prototyp` wskazuje commit `ebf01f8`: ten sam kod silnika co `prototyp` (identyczny `codeTreeSha256`) z poprawionym adapterem RxDB, którym powtórzono pomiar RxDB w Benchmarku 1. Kopię roboczą pod dawną nazwą, potrzebną skryptom z odwołaniem do `bench/versions/po-2.N`, tworzy `node bench/build-version.js <commit> --name po-2.N`; warianty kompilacji z pomiaru 16 (`bench/versions/v25-*`) tworzy skrypt `16-build-options/variants.py`.
 
 | Dawny tag | Commit | Temat commita |
 |---|---|---|
-| `prototyp` (`v1-prototyp`) | `261d78f` | bench: module size of Worker engines, plain values from DuckDB, table alignment in the report |
+| `prototyp` | `261d78f` | bench: module size of Worker engines, plain values from DuckDB, table alignment in the report |
 | `po-2.1` | `4845bac` | core: count rows by the access path when it guarantees the whole WHERE clause |
 | `po-2.2` | `6839b70` | core: skip the conjuncts of WHERE that the access path guarantees |
 | `po-2.9` | `54ba1cf` | core: compile statements once and keep the plan in prepared statements |
