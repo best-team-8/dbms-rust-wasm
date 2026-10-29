@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | przyjęta |
+| Status | przyjęta; pkt 4 w części dotyczącej zadania 4.7 zastąpiony przez [ADR-0056](0056-pomiar-na-telefonie-po-pracy.md) |
 | Data | 2026-10-24 |
 | Rodzaj | proces |
 | Powiązane | ADR-0016, ADR-0019, ADR-0029, ADR-0037; zadania todo 2.4, 2.5, 2.7, 2.9–2.16 |

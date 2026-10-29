@@ -131,7 +131,7 @@ Część ograniczeń zostaje. Utworzenie gałęzi kosztuje kopię bazy, przy 100
 1. **Obsługa wielu kart jest obowiązkowa** – Notion zbudował do tego SharedWorker i Web Locks, tldraw synchronizuje karty. W Flat-SQL to zadanie [future/todo.md 1.1](../future/todo.md).
 2. **Replikacja częściowa jest obowiązkowa przy wzroście danych** – Productlane musiało zmienić silnik, bo pobieranie całej przestrzeni roboczej przestało się skalować; Linear i Zero synchronizują częściowo. W Flat-SQL: [future/todo.md 3.2](../future/todo.md).
 3. **Rozmiar biblioteki ma znaczenie** – Notion ładuje SQLite asynchronicznie, bo blokował start strony. To wzmacnia argument małego modułu Flat-SQL.
-4. **Na wolnych urządzeniach lokalny odczyt bywa wolniejszy od sieci** – Notion „ściga” odczyt lokalny z API. Warto to uwzględnić w benchmarku na telefonie ([todo.md 4.7](../todo.md)).
+4. **Na wolnych urządzeniach lokalny odczyt bywa wolniejszy od sieci** – Notion „ściga” odczyt lokalny z API. Warto to uwzględnić w benchmarku na telefonie ([future/todo.md 1.6](../future/todo.md)).
 5. **Przeglądarka może usunąć dane** – kasy dodają zapis na serwerze lub kopie do pliku, gry eksport zapisu, Logseq ostrzega przed czyszczeniem pamięci podręcznej. W Flat-SQL: `navigator.storage.persist()` i synchronizacja jako kopia ([todo.md 1.5](../todo.md)).
 6. **Analityka trafia do bazy serwerowej** – CHT przenosi dane do PostgreSQL. W zastosowaniach C i D analityka wymaga więc osobnego narzędzia, bo łącznik z PostgreSQL jest poza zakresem projektu ([future/todo.md – poza zakresem](../future/todo.md#poza-zakresem-decyzja-autora)).
 7. **Wybór zegarów HLC jest zgodny z praktyką** – stosuje je Actual Budget.

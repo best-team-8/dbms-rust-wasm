@@ -52,7 +52,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0036](0036-jawne-konflikty-schematu-przed-wersjami-struktury.md) | Jawne konflikty schematu przed wersjami struktury | architektura | proponowana |
 | [0037](0037-pomiar-prototypu-przed-optymalizacjami.md) | Pomiar prototypu przed optymalizacjami, ta sama metodyka w obu pomiarach | proces | przyjęta; kolejność z pkt 1 zastąpiona przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | [0038](0038-metodyka-benchmarku-1.md) | Metodyka benchmarku: powtórzenia procesu, sumy kontrolne, grupy warunków, wskazana wersja silnika | proces | przyjęta |
-| [0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) | Zadania optymalizacji z rozbicia kosztów silnika jako wymagane | proces | przyjęta |
+| [0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) | Zadania optymalizacji z rozbicia kosztów silnika jako wymagane | proces | przyjęta; pkt 4 w części dotyczącej zadania 4.7 zastąpiony przez [ADR-0056](0056-pomiar-na-telefonie-po-pracy.md) |
 | [0040](0040-warunek-gwarantowany-przez-sciezke-dostepu.md) | Planer zwraca koniunkty gwarantowane przez ścieżkę dostępu | architektura | przyjęta |
 | [0041](0041-plan-w-instrukcji-przygotowanej.md) | Plan zapamiętany w instrukcji przygotowanej, pamięć instrukcji w moście | architektura | przyjęta |
 | [0042](0042-wyrazenia-kompilowane-warianty-i-domkniecia.md) | Warunki i przypisania kompilowane przy kompilacji instrukcji: warianty typowane i domknięcia, interpreter jako rezerwa | architektura | przyjęta |
@@ -68,6 +68,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0052](0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md) | Rdzeń literatury według zastosowania i wyniku weryfikacji: katalogi zastosowane, potwierdzone, niepotwierdzone | proces | przyjęta |
 | [0053](0053-galezie-bazy-zamiast-mvcc.md) | Pamięć agentów przez gałęzie bazy ze scalaniem warunkowym, bez wielu wersji wierszy | architektura | przyjęta |
 | [0054](0054-dokumentacja-wedlug-modulow-i-dwie-wersje.md) | Dokumentacja według modułów, jedno źródło każdej informacji i dwie wersje silnika | proces | przyjęta |
+| [0056](0056-pomiar-na-telefonie-po-pracy.md) | Pomiar na telefonie poza zakresem pracy inżynierskiej | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 
