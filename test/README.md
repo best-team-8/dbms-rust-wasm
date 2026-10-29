@@ -23,11 +23,10 @@ node --test test/offline-sync.test.js
 | Plik | Testów | Co sprawdza | Opis |
 |---|---:|---|---|
 | `bridge.test.js` | 15 | `FlatDB` nad magazynami: zatwierdzanie grupowe, odtworzenie, checkpoint krokami, instrukcje przygotowane, wiele zestawów parametrów, nazwy kolumn wyniku | [3.3](../docs/research/tests-results.md#33-instrukcje-przygotowane-z-zapamiętanym-planem), [3.7](../docs/research/tests-results.md#37-nazwy-kolumn-wyniku-instrukcji-przygotowanej), [3.9](../docs/research/tests-results.md#39-wiele-zestawów-parametrów-jednym-wywołaniem) |
-| `browser.test.js` | 7 | zachowanie w przeglądarce na IndexedDB w pamięci: tryb trwałości, magazyn domyślny, prośba o trwały magazyn | [1.5](../docs/research/tests-results.md#15-tryb-trwałości-indexeddb), [1.6](../docs/research/tests-results.md#16-magazyn-domyślny), [1.7](../docs/research/tests-results.md#17-prośba-o-trwały-magazyn) |
+| `browser.test.js` | 8 | zachowanie w przeglądarce na IndexedDB w pamięci: tryb trwałości, magazyn domyślny, prośba o trwały magazyn; Service Worker aplikacji demo zapisuje przy instalacji wszystkie pliki ładowane przez stronę, także pliki JavaScript wiązań z `pkg/snippets/` | [1.5](../docs/research/tests-results.md#15-tryb-trwałości-indexeddb), [1.6](../docs/research/tests-results.md#16-magazyn-domyślny), [1.7](../docs/research/tests-results.md#17-prośba-o-trwały-magazyn), [2.5](../docs/research/tests-results.md#25-praca-offline-w-aplikacji-demo) |
 | `fs-store.test.js` | 5 | `FsStore`: stany po awarii zbudowane z operacji na symulowanym systemie plików, `fsync` wyłączany dla WAL, otwarty plik WAL | [1.3](../docs/research/tests-results.md#13-utrwalanie-zapisów-w-magazynie-plikowym-nodejs), [1.4](../docs/research/tests-results.md#14-wszystkie-stany-po-awarii-dopuszczone-przez-model) |
 | `offline-sync.test.js` | 7 | praca offline z prawdziwym serwerem: zapisy przy wyłączonym serwerze, restart aplikacji z oczekującymi zmianami, ponowne połączenie, konflikt edycji, zapisy przez `/api/query` | [scenariusz §6.2](../docs/research/benchmark-scenario.md#62-testy-end-to-end-nodejs-testoffline-synctestjs) |
 | `clock.test.js` | 2 | urządzenie z błędnym zegarem: wstrzymanie synchronizacji i nowe znaczniki po poprawie zegara | [2.1](../docs/research/tests-results.md#21-granica-dryfu-zegara) |
-| `web.test.js` | 1 | aplikacja demo: Service Worker zapisuje przy instalacji wszystkie pliki ładowane przez stronę, także pliki JavaScript wiązań z `pkg/snippets/` | [2.5](../docs/research/tests-results.md#25-praca-offline-w-aplikacji-demo) |
 
 Pomocnicze moduły w `support/`:
 
