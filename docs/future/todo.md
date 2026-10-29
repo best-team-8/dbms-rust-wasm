@@ -54,10 +54,11 @@ Jeśli scenariusze edge z prezentacji mają zostać pokazane na obronie, 7.1 war
   - [ ] aplikacja działa, zanim moduł się wczyta (ładowanie asynchroniczne) – nawet kilkaset KB biblioteki opóźniało start strony;
   - [ ] pomocnik w `FlatDB`: odczyt lokalny „ścigający się” z zapytaniem do API – na wolnych urządzeniach dysk bywa wolniejszy od sieci;
   - [ ] limit rozmiaru tabel podręcznych i usuwanie najdawniej używanych wierszy **tylko lokalnie** – usunięcie z pamięci podręcznej nie może trafić do synchronizacji jako `DELETE`;
-  - [ ] wymaga 2.1 (tabele prowadzone przez serwer) i pomiaru z [todo.md 4.7](../todo.md).
+  - [ ] wymaga 2.1 (tabele prowadzone przez serwer) i pomiaru z 1.6.
 - [ ] **1.3 Eksport i import bazy do pliku** (mały) – pobranie bazy jako pliku (snapshot + WAL albo czytelny JSON przez `changes_to_json`) i wczytanie w `FlatDB`; kopia zapasowa na wypadek usunięcia danych przez przeglądarkę i kontrola użytkownika nad danymi ([L1], ideał 7).
 - [ ] **1.4 Rozszerzenia przeglądarki** (mały) – przykładowe rozszerzenie (Manifest V3) z `FlatDB` w workerze tła i w stronie rozszerzenia; worker tła bywa zatrzymywany, więc test odtworzenia bazy z IndexedDB po wybudzeniu i pomiar jego czasu.
 - [ ] **1.5 Backend OPFS – tylko jako opcja** (średni) – szybszy zapis dla większych baz, ale synchroniczny dostęp do OPFS istnieje wyłącznie w Web Workerze, więc nie może zastąpić IndexedDB jako trybu domyślnego. [Q7].
+- [ ] **1.6 Pomiar na telefonie** (mały; dawne todo 4.7) – wszystkie pomiary H1–H5 na urządzeniu mobilnym; osobno czas otwarcia bazy z IndexedDB, bo na wolnych urządzeniach lokalny odczyt bywa wolniejszy od sieci ([use-cases.md](../research/use-cases.md#4-wnioski-projektowe-z-cudzych-wdrożeń)). Narzędzie gotowe: tryb ręczny `bench/browser/serve.js` z `adb reverse` ([bench/README.md](../../bench/README.md)); obie wersje z tagów `v1-prototyp` i `v2-optymalizacja` na tym samym telefonie. Poza zakresem pracy: [ADR-0056](../adr/0056-pomiar-na-telefonie-po-pracy.md).
 
 ## 2. Własność danych i reguły serwera
 
