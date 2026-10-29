@@ -48,4 +48,4 @@ Testy end-to-end uruchamiają prawdziwy proces serwera i klientów `FlatDB` + `S
 
 ## Ograniczenia
 
-Log synchronizacji jest tylko w pamięci, więc każdy restart serwera wysyła wszystkim klientom pełny stan; jedna baza dla wszystkich klientów; brak uwierzytelniania i reguł; nagłówek CORS `*`. Kierunki: [docs/future/README.md §1.5](../docs/future/README.md#15-serwer-synchronizacji).
+Log synchronizacji jest tylko w pamięci, więc każdy restart serwera wysyła wszystkim klientom pełny stan. Restart bez katalogu danych usuwa też bazę serwera: zmiany wierszy tabel, których serwer już nie zna, są odrzucane, a klient potwierdza je bez zgłoszenia konfliktu, więc zostają tylko na urządzeniu ([tests-results.md §2.5](../docs/research/tests-results.md#25-praca-offline-w-aplikacji-demo)). Pozostałe ograniczenia: jedna baza dla wszystkich klientów, brak uwierzytelniania i reguł, nagłówek CORS `*`. Kierunki: [docs/future/README.md §1.5](../docs/future/README.md#15-serwer-synchronizacji).

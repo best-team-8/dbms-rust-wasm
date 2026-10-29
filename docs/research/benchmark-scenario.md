@@ -189,10 +189,10 @@ Prawdziwy serwer HTTP, klienci `FlatDB` + `SyncClient`:
 
 ### 6.3 Scenariusz ręczny w przeglądarce (demo)
 
-1. Wczytanie danych, zapytania – status „zsynchronizowano”.
+1. Pierwsza wizyta w przeglądarce bez danych strony, serwer z katalogiem danych (`npm run start:persistent`): wczytanie danych, zapytania – status „zsynchronizowano”.
 2. „Symuluj brak sieci” → zapisy lokalne, licznik oczekujących zmian rośnie.
 3. Zatrzymanie serwera → zapis → **odświeżenie strony**: aplikacja startuje z cache Service Workera, dane z IndexedDB, liczba oczekujących zmian zachowana.
-4. Ponowne uruchomienie serwera → zmiany zostają wysłane, serwer zwraca je w zapytaniu przez API.
+4. Ponowne uruchomienie serwera, bez odświeżania strony → zmiany zostają wysłane, serwer zwraca je w zapytaniu przez API.
 
 Kryterium zaliczenia (H6): wszystkie kroki zakończone bez utraty zatwierdzonych (spłukanych) danych i ze zbieżnym stanem replik. Wynik: [tests-results.md §2.5](tests-results.md#25-praca-offline-w-aplikacji-demo).
 
