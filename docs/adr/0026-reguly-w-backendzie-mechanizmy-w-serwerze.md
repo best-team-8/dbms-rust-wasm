@@ -11,7 +11,7 @@
 
 Synchronizacja jest automatyczna: każda zmiana w lokalnej bazie urządzenia trafia paczką na serwer, z pominięciem endpointów backendu. Bramka (ADR-0025) przekazuje paczki bez czytania. Urządzeniu nie można ufać – użytkownik może zmienić lokalną bazę w narzędziach przeglądarki (np. ceny w sklepie albo złoto w grze wieloosobowej).
 
-Plan w [todo_future.md](../todo_future.md) §2 zakładał walidację zmian według reguł zapisanych w samym serwerze synchronizacji. Reguły biznesowe (co jest oszustwem, czy zamówienie jest poprawne) zależą jednak od aplikacji i należą do backendu programisty.
+Plan w [future/todo.md](../future/todo.md) §2 zakładał walidację zmian według reguł zapisanych w samym serwerze synchronizacji. Reguły biznesowe (co jest oszustwem, czy zamówienie jest poprawne) zależą jednak od aplikacji i należą do backendu programisty.
 
 ## Decyzja
 
@@ -31,7 +31,7 @@ Przestrzeń w trybie magazynu paczek nie ma reguł – serwer tylko przechowuje 
 - **Koszt mały.** `SyncClient` grupuje zmiany w paczki (do 1000 zmian), więc backend dostaje jedno żądanie na paczkę, nie na zmianę. Użytkownik nie czeka – synchronizacja działa w tle.
 - **Potwierdzenie w praktyce.** W PowerSync zapisy trafiają do backendu programisty, który je sprawdza; w Firebase uprawnienia deklaruje się w konfiguracji usługi.
 
-Zastosowania z [real-world-usage.md](../research/real-world-usage.md), w których webhook się przydaje: kasy offline (stan magazynu i ceny zamówień zrobionych offline), pamięć podręczna SaaS (uprawnienia w zespole), gry wieloosobowe (oszustwa), czasem zbieranie danych w terenie (poprawność formularzy). Zbędny w aplikacjach osobistych i zapisach gier jednoosobowych.
+Zastosowania z [use-cases.md](../research/use-cases.md), w których webhook się przydaje: kasy offline (stan magazynu i ceny zamówień zrobionych offline), pamięć podręczna SaaS (uprawnienia w zespole), gry wieloosobowe (oszustwa), czasem zbieranie danych w terenie (poprawność formularzy). Zbędny w aplikacjach osobistych i zapisach gier jednoosobowych.
 
 ## Odrzucone alternatywy
 
@@ -47,4 +47,4 @@ Zastosowania z [real-world-usage.md](../research/real-world-usage.md), w któryc
 
 ## Źródła
 
-[C3], [C9]; [real-world-usage.md](../research/real-world-usage.md) §1–4; [PowerSync – dokumentacja](https://docs.powersync.com/overview/readme-1).
+[C3], [C9]; [use-cases.md](../research/use-cases.md) §1–4; [PowerSync – dokumentacja](https://docs.powersync.com/overview/readme-1).

@@ -1,8 +1,8 @@
 // Flat-SQL adapters. The engine version is chosen by the runner: env.flatsql()
 // loads the bridge of the measured checkout (see bench/README.md), so the same
-// adapter measures the `prototyp` tag and later versions.
+// adapter measures the `v1-prototyp` tag and later versions.
 //
-// Only API present in the `prototyp` version is used (Database: exec, prepare,
+// Only API present in the `v1-prototyp` version is used (Database: exec, prepare,
 // run, runJson, execute, takeWal, snapshot, restore; FlatDB with IndexedDbStore),
 // except `insert_many`, which uses Database.executeMany where the measured
 // version has it and the loop of the insert phase otherwise.

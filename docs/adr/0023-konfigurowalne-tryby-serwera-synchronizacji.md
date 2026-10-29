@@ -11,7 +11,7 @@
 
 Prototypowy serwer ([server/server.js](../../server/server.js)) trzyma jedną bazę Flat-SQL wspólną dla wszystkich klientów, z tym samym silnikiem co przeglądarka i z logiem paczek tylko w pamięci (ADR-0017 pkt 2). Każdy klient dostaje zmiany wszystkich, a serwer przyjmuje każdą poprawną zmianę.
 
-Analiza wdrożeń ([real-world-usage.md](../research/real-world-usage.md)) pokazała dwie grupy zastosowań o sprzecznych potrzebach:
+Analiza wdrożeń ([use-cases.md](../research/use-cases.md)) pokazała dwie grupy zastosowań o sprzecznych potrzebach:
 
 - **dane jednego użytkownika lub przestrzeni** – aplikacje osobiste (Actual Budget, Dexie Cloud), zapisy gier w chmurze, szyfrowane pokoje (Excalidraw): serwer ma tylko przechować i rozesłać zmiany, najlepiej tanio i bez wglądu w treść;
 - **dane wspólne i reguły serwera** – kasy (zatwierdzanie zamówień, ceny), pamięć podręczna danych serwera w SaaS (Notion, Linear), zbieranie danych w terenie z podziałem na regiony (CHT, DHIS2), rankingi w grach: serwer musi rozumieć wiersze, sprawdzać je i być źródłem prawdy (ADR-0002 pkt 3).
@@ -51,8 +51,8 @@ Tryb z silnikiem jest nadbudową magazynu paczek: oba korzystają z tych samych 
 - Każda przestrzeń ma zapisany tryb; zmiana trybu istniejącej przestrzeni wymaga odtworzenia bazy z logu paczek (z magazynu na silnik) albo eksportu stanu (z silnika na magazyn).
 - W magazynie paczek kompaktowanie logu bez silnika wymaga, żeby klient wysłał punkt startowy (pełny stan); w przestrzeniach współdzielonych bezpieczniej kompaktuje tryb z silnikiem.
 - Uwierzytelnianie i wybór przestrzeni na podstawie tożsamości pozostają osobną, nierozstrzygniętą decyzją (future 4.1).
-- Do dokumentacji: [architecture.md §5](../architecture.md) i opis serwera w README po wdrożeniu trybów.
+- Do dokumentacji: [flatsql-core/README.md](../../crates/flatsql-core/README.md#synchronizacja) i opis serwera w README po wdrożeniu trybów.
 
 ## Źródła
 
-[C3], [C9], [C11], [L1], [L11]; [real-world-usage.md](../research/real-world-usage.md) §1–4.
+[C3], [C9], [C11], [L1], [L11]; [use-cases.md](../research/use-cases.md) §1–4.

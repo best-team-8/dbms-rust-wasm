@@ -1,6 +1,6 @@
 # Analiza porównawcza silników baz danych działających w WebAssembly
 
-Celem analizy jest umiejscowienie Flat-SQL wśród rozwiązań, które pozwalają wykonywać zapytania do bazy danych po stronie klienta (przeglądarka, węzeł edge), oraz uzasadnienie wyboru silników porównywanych w benchmarkach ([scenariusz](benchmark-scenario.md), [wyniki](benchmark-results.md)). To, kto i do czego faktycznie używa tych silników, opisuje [real-world-usage.md](real-world-usage.md); literaturę – [references/README.md](../references/README.md) (identyfikatory w nawiasach, np. [D1]).
+Celem analizy jest umiejscowienie Flat-SQL wśród rozwiązań, które pozwalają wykonywać zapytania do bazy danych po stronie klienta (przeglądarka, węzeł edge), oraz uzasadnienie wyboru silników porównywanych w benchmarkach ([scenariusz](benchmark-scenario.md), [wyniki](benchmark-results.md)). To, kto i do czego faktycznie używa tych silników, opisuje [use-cases.md](use-cases.md); literaturę – [references/README.md](../references/README.md) (identyfikatory w nawiasach, np. [D1]).
 
 Stan na październik 2026 (rewizja 24.10). Rozmiary oznaczone „zmierzono” pochodzą z Benchmarku 1 ([benchmark-results.md](benchmark-results.md)): wszystkie pliki pakietu pobrane przy zimnym starcie w przeglądarce (moduł WebAssembly razem z kodem JavaScript), bez kompresji i po kompresji gzip; pozostałe są deklaracjami autorów i mają charakter orientacyjny.
 
@@ -13,7 +13,7 @@ Stan na październik 2026 (rewizja 24.10). Rozmiary oznaczone „zmierzono” po
 | Rozmiar modułu | czas pobrania i kompilacji przy pierwszym uruchomieniu; Notion ładuje SQLite asynchronicznie, bo kilkaset KB opóźniało start strony |
 | Trwałość w przeglądarce | brak, eksport całej bazy, VFS na IndexedDB, VFS na OPFS, snapshot na żądanie; koszt pojedynczego trwałego zatwierdzenia; gwarancja po zatwierdzeniu (`relaxed`/`strict` w IndexedDB – [Q1]) |
 | Wymagania środowiska | Web Worker, nagłówki COOP/COEP (`SharedArrayBuffer`), JSPI/Asyncify |
-| Wiele kart | czy dwie karty mogą bezpiecznie używać tej samej bazy (w praktyce obowiązkowe – [real-world-usage.md §3](real-world-usage.md#3-wnioski-projektowe-z-cudzych-wdrożeń)) |
+| Wiele kart | czy dwie karty mogą bezpiecznie używać tej samej bazy (w praktyce obowiązkowe – [use-cases.md](use-cases.md#4-wnioski-projektowe-z-cudzych-wdrożeń)) |
 | Synchronizacja | wbudowana, przez zewnętrzną warstwę, brak |
 | Dojrzałość | stabilność, utrzymanie projektu |
 
@@ -86,7 +86,7 @@ Silnik SQL napisany w czystym JavaScripcie, bez WebAssembly: tabele są tablicam
    - **przyrostową trwałość** (koszt zatwierdzenia proporcjonalny do zmiany, nie do bazy) – w przeciwieństwie do sql.js i Zeta-Lite,
    - **wbudowaną synchronizację** Local-First z deterministycznym rozwiązywaniem konfliktów, prostą dzięki adresowaniu wierszy kluczem.
 4. Ograniczenia Flat-SQL względem dojrzałych silników: brak zapytań relacyjnych, całość danych w pamięci, mniej optymalizacji (np. brak indeksów pokrywających), synchroniczny checkpoint całej bazy ([S10]), brak obsługi wielu kart w bibliotece (dziś tylko blokada w demo).
-5. Analiza wdrożeń ([real-world-usage.md](real-world-usage.md)) potwierdza tę niszę: najbliższym odpowiednikiem architektury jest Actual Budget (SQLite w przeglądarce, HLC, własny serwer synchronizacji), a najmocniejsze dowody potrzeby dają aplikacje terenowe offline (PouchDB, PowerSync).
+5. Analiza wdrożeń ([use-cases.md](use-cases.md)) potwierdza tę niszę: najbliższym odpowiednikiem architektury jest Actual Budget (SQLite w przeglądarce, HLC, własny serwer synchronizacji), a najmocniejsze dowody potrzeby dają aplikacje terenowe offline (PouchDB, PowerSync).
 
 ## 5. Wybór silników do benchmarku
 
@@ -109,7 +109,7 @@ Benchmark porównuje silniki w grupach o tych samych warunkach uruchomienia ([be
 
 Niemierzone: Zeta-Lite [D5], bo kod jest zamknięty i nie ma modułu do pobrania (porównanie opiera się na deklaracjach z preprintu); absurd-sql, bo projekt nie jest rozwijany, a jego podejście reprezentują wa-sqlite i `opfs-sahpool`; GlueSQL i Turso są opisane w przeglądzie, ale nie należą do zestawu punktów odniesienia tej wersji benchmarku (Turso w przeglądarce jest w fazie beta).
 
-Porównanie wersji Flat-SQL po optymalizacjach z innymi silnikami ([benchmark-results.md §3.9](benchmark-results.md#39-flat-sql-po-optymalizacjach-na-tle-innych-silników)) dzieli je według roli z tej tabeli i z punktu 4. Pokrewne są silniki, które rozwiązują to samo zadanie co Flat-SQL: SQLite w WebAssembly dla danych operacyjnych aplikacji (sql.js, SQLite WASM, wa-sqlite) i bazy local-first z synchronizacją (PouchDB, RxDB), a z niemierzonych Zeta-Lite. PGlite i DuckDB-Wasm mają inne zastosowanie (punkt 4.2), a AlaSQL, Dexie.js i czysty JavaScript są punktami odniesienia.
+Porównanie wersji Flat-SQL po optymalizacjach z innymi silnikami ([benchmark-results.md §2.9](benchmark-results.md#29-flat-sql-po-optymalizacjach-na-tle-innych-silników)) dzieli je według roli z tej tabeli i z punktu 4. Pokrewne są silniki, które rozwiązują to samo zadanie co Flat-SQL: SQLite w WebAssembly dla danych operacyjnych aplikacji (sql.js, SQLite WASM, wa-sqlite) i bazy local-first z synchronizacją (PouchDB, RxDB), a z niemierzonych Zeta-Lite. PGlite i DuckDB-Wasm mają inne zastosowanie (punkt 4.2), a AlaSQL, Dexie.js i czysty JavaScript są punktami odniesienia.
 
 ## Źródła
 

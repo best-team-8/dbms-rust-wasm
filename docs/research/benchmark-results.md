@@ -1,12 +1,12 @@
 # Wyniki benchmarków i walidacji offline
 
-Dokument zawiera wyniki „Benchmarku 1”, czyli pomiaru prototypu Flat-SQL przed optymalizacjami, wykonanego według [scenariusza badawczego](benchmark-scenario.md), wcześniejsze wyniki wstępne oraz wyniki „Benchmarku 2”, czyli pomiaru wersji po optymalizacjach razem z prototypem tym samym narzędziem, z miejscem tej wersji wśród silników z Benchmarku 1 ([§3](#3-benchmark-2-wersja-po-optymalizacjach)). Benchmark 1 jest stanem wyjściowym: późniejsze wersje silnika mierzy się tym samym narzędziem razem z prototypem. Surowe wyniki wszystkich procesów, skrypt tworzący tabele i wykresy oraz skrypty analizy leżą w [data/benchmark-1/](data/benchmark-1/); pełne tabele: [data/benchmark-1/tables.md](data/benchmark-1/tables.md).
+Dokument zawiera wyniki „Benchmarku 1”, czyli pomiaru prototypu Flat-SQL przed optymalizacjami, wykonanego według [scenariusza badawczego](benchmark-scenario.md), oraz wyniki „Benchmarku 2”, czyli pomiaru wersji po optymalizacjach razem z prototypem tym samym narzędziem, z miejscem tej wersji wśród silników z Benchmarku 1 ([§2](#2-benchmark-2-wersja-po-optymalizacjach)). Benchmark 1 jest stanem wyjściowym: późniejsze wersje silnika mierzy się tym samym narzędziem razem z prototypem. Surowe wyniki wszystkich procesów, skrypt tworzący tabele i wykresy oraz skrypty analizy leżą w [data/benchmark-1/](data/benchmark-1/); pełne tabele: [data/benchmark-1/tables.md](data/benchmark-1/tables.md).
 
 ## 1. Benchmark 1: prototyp przed optymalizacjami
 
 ### 1.1 Warunki pomiaru
 
-Pomiar wykonano 24 października 2026 na laptopie z procesorem AMD Ryzen 5 4600H (6 rdzeni, 12 wątków), 16 GB RAM i dyskiem SSD NVMe, w systemie Windows 11 Home (10.0.26200) na zasilaniu sieciowym. Środowiska: Node.js 24.21.0, Microsoft Edge 156.0.4314.42 (Chromium 156) bez okna, sterowany przez playwright-core, strona izolowana (`crossOriginIsolated = true`), oraz natywny CLI skompilowany Rust 1.99.0. Mierzona wersja to tag `prototyp` (commit `261d78f`). Tabela ma N = 100 000 wierszy. Każdy pomiar powtórzono w 10 nowych procesach: 260 procesów Node.js, 20 natywnych i 580 procesów przeglądarki, bez żadnego nieudanego. Koszt utrwalania plików zmierzono dodatkowo w Linuksie (WSL 2, Ubuntu 24.04, ext4) w kolejnych 20 procesach.
+Pomiar wykonano 24 października 2026 na laptopie z procesorem AMD Ryzen 5 4600H (6 rdzeni, 12 wątków), 16 GB RAM i dyskiem SSD NVMe, w systemie Windows 11 Home (10.0.26200) na zasilaniu sieciowym. Środowiska: Node.js 24.21.0, Microsoft Edge 156.0.4314.42 (Chromium 156) bez okna, sterowany przez playwright-core, strona izolowana (`crossOriginIsolated = true`), oraz natywny CLI skompilowany Rust 1.99.0. Mierzona wersja to tag `v1-prototyp`. Tabela ma N = 100 000 wierszy. Każdy pomiar powtórzono w 10 nowych procesach: 260 procesów Node.js, 20 natywnych i 580 procesów przeglądarki, bez żadnego nieudanego. Koszt utrwalania plików zmierzono dodatkowo w Linuksie (WSL 2, Ubuntu 24.04, ext4) w kolejnych 20 procesach.
 
 Wartości w tabelach to mediana z 10 uruchomień, w nawiasie pierwszy i trzeci kwartyl. Wartość w nawiasie kwadratowym `[n/N]` oznacza, że operacja osiągnęła limit 20 s na uruchomienie i wykonano n z N powtórzeń. Mediana współczynnika zmienności (odchylenie standardowe przez średnią) wszystkich par silnik–operacja wynosi 4,1%, a 90. percentyl 16,5%. Największy rozrzut mają pojedyncze operacje zapisu w przeglądarce, w których jedno z dziesięciu uruchomień trwało kilka razy dłużej (np. UPDATE we Flat-SQL z IndexedDB: dziewięć wyników 38–48 ms i jeden 247 ms); mediana jest na takie uruchomienia odporna.
 
@@ -240,7 +240,7 @@ Lista jest wejściem do optymalizacji. Każda pozycja podaje objaw z Benchmarku 
 | S10 | w trybie Worker każde wywołanie kosztuje 56 µs, a 10 000 wierszy dodatkowo 11 ms | komunikat w obie strony i *structured clone* tablic wierszy | różnica konfiguracji Worker i wątku głównego |
 | S11 | `FsStore` (serwer) zatwierdza w 0,40–0,60 ms bez `fsync`, CLI w 10 µs | otwarcie i zamknięcie pliku WAL przy każdym dopisaniu | `bridge/stores/fs.js` |
 
-Pozycje S1–S5, S7 i S6 (w części dotyczącej reprezentacji wierszy) pokrywają się z zaplanowanymi optymalizacjami silnika i granicy JS↔WASM. Pozostałe, razem z propozycjami, które z nich wynikają, opisuje [hyphotetical-optimalizations.md](../hyphotetical-optimalizations.md).
+Pozycje S1–S5, S7 i S6 (w części dotyczącej reprezentacji wierszy) pokrywają się z zaplanowanymi optymalizacjami silnika i granicy JS↔WASM. Pozostałe zostały poza zakresem optymalizacji, a zmiany, które z nich wynikają i których nie wykonano, są kierunkami rozwoju ([future/README.md](../future/README.md)).
 
 ### 1.12 Rozbicie kosztów silnika (pomiar pomocniczy)
 
@@ -293,135 +293,15 @@ Pełny skan i grupowanie alokują pamięć tylko na początku i na końcu zapyta
 
 Wnioski. Wyszukanie wiersza to mniej niż jedna dziesiąta czasu odczytu po kluczu; reszta to praca, którą silnik powtarza przy każdym wykonaniu instrukcji przygotowanej (instrukcja przechowuje tylko drzewo składni, a plan powstaje od nowa), i kopiowanie danych do wyniku. Czas pełnego skanu wyznacza głównie interpretacja wyrażeń wiersz po wierszu, a nie rozproszenie wierszy w pamięci ani przydział pamięci: ta sama pętla bez interpretera jest prawie trzy razy szybsza, a skan wykonuje 25 alokacji. Outbox, który przy braku synchronizacji zawiera wpis dla każdego wstawionego wiersza, odpowiada za około połowę czasu odtworzenia, jedną trzecią czasu snapshotu i jedną czwartą jego rozmiaru. Pomiar zmienił kolejność planowanych optymalizacji: zapamiętanie planu w instrukcji przygotowanej, kompilacja wyrażeń i zmiana outboxa idą przed zmianą reprezentacji wierszy.
 
-## 2. Wyniki wstępne (6 października 2026, inna metodyka)
+## 2. Benchmark 2: wersja po optymalizacjach
 
-Wyniki z tej sekcji pochodzą z pierwszej wersji narzędzia: jedno uruchomienie procesu na silnik, średnia z pętli bez rozrzutu między uruchomieniami, zgodność wyników sprawdzana tylko liczbą wierszy, zapytanie top-k bez rozstrzygania remisów, przeglądarka Chromium 152 bez izolacji (zegar 100 µs), Node.js 22.23.2, silniki odniesienia tylko sql.js i czysty JavaScript. Nie porównuje się ich liczbowo z Benchmarkiem 1. Pomiary: AMD Ryzen 5 4600H, 16 GB RAM, Windows 11, Rust 1.99, sql.js 1.14.2, N = 100 000 wierszy; polecenie ówczesnego narzędzia: `node bench/run.js --rows 100000 --native`.
+### 2.1 Warunki pomiaru
 
-### 2.1 Node.js (V8) – operacje w pamięci
-
-Średni czas operacji (w nawiasie p95). Insert – czas całej transakcji i przepustowość.
-
-| Operacja | Flat-SQL WASM (obiekty) | Flat-SQL WASM (JSON) | sql.js (SQLite) | czysty JS (`Map`) | Flat-SQL natywnie |
-|---|---:|---:|---:|---:|---:|
-| Insert, 1 transakcja | 758 ms (132 tys./s) | 555 ms (180 tys./s) | 344 ms (291 tys./s) | 45 ms (2,2 mln/s) | 223 ms (447 tys./s) |
-| PK lookup | 18,6 µs (24,4) | **9,7 µs** (9,5) | 20,3 µs (26,6) | 0,64 µs | 2,3 µs |
-| Lookup po indeksie + COUNT | 613 µs (975) | 573 µs (801) | **100 µs** (136) | 2,6 µs | 442 µs |
-| Zakres PK (1000 wierszy) + SUM | 153 µs | 124 µs | 128 µs | 78 µs | 85 µs |
-| Pełny skan z filtrem | 13,4 ms | 11,5 ms | 9,7 ms | 2,0 ms | 8,2 ms |
-| GROUP BY (100 grup) | 27,9 ms | **26,4 ms** | 130,3 ms | 3,8 ms | 15,1 ms |
-| ORDER BY … LIMIT 10 | 7,4 ms | **7,1 ms** | 10,6 ms | 1,7 ms | 6,5 ms |
-| Pobranie 10 000 wierszy do JS | 16,8 ms | 18,5 ms | 16,9 ms | 1,0 ms | – |
-| UPDATE 10% wierszy | 57,8 ms | 56,2 ms | **18,0 ms** | 6,0 ms | 30,9 ms |
-| DELETE 10% wierszy | 43,4 ms | 41,6 ms | **25,1 ms** | 6,8 ms | 25,2 ms |
-| Snapshot / eksport | 49,0 ms | 43,4 ms | **2,2 ms** | 28,5 ms | 25,8 ms |
-| Odtworzenie / import | 200 ms | 192 ms | **1,2 ms** | 51 ms | 114 ms |
-| Rozmiar snapshotu | 5,27 MB | 5,27 MB | 4,70 MB | 3,17 MB (JSON) | 5,27 MB |
-
-| Moduł WebAssembly | Rozmiar | gzip | Kompilacja (`WebAssembly.compile`) |
-|---|---:|---:|---:|
-| Flat-SQL (Rust → wasm32) | 545 KiB | **206 KiB** | 2,7 ms |
-| sql.js (SQLite → Emscripten) | 643 KiB | 315 KiB | 3,3 ms |
-
-Wszystkie silniki zwróciły te same liczby wierszy dla każdego zapytania i po odtworzeniu snapshotu (90 000).
-
-### 2.2 Przeglądarka (Chromium 152) – operacje w pamięci
-
-`performance.now()` w przeglądarce ma rozdzielczość 100 µs, więc wiarygodne są średnie (percentyle krótkich operacji pominięto).
-
-| Operacja | Flat-SQL WASM (obiekty) | Flat-SQL WASM (JSON) | sql.js | czysty JS |
-|---|---:|---:|---:|---:|
-| Insert, 1 transakcja | 765 ms (131 tys./s) | 580 ms (172 tys./s) | 280 ms (357 tys./s) | 54 ms |
-| PK lookup | 15,5 µs | **11,4 µs** | 18,0 µs | 1,1 µs |
-| Lookup po indeksie + COUNT | 614 µs | 569 µs | **72 µs** | 0,8 µs |
-| Zakres PK + SUM | 132 µs | 152 µs | 100 µs | 29 µs |
-| Pełny skan z filtrem | 11,1 ms | 11,4 ms | 9,0 ms | 1,4 ms |
-| GROUP BY | 28,6 ms | **26,1 ms** | 121,8 ms | 2,8 ms |
-| ORDER BY … LIMIT 10 | **7,0 ms** | 7,2 ms | 11,8 ms | 1,4 ms |
-| Pobranie 10 000 wierszy | 21,1 ms | **14,9 ms** | 24,9 ms | 1,0 ms |
-| UPDATE 10% | 51,9 ms | 41,0 ms | **14,7 ms** | 4,9 ms |
-| DELETE 10% | 42,4 ms | 38,0 ms | **22,0 ms** | 9,5 ms |
-| Snapshot / eksport | 57,5 ms | 40,6 ms | **1,2 ms** | 22,1 ms |
-| Odtworzenie / import | 187 ms | 200 ms | **1,1 ms** | 49,8 ms |
-
-| Moduł | Pobranie (localhost) | Kompilacja |
-|---|---:|---:|
-| Flat-SQL | 21,7 ms | 28,8 ms |
-| sql.js | 16,8 ms | 51,9 ms |
-
-### 2.3 Trwałość w przeglądarce (IndexedDB)
-
-| Pomiar (50 000 wierszy) | Wynik |
-|---|---:|
-| Flat-SQL: 50 000 insertów w 1 transakcji – wykonanie | 211,5 ms |
-| Flat-SQL: … + zapis WAL (2,86 MB) w IndexedDB | 225,2 ms |
-| Flat-SQL: pojedyncze zatwierdzenie + `await flush()` | **0,34 ms** (p95 0,5 ms) |
-| Flat-SQL: 1000 zatwierdzeń + 1 `flush()` (group commit) | 5,6 ms (5,6 µs / zatwierdzenie) |
-| Flat-SQL: checkpoint (snapshot 3,02 MB do IndexedDB) | 34,9 ms |
-| Flat-SQL: ponowne otwarcie bazy (IndexedDB → pamięć) | 49,3 ms (odtworzenie: 40,0 ms) |
-| sql.js: zatwierdzenie = `export()` całej bazy (1,68 MB) + zapis do IndexedDB | **8,68 ms** |
-
-Ten sam pomiar dla 10 000 wierszy: Flat-SQL 0,53 ms, sql.js 3,84 ms (plik 0,33 MB).
-
-### 2.4 Local-First vs Cloud-First
-
-PK lookup na tabeli 10 000 wierszy (ten sam silnik lokalnie i na serwerze).
-
-| Tryb | Node.js – średnio | Node.js – p95 | Przeglądarka – średnio |
-|---|---:|---:|---:|
-| lokalnie (WASM w procesie, z parsowaniem SQL) | **0,011 ms** | 0,012 ms | ≈ 0,011 ms |
-| cloud API, localhost | 0,63 ms | 0,78 ms | 4,0 ms |
-| cloud API, RTT 20 ms | 20,9 ms | 21,3 ms | 23,8 ms |
-| cloud API, RTT 50 ms | 52,3 ms | 52,8 ms | 60,2 ms |
-| cloud API, RTT 100 ms | 102,5 ms | 103,1 ms | 108,6 ms |
-
-### 2.5 Wpływ optymalizacji silnika (natywnie, 100 000 wierszy)
-
-Pierwsza wersja silnika vs wersja po profilowaniu (commit „engine: speed up predicate evaluation, grouping and top-k”):
-
-| Operacja | Przed | Po | Zmiana |
-|---|---:|---:|---:|
-| Insert | 344 tys./s | 447 tys./s | +30% |
-| Pełny skan z filtrem | 15,9 ms | 8,2 ms | −48% |
-| GROUP BY | 27,9 ms | 15,1 ms | −46% |
-| ORDER BY … LIMIT 10 | 27,5 ms | 6,5 ms | −76% |
-| Odtworzenie snapshotu | 145 ms | 114 ms | −21% |
-
-Główna przyczyna wolnego filtrowania okazała się nieoczywista: rekurencyjna funkcja `eval` z dużym `match` (wiele inlinowanych gałęzi, obsługa błędów) miała ramkę stosu ~500 B i zapisywała wszystkie rejestry przy **każdym** wywołaniu – także dla odczytu kolumny. Obsługa liści wyrażeń inline i osobny ewaluator predykatów skróciły koszt porównania `kolumna < stała` z ~90 ns do ~30 ns.
-
-### 2.6 Interpretacja
-
-**H1 – Local-First vs Cloud-First: potwierdzona.** Lokalne zapytanie (11 µs) jest ~57× szybsze niż zapytanie do serwera na tej samej maszynie i ~1 900× / ~9 300× szybsze przy RTT 20 / 100 ms. Czas zapytania przez sieć jest praktycznie równy RTT – koszt wykonania na serwerze jest pomijalny, a skrócić go może tylko przeniesienie danych bliżej użytkownika. W przeglądarce dochodzi jeszcze ~3–8 ms narzutu `fetch` na każde żądanie.
-
-**H2 – narzut WebAssembly: potwierdzona z zastrzeżeniem.** Dla operacji obliczeniowych wewnątrz silnika WASM jest 1,1–1,8× wolniejszy od kodu natywnego (top-k 1,10×, lookup po indeksie 1,30×, pełny skan 1,41×, zakres 1,45×, snapshot/odtworzenie 1,68×, GROUP BY 1,74×). Większe różnice (PK lookup 4,3×, insert 2,5×) wynikają głównie z kosztu granicy JS↔WASM (konwersja parametrów i wyników), a nie z wolniejszego kodu – przy operacjach trwających pojedyncze mikrosekundy koszt przejścia przez granicę dominuje.
-
-**H3 – koszt interfejsu Rust↔JS: potwierdzona.** Zwracanie wyniku jako JSON (jedno przekazanie łańcucha + `JSON.parse`) jest ~1,9× szybsze niż budowanie obiektów JS z Rust dla wyników jednowierszowych (9,7 vs 18,6 µs). Dla dużych wyników różnica zależy od środowiska (Node.js: porównywalnie; przeglądarka: JSON 1,4× szybszy). Wniosek projektowy: domyślna ścieżka bridge'a powinna używać JSON lub binarnego formatu kolumnowego, a nie budowania obiektów przez `js-sys`.
-
-**H4 – Flat-SQL vs SQLite (sql.js): potwierdzona.**
-- Flat-SQL jest szybszy w zapytaniach punktowych (2,1×), grupowaniu (4,9×; plan SQLite to `SCAN items USING INDEX items_category` – przegląd w kolejności indeksu i pobranie każdego wiersza po `rowid`, czyli 100 000 losowych odczytów, podczas gdy Flat-SQL agreguje w jednym sekwencyjnym przebiegu) i top-k (1,5×; SQLite: `USE TEMP B-TREE FOR ORDER BY`, Flat-SQL: ograniczony bufor k najlepszych wierszy), porównywalny w zakresach i pobieraniu wyników, nieco wolniejszy w pełnym skanie (1,2×).
-- SQLite wygrywa wyraźnie tam, gdzie korzysta ze swojej architektury stronicowej: snapshot i odtworzenie to kopia pliku (20× i 160× szybciej), a `COUNT(*)` po indeksie liczy wpisy w B-drzewie indeksu bez odczytu wierszy (`USING COVERING INDEX`, 5,7×). Flat-SQL pobiera każdy wiersz z drzewa klucza głównego i ponownie sprawdza filtr; dalsze kierunki: indeksy pokrywające / zliczanie po indeksie, pominięcie filtra rezydualnego, gdy ścieżka dostępu pokrywa cały warunek, oraz zapis wierszy w ciągłych blokach zamiast osobnych alokacji.
-- Inserty, UPDATE i DELETE: SQLite 1,6–3,1× szybszy; w Flat-SQL każda zmiana tworzy wpis w undo logu, kodowaną operację WAL i referencję w outboksie (koszt wbudowanej trwałości i synchronizacji, którego sql.js nie ponosi, bo ich nie ma).
-
-**H5 – trwałość: potwierdzona.** Trwałe zatwierdzenie w Flat-SQL kosztuje ~0,3–0,5 ms niezależnie od rozmiaru bazy (zapisywana jest tylko ramka WAL), a przy group commit ~6 µs na transakcję. W sql.js jedyną drogą do trwałości jest eksport całej bazy – 3,8 ms przy 10 000 i 8,7 ms przy 50 000 wierszy (wzrost liniowy z rozmiarem). Koszt Flat-SQL przenosi się na checkpoint (35 ms dla 3 MB) wykonywany rzadko, w tle, oraz na czas otwarcia bazy (49 ms dla 50 000 wierszy).
-
-**H6 – praca offline i zbieżność: potwierdzona.** Wszystkie testy z sekcji 6 scenariusza przechodzą (82 testy Rust, 14 testów end-to-end). Scenariusz ręczny w przeglądarce wykonano w pełni: przy zatrzymanym serwerze aplikacja uruchomiła się z cache Service Workera, odtworzyła bazę z IndexedDB w 8,7 ms (10 ramek WAL), zapis wykonał się lokalnie w 0,6 ms, niewysłana zmiana przetrwała odświeżenie strony, a po ponownym uruchomieniu serwera została wysłana automatycznie i była widoczna w zapytaniu do serwera. Repliki osiągają identyczny stan także w losowych sesjach z konfliktami.
-
-### 2.7 Wnioski
-
-1. Przeniesienie wykonania zapytań do klienta daje latencję na poziomie mikrosekund – o 2–4 rzędy wielkości mniejszą niż w modelu Cloud-First – co realizuje założenie „latencji 0 ms”.
-2. Silnik napisany w Rust i skompilowany do WASM jest konkurencyjny wobec SQLite w WASM w typowych zapytaniach aplikacji (odczyty punktowe, agregacje, sortowanie), przy module o ~1/3 mniejszym po kompresji.
-3. Największymi kosztami okazały się granica JS↔WASM i reprezentacja danych w pamięci (osobne alokacje wierszy), a nie sam WebAssembly; to wyznacza kierunki dalszej optymalizacji.
-4. Przyrostowy WAL z group commitem jest właściwą strategią trwałości w przeglądarce – koszt zatwierdzenia nie rośnie z rozmiarem bazy, w przeciwieństwie do eksportu całego pliku.
-5. Model płaskich tabel adresowanych kluczem umożliwił prostą, deterministyczną synchronizację (LWW per wiersz), która zachowuje pełną funkcjonalność offline.
-
-## 3. Benchmark 2: wersja po optymalizacjach
-
-### 3.1 Warunki pomiaru
-
-Pomiar wykonano 28 października 2026 na tym samym laptopie i w tych samych środowiskach co Benchmark 1 (§1.1): Node.js 24.21.0, Microsoft Edge 156 bez okna, natywny CLI. Porównano prototyp (tag `prototyp`, commit `261d78f`) z wersją po optymalizacjach opisanych w [optimization-results.md](optimization-results.md) (tag `po-2.5`, commit `45f581d`). Obie wersje mierzył ten sam runner, na przemian: uruchomienie prototypu, uruchomienie wersji po zmianach, w następnej parze odwrotnie, każda wersja w 10 nowych procesach dla każdej konfiguracji. Mierzono wszystkie konfiguracje Flat-SQL z Benchmarku 1 (dane w pamięci z wynikiem jako obiekty JS i jako JSON, IndexedDB w trybie domyślnym i `strict`, Web Worker w pamięci i z IndexedDB, benchmark natywny) i wszystkie rodzaje pomiarów: obciążenie, zimny start, pamięć, pauzę checkpointu, Local-First, zapis plików. W Windows to 540 procesów (160 Node.js, 40 natywnych, 340 przeglądarki), bez żadnego nieudanego; koszt utrwalania plików w Linuksie (WSL 2, Ubuntu 24.04, ext4, Node.js 24.21.0) zmierzono w kolejnych 40 procesach. Obciążenie procesora przed pomiarem wynosiło 6,2%. Silników odniesienia nie mierzono ponownie; porównanie z nimi (§3.9) korzysta z ich wyników z Benchmarku 1.
+Pomiar wykonano 28 października 2026 na tym samym laptopie i w tych samych środowiskach co Benchmark 1 (§1.1): Node.js 24.21.0, Microsoft Edge 156 bez okna, natywny CLI. Porównano prototyp (tag `v1-prototyp`) z wersją po optymalizacjach opisanych w [optimization-results.md](optimization-results.md) (tag `v2-optymalizacja`). Obie wersje mierzył ten sam runner, na przemian: uruchomienie prototypu, uruchomienie wersji po zmianach, w następnej parze odwrotnie, każda wersja w 10 nowych procesach dla każdej konfiguracji. Mierzono wszystkie konfiguracje Flat-SQL z Benchmarku 1 (dane w pamięci z wynikiem jako obiekty JS i jako JSON, IndexedDB w trybie domyślnym i `strict`, Web Worker w pamięci i z IndexedDB, benchmark natywny) i wszystkie rodzaje pomiarów: obciążenie, zimny start, pamięć, pauzę checkpointu, Local-First, zapis plików. W Windows to 540 procesów (160 Node.js, 40 natywnych, 340 przeglądarki), bez żadnego nieudanego; koszt utrwalania plików w Linuksie (WSL 2, Ubuntu 24.04, ext4, Node.js 24.21.0) zmierzono w kolejnych 40 procesach. Obciążenie procesora przed pomiarem wynosiło 6,2%. Silników odniesienia nie mierzono ponownie; porównanie z nimi (§2.9) korzysta z ich wyników z Benchmarku 1.
 
 Obciążenie ma identyfikator `benchmark-2`: operacje Benchmarku 1 są niezmienione, a na końcu doszło wstawienie N wierszy do drugiej tabeli o tej samej definicji jednym wywołaniem (`executeMany`); prototyp, który takiego wywołania nie ma, wykonuje tę operację pętlą pojedynczych instrukcji. Wyniki zapytań i stan tabeli po każdej fazie zapisu obu wersji zgadzają się w 2100 porównaniach sum kontrolnych. Tabele podają medianę z 10 uruchomień; kwartyle, rozłączność 95% przedziałów ufności średnich i wszystkie konfiguracje są w [data/benchmark-2/tables.md](data/benchmark-2/tables.md), surowe wyniki i skrypt tabel i wykresów w [data/benchmark-2/](data/benchmark-2/). Krotność to mediana prototypu podzielona przez medianę wersji po zmianach.
 
-### 3.2 Dane w pamięci
+### 2.2 Dane w pamięci
 
 | Operacja | Node.js, obiekty | Przeglądarka, obiekty | Przeglądarka, JSON | Natywnie |
 |---|---:|---:|---:|---:|
@@ -443,7 +323,7 @@ Wszystkie operacje poza top-k są w każdym środowisku szybsze przy rozłączny
 
 ![Obciążenie w przeglądarce, prototyp i wersja po optymalizacjach](data/benchmark-2/figures/02-obciazenie-przegladarka.svg)
 
-### 3.3 Narzut WebAssembly
+### 2.3 Narzut WebAssembly
 
 Krotność czasu natywnego tej samej wersji, ścieżka z wynikiem jako obiekty JS (prototyp → wersja po zmianach):
 
@@ -463,7 +343,7 @@ Operacje wykonywane w całości w silniku są w WebAssembly co najmniej tak szyb
 
 ![Narzut WebAssembly](data/benchmark-2/figures/05-narzut-wasm.svg)
 
-### 3.4 Trwały zapis w IndexedDB i silnik w Web Workerze
+### 2.4 Trwały zapis w IndexedDB i silnik w Web Workerze
 
 | Operacja | IndexedDB, tryb domyślny | IndexedDB, `strict` | Worker, pamięć | Worker + IndexedDB |
 |---|---:|---:|---:|---:|
@@ -476,7 +356,7 @@ Operacje wykonywane w całości w silniku są w WebAssembly co najmniej tak szyb
 
 Trwałe zatwierdzenie pojedynczego wiersza nie zmieniło się (różnice w rozrzucie), bo jego koszt to transakcja IndexedDB. Ponowne otwarcie bazy skróciło się o połowę razem z odtworzeniem. W trybie Worker każde wywołanie nadal kosztuje około 45 µs komunikatu w obie strony, więc odczyt po kluczu zyskał tylko 18%, a pobranie 10 000 wierszy 42–46%: przesłanie tablic wierszy między wątkami zostało bez zmian.
 
-### 3.5 Pauza checkpointu
+### 2.5 Pauza checkpointu
 
 | Liczba wierszy | Najdłuższa pauza: prototyp | po zmianach | Cały checkpoint: prototyp | po zmianach |
 |---:|---:|---:|---:|---:|
@@ -488,15 +368,15 @@ Flat-SQL z IndexedDB w trybie domyślnym; w trybie `strict` pauza przy 100 000 w
 
 ![Pauza checkpointu](data/benchmark-2/figures/06-pauza-checkpointu.svg)
 
-### 3.6 Rozmiar modułu, zimny start i pamięć
+### 2.6 Rozmiar modułu, zimny start i pamięć
 
 Moduł WebAssembly urósł z 219 575 do 274 098 B po kompresji gzip (+25%), a pliki pobierane przy zimnym starcie przeglądarki z 230 do 287 KiB. Zimny start wydłużył się: w Node.js 53,9 → 58,3 ms (+8%, przedziały rozłączne), w przeglądarce 42,5 → 49,0 ms (+15%) i z IndexedDB 80,8 → 90,5 ms (+12%), w obu przypadkach w rozrzucie. Otwarcie bazy w pamięci jest szybsze o 11–23%, a dłuższe są inicjalizacja modułu (+6–28%) i pierwsze zapytanie, które trwa 5,6–6,9 ms wobec 3,8–4,8 ms: zapytanie wykonywane po raz pierwszy kompiluje plan i wyrażenia, a moduł ma więcej kodu do pierwszej kompilacji przez V8; podziału tego czasu nie mierzono. Pamięć liniowa WebAssembly po wczytaniu 100 000 wierszy w jednej transakcji zmalała z 73,3 do 51,8 MiB (−29%) w Node.js i w przeglądarce.
 
-### 3.7 Local-First a Cloud-First
+### 2.7 Local-First a Cloud-First
 
 Lokalny odczyt po kluczu z tekstem SQL skrócił się w Node.js z 14,5 do 10,1 µs, w przeglądarce pozostał na 14,2 µs. Odczyt przez serwer na tym samym komputerze trwa 0,67 ms w Node.js (+11% wobec prototypu) i 2,55 ms w przeglądarce, a z symulowanym RTT 20–100 ms tyle co RTT, jak w Benchmarku 1. Różnica rzędów wielkości między odczytem lokalnym i przez sieć się nie zmieniła.
 
-### 3.8 Koszt utrwalania plików
+### 2.8 Koszt utrwalania plików
 
 | Operacja | Windows: prototyp → po zmianach | Linux (WSL 2): prototyp → po zmianach |
 |---|---:|---:|
@@ -510,7 +390,7 @@ Lokalny odczyt po kluczu z tekstem SQL skrócił się w Node.js z 14,5 do 10,1 �
 
 Zatwierdzenie w magazynie plikowym Node.js przyspieszyło przez otwarty plik WAL: bez `fsync` 7,5 razy w Windows i 2,3 razy w Linuksie. Zatwierdzenie z `fsync` w CLI nie zmieniło się, bo jego koszt to sam `fsync`; w `FsStore` w Linuksie różnica jest w rozrzucie z tego samego powodu.
 
-### 3.9 Flat-SQL po optymalizacjach na tle innych silników
+### 2.9 Flat-SQL po optymalizacjach na tle innych silników
 
 Benchmark 2 mierzył tylko konfiguracje Flat-SQL, więc miejsce wersji po optymalizacjach wśród innych silników wyznaczono z wyników silników odniesienia z Benchmarku 1. Oba pomiary wykonało to samo narzędzie na tym samym laptopie, z tymi samymi wersjami pakietów i w tych samych grupach warunków. Od Benchmarku 1 w narzędziu zmienił się tylko adapter Flat-SQL i doszło wstawienie jednym wywołaniem na końcu obciążenia, którego pozostałe silniki nie wykonują; przeglądarka zaktualizowała się w tym czasie z wersji 156.0.4314.42 do 156.0.4314.50. Różnicę między sesjami pokazuje prototyp zmierzony w obu. W 113 parach konfiguracja–operacja mediana prototypu w Benchmarku 2 była niższa w 103 parach, mediana zmiany wynosi −2,3%, w 111 parach różnica mieści się w ±10%, a największa dotyczy zimnego startu w przeglądarce (−11 do −12%). Wyniki wersji po optymalizacjach są więc o kilka procent korzystniejsze dla Flat-SQL, niż byłyby w jednej sesji ze wszystkimi silnikami, dlatego miejsce oznaczone gwiazdką uznano za niepewne: inny silnik grupy różni się w nim od Flat-SQL o mniej niż 10%. Wyniki wersji po optymalizacjach zgadzają się z wynikami Flat-SQL z Benchmarku 1 w 630 porównaniach sum kontrolnych, a więc także z wynikami pozostałych silników.
 
@@ -631,7 +511,7 @@ W grupie trwałego zapisu Flat-SQL po optymalizacjach jest pierwszy w 10 z 13 op
 | PGlite + OPFS (opfs-ahp) | inne zastosowanie | 5748 KiB | 9,67 s | – | – |
 | DuckDB-Wasm w Workerze (pamięć) | inne zastosowanie | 7813 KiB | 891 ms | – | – |
 
-Moduł Flat-SQL urósł po kompresji do 287 KiB i pozostaje najmniejszym modułem silnika SQL w WebAssembly (sql.js 331 KiB, SQLite WASM 583 KiB, wa-sqlite 821 KiB); mniejsze są tylko biblioteki bez WebAssembly, od PouchDB (42 KiB) do AlaSQL (111 KiB). Zimny start w przeglądarce, 49,0 ms, jest nadal najkrótszy w grupie „pamięć” poza czystym JavaScriptem (sql.js 63,2 ms, AlaSQL 72,2 ms, SQLite WASM 97,2 ms). To porównanie wymaga ostrożności, bo zimny start prototypu był w sesji Benchmarku 2 o 11% krótszy niż w Benchmarku 1, a w pomiarze na przemian wersja po optymalizacjach startuje o 15% dłużej od prototypu (§3.6); po uwzględnieniu różnicy sesji zimny start wyniósłby około 55 ms, nadal mniej niż w sql.js. Z IndexedDB zimny start (90,5 ms) jest dłuższy niż w Dexie.js (68,1 ms) i PouchDB (77,9 ms), a krótszy niż w sql.js z eksportem (97,7 ms), RxDB (103 ms) i wa-sqlite (211 ms). Pamięć liniowa po wczytaniu 100 000 wierszy (51,8 MiB) pozostaje 2,5 raza większa niż w sql.js i 6,5 raza większa niż w SQLite WASM.
+Moduł Flat-SQL urósł po kompresji do 287 KiB i pozostaje najmniejszym modułem silnika SQL w WebAssembly (sql.js 331 KiB, SQLite WASM 583 KiB, wa-sqlite 821 KiB); mniejsze są tylko biblioteki bez WebAssembly, od PouchDB (42 KiB) do AlaSQL (111 KiB). Zimny start w przeglądarce, 49,0 ms, jest nadal najkrótszy w grupie „pamięć” poza czystym JavaScriptem (sql.js 63,2 ms, AlaSQL 72,2 ms, SQLite WASM 97,2 ms). To porównanie wymaga ostrożności, bo zimny start prototypu był w sesji Benchmarku 2 o 11% krótszy niż w Benchmarku 1, a w pomiarze na przemian wersja po optymalizacjach startuje o 15% dłużej od prototypu (§2.6); po uwzględnieniu różnicy sesji zimny start wyniósłby około 55 ms, nadal mniej niż w sql.js. Z IndexedDB zimny start (90,5 ms) jest dłuższy niż w Dexie.js (68,1 ms) i PouchDB (77,9 ms), a krótszy niż w sql.js z eksportem (97,7 ms), RxDB (103 ms) i wa-sqlite (211 ms). Pamięć liniowa po wczytaniu 100 000 wierszy (51,8 MiB) pozostaje 2,5 raza większa niż w sql.js i 6,5 raza większa niż w SQLite WASM.
 
 | Silnik | 10 tys. – najdłuższa pauza | 10 tys. – cały checkpoint | 50 tys. – najdłuższa pauza | 50 tys. – cały checkpoint | 100 tys. – najdłuższa pauza | 100 tys. – cały checkpoint |
 |---|---:|---:|---:|---:|---:|---:|
@@ -653,7 +533,7 @@ Wykres zestawia czas Flat-SQL z czasem najszybszego pokrewnego silnika grupy w k
 
 ![Flat-SQL wobec najszybszego pokrewnego silnika](data/benchmark-2/figures/07-flatsql-wobec-pokrewnych.svg)
 
-### 3.10 Słabe strony prototypu po optymalizacjach
+### 2.10 Słabe strony prototypu po optymalizacjach
 
 | | Objaw w Benchmarku 1 (przeglądarka) | Benchmark 2 (przeglądarka, wynik jako obiekty) | Stan |
 |---|---|---|---|
@@ -669,10 +549,24 @@ Wykres zestawia czas Flat-SQL z czasem najszybszego pokrewnego silnika grupy w k
 | S10 | Worker: 56 µs na wywołanie | około 45 µs (prototyp w tym pomiarze około 50 µs) | koszt komunikatu bez zmian (poza zakresem optymalizacji) |
 | S11 | `FsStore` zatwierdza bez `fsync` w 0,40–0,60 ms | 78 µs (Windows), 161 µs (Linux) | zmniejszona |
 
-### 3.11 Odniesienie do hipotez
+### 2.11 Odniesienie do hipotez
 
 H2 po optymalizacjach: operacje wykonywane w całości w silniku są w WebAssembly szybsze niż natywnie lub równe (0,82–0,93 razy), a narzut ogranicza się do operacji przekazujących pojedyncze wartości przez granicę (odczyt po kluczu 2,7–3,6 razy); operacje przekazujące dużo danych jednym buforem mają narzut bliski zeru albo są szybsze niż natywnie (pobranie 10 000 wierszy, wstawienie jednym wywołaniem). H3 po optymalizacjach: przewaga JSON nad obiektami przestała istnieć; wynik dekodowany w JavaScripcie z jednego bufora jest szybszy od JSON przy jednym wierszu (1,27 razy) i przy 10 000 wierszy (4,6 razy).
 
-H4 po optymalizacjach, na podstawie wyników SQLite z Benchmarku 1 (§3.9): Flat-SQL z wynikiem jako obiekty JS jest szybszy od sql.js i SQLite WASM we wszystkich odczytach, od 1,6 raza w pełnym skanie przez 2,4–4,3 raza w odczycie po kluczu do 33–36 razy w `COUNT` po indeksie, i wolniejszy we wstawianiu niż sql.js (1,28 raza), w `UPDATE` (1,1–1,75 raza), w snapshocie (7–15 razy) i odtworzeniu (29–39 razy). Prototyp przegrywał z SQLite WASM w odczycie po kluczu, `COUNT` po indeksie i pełnym skanie, a w zakresie klucza mu dorównywał; słabości w zapisach i przenoszeniu całej bazy zmalały, ale pozostały. Pamięć po wczytaniu jest nadal 2,5–6,5 raza większa niż w SQLite.
+H4 po optymalizacjach, na podstawie wyników SQLite z Benchmarku 1 (§2.9): Flat-SQL z wynikiem jako obiekty JS jest szybszy od sql.js i SQLite WASM we wszystkich odczytach, od 1,6 raza w pełnym skanie przez 2,4–4,3 raza w odczycie po kluczu do 33–36 razy w `COUNT` po indeksie, i wolniejszy we wstawianiu niż sql.js (1,28 raza), w `UPDATE` (1,1–1,75 raza), w snapshocie (7–15 razy) i odtworzeniu (29–39 razy). Prototyp przegrywał z SQLite WASM w odczycie po kluczu, `COUNT` po indeksie i pełnym skanie, a w zakresie klucza mu dorównywał; słabości w zapisach i przenoszeniu całej bazy zmalały, ale pozostały. Pamięć po wczytaniu jest nadal 2,5–6,5 raza większa niż w SQLite.
 
-H5: koszt trwałego zatwierdzenia w IndexedDB się nie zmienił, a koszt przeniesiony na checkpoint i ponowne otwarcie zmalał (pauza checkpointu 16 razy, ponowne otwarcie 2,1 razy). Na tle innych silników trwałe zatwierdzenie pozostaje najtańsze w grupie trwałego zapisu, a ponowne otwarcie bazy z IndexedDB nadal należy do najdłuższych (81 ms wobec 2,8–13,6 ms w Dexie.js, wa-sqlite, sql.js i RxDB, §3.9).
+H5: koszt trwałego zatwierdzenia w IndexedDB się nie zmienił, a koszt przeniesiony na checkpoint i ponowne otwarcie zmalał (pauza checkpointu 16 razy, ponowne otwarcie 2,1 razy). Na tle innych silników trwałe zatwierdzenie pozostaje najtańsze w grupie trwałego zapisu, a ponowne otwarcie bazy z IndexedDB nadal należy do najdłuższych (81 ms wobec 2,8–13,6 ms w Dexie.js, wa-sqlite, sql.js i RxDB, §2.9).
+
+### 2.12 Hipotezy a literatura
+
+H1 zakładała, że lokalne zapytanie po kluczu trwa mikrosekundy, a zapytanie przez sieć jest ograniczone od dołu czasem obiegu pakietu (ang. *round-trip time*, RTT), czyli czasem od wysłania żądania do otrzymania odpowiedzi. Odczyt lokalny z tekstem SQL trwał 14,8 µs w Node.js i 21,9 µs w przeglądarce, a przez serwer z symulowanym RTT 20–100 ms był 1040–6796 razy wolniejszy (§1.8). Wynik odpowiada tezie Kleppmanna i in. [L1], że dane lokalne usuwają oczekiwanie na sieć, i mieści się z dużym zapasem w budżecie jednej klatki obrazu, który Litt i in. [D4] przyjmują dla lokalnej bazy w aplikacji. Po optymalizacjach odczyt lokalny skrócił się w Node.js do 10,1 µs, a różnica rzędów wielkości się nie zmieniła.
+
+H2 zakładała narzut WebAssembly 1,2–3× względem tego samego kodu skompilowanego natywnie, co odpowiadało przedziałowi z prac Haasa i in. [P2] i Jangdy i in. [W1]. Pomiar rozdzielił dwie przyczyny. Operacje wykonywane w całości w silniku (zakres klucza, pełny skan, grupowanie, top-k, odtworzenie snapshotu) mają w WebAssembly 0,89–1,13 czasu natywnego, a po optymalizacjach 0,82–0,93. Narzut zostaje tylko w operacjach, które przenoszą dane przez granicę między JavaScriptem a modułem: odczyt po kluczu był 3,9 raza wolniejszy niż natywnie, po zmianach 2,7–3,6 raza. Wynik zgadza się z [P2] i nie zgadza się z [W1] ([literature.md §4.1](../references/literature.md#41-narzut-webassembly-względem-kodu-natywnego)).
+
+H3 zakładała, że przy małych wynikach dominuje koszt przekazania danych, a wynik jako JSON jest szybszy od obiektów budowanych w Rust przez `js-sys`. Benchmark 1 to potwierdził (5,6 wobec 9,2 µs), a profil przypisał ścieżce obiektów 24% czasu na dekodowanie UTF-8 i 19% na kod sklejający. Optymalizacje poszły jednak w kierunku z DuckDB-Wasm [D1]: binarny bufor czytany przez JavaScript wprost z pamięci modułu. Po tej zmianie wynik binarny jest szybszy od JSON przy jednym wierszu (3,28 wobec 4,16 µs) i przy 10 000 wierszy (1,55 wobec 7,06 ms). Prace [P2] i [W1] tej granicy nie mierzą; [W1] uznaje koszt wywołań obsługiwanych przez JavaScript za pomijalny.
+
+H4 zakładała przewagę Flat-SQL nad SQLite w zapytaniach punktowych, agregacji i sortowaniu oraz słabość tam, gdzie SQLite korzysta z formatu stronicowego i indeksów pokrywających. Obie części opisują Gaffney i in. [D2], a Stonebraker i in. [S4] wyjaśniają, dlaczego silnik w pamięci bez bufora stron może być szybszy w odczytach. Po optymalizacjach Flat-SQL jest szybszy od obu wersji SQLite we wszystkich odczytach, a wolniejszy we wstawianiu, `UPDATE`, `DELETE`, snapshocie i odtworzeniu ([literature.md §3.2](../references/literature.md#32-silniki-odniesienia-i-model-danych)).
+
+H5 zakładała, że przyrostowy dziennik zapisu z wyprzedzeniem (ang. *write-ahead log*, WAL), do którego każde zatwierdzenie dopisuje tylko zmienione wiersze, daje koszt niezależny od rozmiaru bazy, a eksport całej bazy rośnie z jej rozmiarem. Trwałe zatwierdzenie w IndexedDB kosztuje 0,36–0,40 ms, w sql.js 19,3 ms przy 100 000 wierszy, a eksport sql.js rośnie od 6,5 do 19,2 ms między 10 000 a 100 000 wierszy. Grupowanie zatwierdzeń z pracy DeWitta i in. [S1] obniża koszt do kilku mikrosekund na transakcję. Koszt przeniesiony na checkpoint potwierdza tezę Cao i in. [S10] o naiwnym snapshocie ([literature.md §3.3](../references/literature.md#33-trwałość-i-odtwarzanie-po-awarii)).
+
+H6 zakładała pełną funkcjonalność offline i zbieżność replik. Testy end-to-end i test losowy z przesuniętymi zegarami, podziałami sieci i restartami ją potwierdziły. Wyniki odpowiadają tezom o trwałym logu zmian offline (Kistler i Satyanarayanan [C10], Go i in. [L27]) i o zbieżności rejestrów „ostatni zapis wygrywa” (Shapiro i in. [L2]), razem z ograniczeniem opisanym przez Graya i in. [C9] ([literature.md §3.4](../references/literature.md#34-synchronizacja-replik)).

@@ -9,7 +9,7 @@
 //
 // --flatsql selects the measured version of Flat-SQL: a checkout with built
 // pkg/ (wasm-pack), bridge/, server/ and target/release/flatsql[.exe], e.g. a
-// worktree of a tag prepared by `node bench/build-version.js prototyp`. The
+// worktree of a tag prepared by `node bench/build-version.js v1-prototyp`. The
 // benchmark code (this directory) always comes from the current checkout, so
 // two versions of the engine are measured by the same tool.
 //

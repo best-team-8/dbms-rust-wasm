@@ -24,7 +24,7 @@ Cała baza jest w pamięci modułu: wiersze w `BTreeMap` uporządkowanej po kluc
 ## Odrzucone alternatywy
 
 - **Format stronicowy na dysku z buforem stron (jak SQLite)** – w przeglądarce wymaga synchronicznego dostępu do OPFS, czyli Web Workera; to inna architektura.
-- **Stronicowanie na OPFS dla danych większych niż pamięć** – odrzucone jako tryb domyślny; zmieniałoby architekturę i wymagało Workera ([real-world-usage.md](../research/real-world-usage.md), granice koncepcji).
+- **Stronicowanie na OPFS dla danych większych niż pamięć** – odrzucone jako tryb domyślny; zmieniałoby architekturę i wymagało Workera ([use-cases.md](../research/use-cases.md), granice koncepcji).
 
 ## Konsekwencje
 

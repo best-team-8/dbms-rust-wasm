@@ -9,7 +9,7 @@
 
 ## Kontekst
 
-ADR-0021 przyjęło do rdzenia każdą pracę, która uzasadnia decyzję lub atut projektu, jest punktem odniesienia dla hipotezy albo porównywanego systemu lub jest podstawą zadania – także zadania z [todo_future.md](../todo_future.md). Od tego czasu [todo.md](../todo.md) ograniczono do zakresu pracy inżynierskiej (ADR-0029). Rozszerzenia trafią do pracy tylko jako kierunki rozwoju w podrozdziale 9.5, więc część prac rdzenia nie miałaby w tekście żadnego miejsca. Wykaz literatury według ZR 45/2024 zawiera tylko pozycje wykorzystane, a od 2026 r. co najmniej 15 publikacji bez stron WWW – rdzeń ma być pulą, z której ten wykaz powstaje.
+ADR-0021 przyjęło do rdzenia każdą pracę, która uzasadnia decyzję lub atut projektu, jest punktem odniesienia dla hipotezy albo porównywanego systemu lub jest podstawą zadania – także zadania z [future/todo.md](../future/todo.md). Od tego czasu [todo.md](../todo.md) ograniczono do zakresu pracy inżynierskiej (ADR-0029). Rozszerzenia trafią do pracy tylko jako kierunki rozwoju w podrozdziale 9.5, więc część prac rdzenia nie miałaby w tekście żadnego miejsca. Wykaz literatury według ZR 45/2024 zawiera tylko pozycje wykorzystane, a od 2026 r. co najmniej 15 publikacji bez stron WWW – rdzeń ma być pulą, z której ten wykaz powstaje.
 
 Przy przeglądzie wyszło też, że decyzja ADR-0007 (cel `wasm32`), prezentowana w tabeli 3.2 pracy, opiera się wyłącznie na wpisach z blogów [Q6], a recenzowana praca o koszcie memory64 leżała poza rdzeniem.
 
@@ -38,7 +38,7 @@ Praca jest w rdzeniu, jeśli będzie cytowana w tekście pracy dyplomowej – ma
 ## Konsekwencje
 
 - Mapa rozdziałów w [references/README.md](../references/README.md#mapa-rozdziały-pracy-dyplomowej--literatura) jest kryterium rdzenia i zmienia się razem z układem pracy: praca bez podrozdziału wychodzi poza rdzeń, nowa trafia do rdzenia tylko z przypisanym podrozdziałem.
-- Dokumenty robocze ([todo_future.md](../todo_future.md) 2.5, 4.3, 5.1 i 12.7, [sync-server.md](../future/components/sync-server.md), [use-cases.md](../use-cases.md), analizy w `references/`) przywołują prace spoza rdzenia opisowo; zapisy ADR-0002, ADR-0003, ADR-0004, ADR-0018, ADR-0021, ADR-0023, ADR-0027 i ADR-0030 zachowują identyfikatory, które rozwiązuje tabela §13 indeksu.
+- Dokumenty robocze ([future/todo.md](../future/todo.md) 2.5, 4.3, 5.1 i 12.7, [future/README.md](../future/README.md), [use-cases.md](../research/use-cases.md), analizy w `references/`) przywołują prace spoza rdzenia opisowo; zapisy ADR-0002, ADR-0003, ADR-0004, ADR-0018, ADR-0021, ADR-0023, ADR-0027 i ADR-0030 zachowują identyfikatory, które rozwiązuje tabela §13 indeksu.
 - Rdzeń spełnia wymóg co najmniej 15 publikacji, w tym 5 obcojęzycznych, z zapasem: 33 prace, wszystkie anglojęzyczne poza polskim wydaniem [P1].
 - Mapa jest planem, nie dowodem: po napisaniu pracy rdzeń porównuje się z jej wykazem literatury, a prace niecytowane przechodzą poza rdzeń według tej samej reguły.
 - ADR-0021 ma status „przyjęta; kryterium włączenia i skład rdzenia zastąpione przez ADR-0031”.

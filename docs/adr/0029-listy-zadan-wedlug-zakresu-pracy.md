@@ -5,13 +5,13 @@
 | Status | przyjęta; podział zadań na wymagane i dodatkowe (pkt 1) zastąpiony przez [ADR-0039](0039-zadania-optymalizacji-z-rozbicia-kosztow.md) |
 | Data | 2026-10-21 |
 | Rodzaj | proces |
-| Powiązane | ADR-0020, ADR-0021, ADR-0022 (zastępuje); [todo.md](../todo.md), [todo_future.md](../todo_future.md) |
+| Powiązane | ADR-0020, ADR-0021, ADR-0022 (zastępuje); [todo.md](../todo.md), [future/todo.md](../future/todo.md) |
 
 ## Kontekst
 
-ADR-0022 podzielił zadania na optymalizacje istniejącego prototypu ([todo.md](../todo.md)) i rozszerzenia do dojrzałości ([todo_future.md](../todo_future.md)). Po przeglądzie okazało się, że `todo.md` jest za duże jak na pracę inżynierską: zawiera też optymalizacje, które nie wpływają ani na wyniki benchmarków, ani na punkty karty pracy (np. semantyka konfliktów w synchronizacji, trwały log serwera).
+ADR-0022 podzielił zadania na optymalizacje istniejącego prototypu ([todo.md](../todo.md)) i rozszerzenia do dojrzałości ([future/todo.md](../future/todo.md)). Po przeglądzie okazało się, że `todo.md` jest za duże jak na pracę inżynierską: zawiera też optymalizacje, które nie wpływają ani na wyniki benchmarków, ani na punkty karty pracy (np. semantyka konfliktów w synchronizacji, trwały log serwera).
 
-Karta pracy wymaga trzech rzeczy: analizy porównawczej silników WASM ze scenariuszem badawczym, implementacji warstwy lokalnego składowania oraz benchmarków z walidacją architektury Local-First w warunkach offline. Teza pracy: Flat-SQL jest konkurencyjny w swojej niszy – mała baza SQL na dane operacyjne aplikacji w przeglądarce, z przyrostową trwałością i wbudowaną synchronizacją ([real-world-usage.md](../research/real-world-usage.md), [conclusions.md](../references/conclusions.md)).
+Karta pracy wymaga trzech rzeczy: analizy porównawczej silników WASM ze scenariuszem badawczym, implementacji warstwy lokalnego składowania oraz benchmarków z walidacją architektury Local-First w warunkach offline. Teza pracy: Flat-SQL jest konkurencyjny w swojej niszy – mała baza SQL na dane operacyjne aplikacji w przeglądarce, z przyrostową trwałością i wbudowaną synchronizacją ([use-cases.md](../research/use-cases.md), [literature.md](../references/literature.md)).
 
 ## Decyzja
 
@@ -40,4 +40,4 @@ Przeniesione 21.10.2026: todo 0.3, 0.4, 3.1–3.5, 4.5, 4.8, 4.11 → future 12.
 
 ## Źródła
 
-Karta pracy; [real-world-usage.md](../research/real-world-usage.md); [conclusions.md](../references/conclusions.md); [literature-comparison.md](../references/literature-comparison.md).
+Karta pracy; [use-cases.md](../research/use-cases.md); [literature.md](../references/literature.md).

@@ -9,10 +9,10 @@ Opis, jak zebrano [bazę wiedzy](README.md), czy wyszukiwanie objęło obszary, 
 | Runda 1 (18.10.2026) | wyszukiwanie według obszarów technologicznych (§2), pobranie 77 PDF-ów |
 | Runda 2 (20.10.2026) | audyt pokrycia atutów i planów projektu (§3), wyszukiwanie uzupełniające w lukach, ponowna ocena wszystkich pozycji i wybór rdzenia (§4) |
 | Rewizja 3 (22.10.2026) | bez nowego wyszukiwania: ocena każdej pozycji według podrozdziału pracy dyplomowej, w którym będzie cytowana (§4.1) |
-| Punkt wyjścia | dokumenty projektu ([architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), [README](../../README.md), [docs/research](../research/)), dwie pozycje polecone przez promotora, w rundzie 2 także [analiza rzeczywistych wdrożeń](../research/real-world-usage.md) i obie listy zadań |
+| Punkt wyjścia | dokumenty projektu ([flatsql-core/README.md](../../crates/flatsql-core/README.md), [flatsql-core/src/sql/README.md](../../crates/flatsql-core/src/sql/README.md), [README](../../README.md), [docs/research](../research/)), dwie pozycje polecone przez promotora, w rundzie 2 także [analiza rzeczywistych wdrożeń](../research/use-cases.md) i obie listy zadań |
 | Narzędzia | ogólnodostępna wyszukiwarka internetowa (indeks anglojęzyczny), strony wydawców (ACM DL, USENIX, VLDB, CIDR), arXiv, repozytoria uczelniane, strony autorów i kursów |
 | Pobieranie | z weryfikacją tytułu i autorów na pierwszej stronie; w rundzie 2 tezy z każdej nowej pracy sprawdzono w pełnym tekście przed dodaniem (wyjątek: [M3]) |
-| Weryfikacja treści | tezy i liczby użyte w [literature-comparison.md](literature-comparison.md), [conclusions.md](conclusions.md) i listach zadań sprawdzono w pełnym tekście (w rundzie 2 ponownie dla prac rdzenia, na których opierają się zadania: [C2], [C8], [D1], [D4], [D5], [L8], [L20], [L24], [L28], [M1], [S1], [S6], [S8], [E1]); [M3] oceniono na podstawie streszczenia i źródeł wtórnych |
+| Weryfikacja treści | tezy i liczby użyte w ówczesnych analizach literatury (dziś [literature.md](literature.md)) i listach zadań sprawdzono w pełnym tekście (w rundzie 2 ponownie dla prac rdzenia, na których opierają się zadania: [C2], [C8], [D1], [D4], [D5], [L8], [L20], [L24], [L28], [M1], [S1], [S6], [S8], [E1]); [M3] oceniono na podstawie streszczenia i źródeł wtórnych |
 | Śnieżna kula | bibliografie [P1], [L1], [D4], [P2]; lista prac cytujących [L1]; program PLF / PLF+PLAID 2022–2025; w rundzie 2 bibliografie [C9], [C10], [L27] |
 
 ## 2. Obszary wyszukiwania
@@ -76,7 +76,7 @@ Runda 1 była zorganizowana według **technologii** (WebAssembly, CRDT, edge). D
 
 ## 4. Dobór rdzenia
 
-Każdą z 77 pozycji rundy 1 oceniono ponownie pod kątem trzech pytań: czy uzasadnia decyzję projektową lub atut prototypu; czy jest punktem odniesienia dla hipotezy H1–H6 lub porównywanego systemu; czy jest podstawą zadania z [todo.md](../todo.md) lub [todo_future.md](../todo_future.md). Pozycja zostaje, jeśli odpowiada „tak” na co najmniej jedno pytanie **i** nie dubluje innej pozycji rdzenia.
+Każdą z 77 pozycji rundy 1 oceniono ponownie pod kątem trzech pytań: czy uzasadnia decyzję projektową lub atut prototypu; czy jest punktem odniesienia dla hipotezy H1–H6 lub porównywanego systemu; czy jest podstawą zadania z [todo.md](../todo.md) lub [future/todo.md](../future/todo.md). Pozycja zostaje, jeśli odpowiada „tak” na co najmniej jedno pytanie **i** nie dubluje innej pozycji rdzenia.
 
 Kryteria wyłączenia:
 
@@ -86,11 +86,11 @@ Kryteria wyłączenia:
 4. **kontekst bez wpływu** – przeglądy ogólne i badania ekosystemu, które nie zmieniają żadnej decyzji;
 5. **słabe źródło** – preprint lub praca licencjacka, gdy ta sama teza ma źródło recenzowane.
 
-Wynik: **38 pozycji rdzenia** – 30 z rundy 1 i 8 nowych ([C9], [C10], [C11], [L27], [L28], [M2], [M3], [S10]); dwie pozycje rundy 1 dołączono do wpisów prac promotora (wersja CACM do [P2], notatki do wykładu do [P1]); **46 pozycji poza rdzeniem** z uzasadnieniem w [README.md §13](README.md#13-pozycje-poza-rdzeniem), pliki w `papers/_poza-rdzeniem/` (zachowane). Liczba 30 nie była limitem – nowe prace dodano, bo wypełniają luki w obszarach, w których leżą atuty i plany projektu.
+Wynik: **38 pozycji rdzenia** – 30 z rundy 1 i 8 nowych ([C9], [C10], [C11], [L27], [L28], [M2], [M3], [S10]); dwie pozycje rundy 1 dołączono do wpisów prac promotora (wersja CACM do [P2], notatki do wykładu do [P1]); **46 pozycji poza rdzeniem**, pliki w `papers/_poza-rdzeniem/` (zachowane). Liczba 30 nie była limitem – nowe prace dodano, bo wypełniają luki w obszarach, w których leżą atuty i plany projektu.
 
 ### 4.1 Rewizja 3 – cytowania w pracy dyplomowej
 
-Kryterium z rundy 2 przyjmowało każdą podstawę zadania, także z [todo_future.md](../todo_future.md), choć tylko część rozszerzeń trafi do pracy (kierunki rozwoju w podrozdziale 9.5). Przed pisaniem pracy każdą pozycję – z rdzenia i spoza niego – oceniono pytaniem: w którym podrozdziale pracy będzie cytowana i czy inna pozycja rdzenia nie daje tam tej samej tezy ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-pracy.md)). Wynik zapisano w [mapie rozdziałów](README.md#mapa-rozdziały-pracy-dyplomowej--literatura).
+Kryterium z rundy 2 przyjmowało każdą podstawę zadania, także z [future/todo.md](../future/todo.md), choć tylko część rozszerzeń trafi do pracy (kierunki rozwoju w podrozdziale 9.5). Przed pisaniem pracy każdą pozycję – z rdzenia i spoza niego – oceniono pytaniem: w którym podrozdziale pracy będzie cytowana i czy inna pozycja rdzenia nie daje tam tej samej tezy ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-pracy.md)). Wynik zapisano w [mapie rozdziałów](README.md#mapa-rozdziały-pracy-dyplomowej--literatura).
 
 | Pozycja | Zmiana | Powód |
 |---|---|---|
@@ -118,7 +118,9 @@ Znalezione w rundzie 2 i **nie** włączone:
 
 ### 4.2 Rewizja 4 – zastosowanie i wynik weryfikacji
 
-Po Benchmarku 2 i testach poprawności tezy prac rdzenia zestawiono z wynikami ([literature-verification.md](../research/literature-verification.md)). Rdzeń obejmuje od 28.10.2026 tylko prace, które projekt zastosował albo których tezy sprawdził benchmark lub test; poza rdzeń przeszły [L24], [C11], [M1], [E1] i [B5]. Pozostałe 28 prac podzielono na katalogi `papers/potwierdzone/` (19), `papers/niepotwierdzone/` (2: [W1], [W11]) i `papers/zastosowane/` (7). Przegląd literatury przed pomiarem dał więc dwa przewidywania, które pomiar obalił: narzut WebAssembly rzędu 1,5× w operacjach wykonywanych w silniku i moduł optymalizowany pod rozmiar bez straty czasu.
+Po Benchmarku 2 i testach poprawności tezy prac rdzenia zestawiono z wynikami ([literature.md](literature.md)). Rdzeń obejmuje od 28.10.2026 tylko prace, które projekt zastosował albo których tezy sprawdził benchmark lub test; poza rdzeń przeszły [L24], [C11], [M1], [E1] i [B5]. Pozostałe 28 prac podzielono na katalogi `papers/potwierdzone/` (19), `papers/niepotwierdzone/` (2: [W1], [W11]) i `papers/zastosowane/` (7). Przegląd literatury przed pomiarem dał więc dwa przewidywania, które pomiar obalił: narzut WebAssembly rzędu 1,5× w operacjach wykonywanych w silniku i moduł optymalizowany pod rozmiar bez straty czasu.
+
+Po czterech rewizjach rdzeń liczy 28 prac, a poza nim jest 56 pozycji (55 plików w `papers/_poza-rdzeniem/`; [M3] nie ma pliku). Każdą wyłączono według jednego z kryteriów z początku tej części albo, od rewizji 3 i 4, dlatego, że nie ma podrozdziału pracy, w którym byłaby cytowana, albo projekt jej nie zastosował, a pomiar nie sprawdził jej tezy. Identyfikatory tych prac nie są używane ponownie; tam, gdzie dokumenty projektu się na nie powołują, podają autora i rok z dopiskiem „praca poza rdzeniem”.
 
 ## 5. Ograniczenia
 
@@ -148,7 +150,7 @@ Zapytania do Scopus / Web of Science / IEEE Xplore / ACM DL (filtr: 2019–2026,
 Lista kontrolna:
 
 - [ ] Przeszukać bazy powyższymi zapytaniami i zapisać liczby wyników na każdym etapie (jeśli promotor wymaga przeglądu systematycznego).
-- [ ] Wypożyczyć DDIA (wydanie polskie: Helion 2018) i zweryfikować [notatkę](notes/ddia-kleppmann.md) z tekstem książki.
+- [ ] Wypożyczyć DDIA (wydanie polskie: Helion 2018) i sprawdzić z tekstem książki tezy [P1] cytowane w pracy.
 - [ ] Ustawić alerty Google Scholar („cytowane przez”) dla [P2], [W1], [L1], [D4], [L24], [C11].
 - [ ] Zapytać autorów Teilen-SQL o tekst [X5]; sprawdzić publikację artykułu Niinikoski i Fagerholm [X6].
 - [ ] Przejrzeć programy PaPoC, PLF, Local-First Conf i VLDB z 2026 r.

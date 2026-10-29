@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (silnik, [architecture.md §3](../architecture.md)) |
+| Data | 2026-10-06 (silnik, [flatsql-core/README.md](../../crates/flatsql-core/README.md#transakcje)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0006, ADR-0009, ADR-0018 |
 
@@ -25,7 +25,7 @@ Silnik w pamięci, wywoływany synchronicznie z jednego wątku, potrzebuje trans
 
 ## Odrzucone alternatywy
 
-- **MVCC i współbieżne transakcje (jak Zeta-Lite [D5])** – złożoność bez korzyści w jednym wątku; wiele przeplatanych transakcji to granica koncepcji ([real-world-usage.md](../research/real-world-usage.md)).
+- **MVCC i współbieżne transakcje (jak Zeta-Lite [D5])** – złożoność bez korzyści w jednym wątku; wiele przeplatanych transakcji to granica koncepcji ([use-cases.md](../research/use-cases.md)).
 - **Wielowątkowe wykonanie** – wymaga `SharedArrayBuffer`, czyli nagłówków COOP/COEP (ADR-0013).
 
 ## Konsekwencje

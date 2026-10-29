@@ -1,6 +1,15 @@
-# Specyfikacja Flat-SQL (wersja 0.1)
+# sql – język Flat-SQL
 
 Flat-SQL to dialekt SQL zaprojektowany dla silnika działającego po stronie klienta. **Składnia jest SQL-owa, model danych – NoSQL-owy**: każda tabela to niezależna, płaska kolekcja wierszy adresowanych kluczem głównym. Nie ma relacji między tabelami, a każde zapytanie dotyczy dokładnie jednej tabeli. Dzięki temu wykonanie zapytań jest proste i przewidywalne, a replikacja może działać na poziomie pojedynczego klucza.
+
+Moduł `sql/` zamienia tekst zapytania na drzewo składni; dalsze etapy (wiązanie nazw, plan, wykonanie) opisuje [README rdzenia](../../README.md#droga-zapytania). Ten plik jest specyfikacją języka w wersji 0.1.
+
+| Plik | Rola |
+|---|---|
+| `lexer.rs` | podział tekstu na tokeny: słowa kluczowe, identyfikatory (także w cudzysłowach, z Unicode), literały, operatory i komentarze |
+| `parser.rs` | parser rekurencyjny zstępujący z pierwszeństwem operatorów; konstrukcje relacyjne (`JOIN`, `FOREIGN KEY`, `REFERENCES`, podzapytania, `UNION`) kończą się błędem `unsupported` |
+| `ast.rs` | drzewo składni: instrukcje, wyrażenia, definicje tabel |
+| `mod.rs` | wejście modułu: `parse`, `parse_one`, `param_count` |
 
 ## 1. Zasady modelu
 
@@ -176,3 +185,7 @@ ORDER BY avg_power DESC;
 
 EXPLAIN SELECT * FROM inventory WHERE player = 'ayla' AND qty > 1;
 ```
+
+## 8. Czego język nie ma
+
+`CASE`, podzapytań, złączeń, indeksów złożonych i unikalnych. Złączenia i więzy między tabelami są poza modelem z definicji; `CASE` i pozostałe rozszerzenia opisuje [docs/future/README.md §1.1](../../../../docs/future/README.md#11-rdzeń-silnika). Aplikacja zapisująca offline powinna używać kluczy bez kolizji między urządzeniami (losowych identyfikatorów albo identyfikatora urządzenia w kluczu), bo unikalność klucza głównego jest sprawdzana tylko lokalnie.

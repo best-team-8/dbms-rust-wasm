@@ -1,8 +1,8 @@
 # Rejestr decyzji projektowych (ADR)
 
-Każda istotna decyzja projektu Flat-SQL ma tu osobny zapis: z jakiego założenia wynika, dlaczego ją podjęto, jakie alternatywy odrzucono i co z niej wynika. Decyzje sprzed utworzenia rejestru (20.10.2026) odtworzono z README, prezentacji projektu, [architecture.md](../architecture.md), [flat-sql.md](../flat-sql.md), dokumentów badań i historii repozytorium – ich data to data wprowadzenia do repozytorium.
+Każda istotna decyzja projektu Flat-SQL ma tu osobny zapis: z jakiego założenia wynika, dlaczego ją podjęto, jakie alternatywy odrzucono i co z niej wynika. Decyzje sprzed utworzenia rejestru (20.10.2026) odtworzono z README, prezentacji projektu, ówczesnych opisów architektury i specyfikacji Flat-SQL (dziś [flatsql-core/README.md](../../crates/flatsql-core/README.md) i [flatsql-core/src/sql/README.md](../../crates/flatsql-core/src/sql/README.md)), dokumentów badań i historii repozytorium – ich data to data wprowadzenia do repozytorium.
 
-Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatury](../references/README.md); numery zadań – do [todo.md](../todo.md) i [todo_future.md](../todo_future.md).
+Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatury](../references/README.md); numery zadań – do [todo.md](../todo.md) i [future/todo.md](../future/todo.md).
 
 ## Rodzaje decyzji
 
@@ -67,6 +67,7 @@ Identyfikatory literatury w nawiasach (np. [C7]) odsyłają do [indeksu literatu
 | [0051](0051-porownanie-z-silnikami-z-benchmarku-1.md) | Wersja po optymalizacjach porównywana z silnikami odniesienia z Benchmarku 1, silniki oznaczone według roli | proces | przyjęta |
 | [0052](0052-rdzen-literatury-wedlug-zastosowania-i-weryfikacji.md) | Rdzeń literatury według zastosowania i wyniku weryfikacji: katalogi zastosowane, potwierdzone, niepotwierdzone | proces | przyjęta |
 | [0053](0053-galezie-bazy-zamiast-mvcc.md) | Pamięć agentów przez gałęzie bazy ze scalaniem warunkowym, bez wielu wersji wierszy | architektura | przyjęta |
+| [0054](0054-dokumentacja-wedlug-modulow-i-dwie-wersje.md) | Dokumentacja według modułów, jedno źródło każdej informacji i dwie wersje silnika | proces | przyjęta |
 
 ## Zasady prowadzenia rejestru
 

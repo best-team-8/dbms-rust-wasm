@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta; pkt 2 zastąpiony przez [ADR-0023](0023-konfigurowalne-tryby-serwera-synchronizacji.md) |
-| Data | 2026-10-06 (serwer i bridge, [architecture.md §5.3–5.4](../architecture.md)) |
+| Data | 2026-10-06 (serwer i bridge, [server/README.md](../../server/README.md#protokół-synchronizacji)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0002, ADR-0016; future 3.7, 6.2, §7, 12.4 |
 

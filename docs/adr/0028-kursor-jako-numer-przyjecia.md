@@ -35,4 +35,4 @@ Urządzenie pobiera zmiany od swojego kursora (`/sync/pull?since=N`). W prototyp
 
 ## Źródła
 
-[C3], [P1] rozdz. 11; [literature-comparison.md §4.5](../references/literature-comparison.md#45-protokół-synchronizacji).
+[C3], [P1] rozdz. 11; [literature.md](../references/literature.md).

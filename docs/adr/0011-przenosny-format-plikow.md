@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (formaty, [architecture.md §6](../architecture.md)); alternatywa odrzucona 2026-10-20 |
+| Data | 2026-10-06 (formaty, [flatsql-core/src/storage/README.md](../../crates/flatsql-core/src/storage/README.md#formaty-binarne)); alternatywa odrzucona 2026-10-20 |
 | Rodzaj | architektura |
 | Powiązane | ADR-0005, ADR-0009; todo 1.8, 2.7 |
 

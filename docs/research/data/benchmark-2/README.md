@@ -1,10 +1,10 @@
 # Benchmark 2: dane
 
-Surowe wyniki pomiaru prototypu Flat-SQL (tag `prototyp`) razem z wersją po optymalizacjach (tag `po-2.5`) według tej samej [metodyki](../../benchmark-scenario.md) co Benchmark 1. Opis wyników: [benchmark-results.md §3](../../benchmark-results.md#3-benchmark-2-wersja-po-optymalizacjach), miejsce wersji po optymalizacjach wśród silników z Benchmarku 1: [§3.9](../../benchmark-results.md#39-flat-sql-po-optymalizacjach-na-tle-innych-silników).
+Surowe wyniki pomiaru prototypu Flat-SQL (tag `v1-prototyp`) razem z wersją po optymalizacjach (tag `v2-optymalizacja`) według tej samej [metodyki](../../benchmark-scenario.md) co Benchmark 1. Opis wyników: [benchmark-results.md §2](../../benchmark-results.md#2-benchmark-2-wersja-po-optymalizacjach), miejsce wersji po optymalizacjach wśród silników z Benchmarku 1: [§2.9](../../benchmark-results.md#29-flat-sql-po-optymalizacjach-na-tle-innych-silników).
 
 | Ścieżka | Zawartość |
 |---|---|
-| `manifest.json` | obie wersje (opis `git describe`, commit, `codeTreeSha256`, rozmiar modułu WebAssembly), opcje pomiaru, obciążenie procesora przed pomiarem, czas rozpoczęcia i zakończenia |
+| `manifest.json` | obie wersje (nazwy `prototyp` i `po-2.5` w manifestach i raportach to nazwy tagów z dnia pomiaru; tagi `v1-prototyp` i `v2-optymalizacja` wskazują te same commity; (opis `git describe`, commit, `codeTreeSha256`, rozmiar modułu WebAssembly), opcje pomiaru, obciążenie procesora przed pomiarem, czas rozpoczęcia i zakończenia |
 | `before/raw/`, `after/raw/` | wyniki prototypu i wersji po optymalizacjach w Windows: `<środowisko>/<rodzaj>/<silnik>/NN.json`, jeden plik na proces; środowiska `node`, `native`, `browser`, rodzaje `workload`, `cold`, `memory`, `checkpoint`, `network`, `fsync` |
 | `linux/` | koszt utrwalania plików w Linuksie (WSL 2): `manifest.json` z opisem środowiska (`note`), `before/raw/` i `after/raw/` z rodzajem `fsync` w środowiskach `node` i `native` |
 | `compare.md` | zestawienie narzędzia pomiarowego dla Windows (mediana z kwartylami, zmiana, rozłączność przedziałów ufności, zgodność sum kontrolnych) |
@@ -20,9 +20,9 @@ Surowe wyniki pomiaru prototypu Flat-SQL (tag `prototyp`) razem z wersją po opt
 Pomiar w Windows (obie wersje zbudowane przez `bench/build-version.js`):
 
 ```bash
-node bench/build-version.js prototyp
-node bench/build-version.js po-2.5
-node bench/compare.js --before bench/versions/prototyp --after bench/versions/po-2.5 --out docs/research/data/benchmark-2 --runs 10 --targets node,native,browser --kinds workload,cold,memory,network,fsync,checkpoint --engines flatsql,flatsql-json,flatsql-idb,flatsql-idb-strict,flatsql-worker,flatsql-worker-idb
+node bench/build-version.js v1-prototyp
+node bench/build-version.js v2-optymalizacja
+node bench/compare.js --before bench/versions/v1-prototyp --after bench/versions/v2-optymalizacja --out docs/research/data/benchmark-2 --runs 10 --targets node,native,browser --kinds workload,cold,memory,network,fsync,checkpoint --engines flatsql,flatsql-json,flatsql-idb,flatsql-idb-strict,flatsql-worker,flatsql-worker-idb
 ```
 
 Pomiar w Linuksie (WSL, klon repozytorium w `~/flatsql-bench` z katalogiem Windows jako `origin`), potem skopiowanie katalogu wyników do `linux/`:

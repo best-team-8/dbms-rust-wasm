@@ -44,4 +44,4 @@ Instrukcja przygotowana (`Prepared`) przechowywała tylko drzewo składni, więc
 
 ## Źródła
 
-[D2]; [optimization-results.md §3](../research/optimization-results.md), [tests-results.md §3.3](../research/tests-results.md), [hyphotetical-optimalizations.md](../hyphotetical-optimalizations.md) (O2, O3).
+[D2]; [optimization-results.md §3](../research/optimization-results.md), [tests-results.md §3.3](../research/tests-results.md), [hyphotetical-optimalizations.md](https://github.com/best-team-8/dbms-rust-wasm/blob/4ed928f/docs/hyphotetical-optimalizations.md) (O2, O3).

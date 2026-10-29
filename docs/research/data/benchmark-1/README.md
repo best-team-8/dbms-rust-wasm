@@ -1,6 +1,6 @@
 # Benchmark 1: dane
 
-Surowe wyniki pomiaru prototypu Flat-SQL (tag `prototyp`) według [metodyki](../../benchmark-scenario.md). Opis wyników: [benchmark-results.md §1](../../benchmark-results.md#1-benchmark-1-prototyp-przed-optymalizacjami).
+Surowe wyniki pomiaru prototypu Flat-SQL (tag `v1-prototyp`) według [metodyki](../../benchmark-scenario.md). Opis wyników: [benchmark-results.md §1](../../benchmark-results.md#1-benchmark-1-prototyp-przed-optymalizacjami).
 
 | Ścieżka | Zawartość |
 |---|---|
@@ -33,7 +33,7 @@ cargo run --release --manifest-path docs/research/data/benchmark-1/analysis/cost
 Po Benchmarku 1 program służy też do pomiaru optymalizacji ([optimization-results.md](../../optimization-results.md)), więc zmieniono go w trzech miejscach. Doszły pomiary `COUNT(*)` po indeksie (silnik wobec odczytu samego indeksu), czasu przygotowania każdej instrukcji obciążenia, a w programie `allocations` także `COUNT(*)`, zakresu klucza i przygotowania instrukcji; wyniki z pliku `analysis/cost-split.txt` pochodzą z wersji sprzed tych dodatków. Skrypt `run.mjs` buduje program z rdzeniem dowolnej wersji, np. worktree poprzedniego stanu, żeby te same operacje zmierzyć przed zmianą i po niej:
 
 ```bash
-node docs/research/data/benchmark-1/analysis/cost-split/run.mjs --flatsql bench/versions/prototyp [--bin allocations] [--out PLIK]
+node docs/research/data/benchmark-1/analysis/cost-split/run.mjs --flatsql bench/versions/v1-prototyp [--bin allocations] [--out PLIK]
 ```
 
 Części programu, które korzystają z wewnętrznego API rdzenia zmienionego przez optymalizację, wybiera `build.rs` na podstawie źródeł mierzonego rdzenia; każda taka część jest opisana w komentarzu programu. Od wersji, w której outbox jest prowadzony dopiero po włączeniu synchronizacji, stan „z outboxem” program uzyskuje, włączając synchronizację na kopii bazy, a osobne pozycje mierzą bazę w stanie, w jakim tworzy ją benchmark; dodano też pozycje programu `allocations` dla wstawienia 1000 wierszy i snapshotu oraz odtworzenia bazy z benchmarku. Dla rdzenia z binarnym formatem wyniku obie części mierzą też wynik zakodowany wprost z tabeli wobec wyniku zebranego (odczyt po kluczu i 10 000 wierszy), a dla rdzenia z wykonaniem zapisu dla wielu zestawów parametrów 100 000 wstawień po jednej instrukcji wobec jednego wywołania.

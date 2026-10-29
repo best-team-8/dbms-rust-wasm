@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (silnik, [flat-sql.md §2](../flat-sql.md)) |
+| Data | 2026-10-06 (silnik, [flatsql-core/src/sql/README.md §2](../../crates/flatsql-core/src/sql/README.md)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0004, ADR-0011; todo 1.8 |
 
@@ -35,4 +35,4 @@ Dialekt ma być prosty (ADR-0004), a wartości muszą dawać się porządkować 
 
 ## Źródła
 
-[P2] §2.5; [flat-sql.md §2](../flat-sql.md), [architecture.md §2](../architecture.md).
+[P2] §2.5; [flatsql-core/src/sql/README.md §2](../../crates/flatsql-core/src/sql/README.md), [flatsql-core/README.md](../../crates/flatsql-core/README.md#droga-zapytania).

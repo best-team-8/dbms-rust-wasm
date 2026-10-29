@@ -1,6 +1,8 @@
-# Tezy literatury a wyniki benchmarków i testów
+# Flat-SQL na tle literatury
 
-Dokument zestawia tezy prac z [indeksu literatury](../references/README.md) z wynikami pomiarów i testów Flat-SQL: Benchmarku 1 (prototyp), Benchmarku 2 (wersja po optymalizacjach), pomiarów pojedynczych optymalizacji i testów poprawności. Dla każdej pracy podaje tezę, która dotyczy Flat-SQL, miejsce, w którym ją sprawdzono, wynik i ocenę. Źródła liczb: [benchmark-results.md](benchmark-results.md), [optimization-results.md](optimization-results.md), [tests-results.md](tests-results.md). Hipotezy H1–H6 pochodzą z [benchmark-scenario.md](benchmark-scenario.md).
+Dokument zestawia założenia i wyniki Flat-SQL z pracami z [indeksu literatury](README.md). Części 1–5 dotyczą tez, które sprawdziły pomiary i testy: Benchmark 1 (prototyp), Benchmark 2 (wersja po optymalizacjach), pomiary pojedynczych optymalizacji i testy poprawności. Dla każdej pracy podają tezę, która dotyczy Flat-SQL, miejsce, w którym ją sprawdzono, wynik i ocenę. Część 6 porównuje z literaturą te własności projektu, których żaden pomiar nie obejmuje, a część 7 opisuje, co projekt wnosi.
+
+Identyfikatory w nawiasach kwadratowych (np. [W1]) odsyłają do wpisów indeksu; prace oznaczone jako „poza rdzeniem” nie mają w nim wpisu. Źródła liczb: [benchmark-results.md](../research/benchmark-results.md), [optimization-results.md](../research/optimization-results.md) i [tests-results.md](../research/tests-results.md), do którego odsyłają numery testów (np. test 2.3). Hipotezy H1–H6 pochodzą z [benchmark-scenario.md](../research/benchmark-scenario.md), a ich związek z literaturą opisuje [benchmark-results.md §2.12](../research/benchmark-results.md#212-hipotezy-a-literatura).
 
 ## 1. Sposób oceny
 
@@ -10,7 +12,7 @@ Każda praca dostaje jedną z trzech ocen.
 - Teza niepotwierdzona: praca coś sugerowała, pomiar to sprawdził, a w tym silniku i środowisku wynik był inny.
 - Praca zastosowana bez sprawdzenia: projekt przejął z pracy mechanizm, metodę albo uzasadnienie decyzji, ale żaden pomiar nie mógł jej tezy potwierdzić ani obalić, bo wymagałby wersji silnika, której nie zbudowano, albo teza nie jest mierzalna.
 
-Ocena dotyczy tego przypadku. Wszystkie pomiary wykonano na jednym laptopie z Windows 11, w silniku V8 (Node.js 24 i Edge 156), na syntetycznym obciążeniu jednej tabeli 100 000 wierszy ([benchmark-scenario.md §7](benchmark-scenario.md#7-zagrożenia-dla-trafności)). Teza niepotwierdzona nie oznacza błędu w pracy, której autorzy mierzyli inne programy w innych latach i przeglądarkach. Oznacza, że przewidywanie z tej pracy nie przenosi się na Flat-SQL i w tekście pracy dyplomowej nie można go użyć jako opisu tego silnika.
+Ocena dotyczy tego przypadku. Wszystkie pomiary wykonano na jednym laptopie z Windows 11, w silniku V8 (Node.js 24 i Edge 156), na syntetycznym obciążeniu jednej tabeli 100 000 wierszy ([benchmark-scenario.md §7](../research/benchmark-scenario.md#7-zagrożenia-dla-trafności)). Teza niepotwierdzona nie oznacza błędu w pracy, której autorzy mierzyli inne programy w innych latach i przeglądarkach. Oznacza, że przewidywanie z tej pracy nie przenosi się na Flat-SQL i w tekście pracy dyplomowej nie można go użyć jako opisu tego silnika.
 
 ## 2. Zestawienie
 
@@ -45,29 +47,15 @@ Ocena dotyczy tego przypadku. Wszystkie pomiary wykonano na jednym laptopie z Wi
 | [S6] Malviya i in. | logowanie poleceń daje ok. 1,5× większą przepustowość od logowania fizycznego kosztem dłuższego odtwarzania | – | uzasadnienie fizycznego WAL; logowania poleceń nie zbudowano | zastosowana |
 | [V1] Cavoukian | prywatność jako ustawienie domyślne | – | źródło założenia „dane domyślnie lokalne” | zastosowana |
 
-## 3. Hipotezy badawcze a literatura
+## 3. Tezy potwierdzone
 
-H1 zakładała, że lokalne zapytanie po kluczu trwa mikrosekundy, a zapytanie przez sieć jest ograniczone od dołu czasem obiegu pakietu (ang. *round-trip time*, RTT), czyli czasem od wysłania żądania do otrzymania odpowiedzi. Odczyt lokalny z tekstem SQL trwał 14,8 µs w Node.js i 21,9 µs w przeglądarce, a przez serwer z symulowanym RTT 20–100 ms był 1040–6796 razy wolniejszy (Benchmark 1, §1.8). Wynik odpowiada tezie Kleppmanna i in. [L1], że dane lokalne usuwają oczekiwanie na sieć, i mieści się z dużym zapasem w budżecie jednej klatki obrazu, który Litt i in. [D4] przyjmują dla lokalnej bazy w aplikacji. Po optymalizacjach odczyt lokalny skrócił się w Node.js do 10,1 µs, a różnica rzędów wielkości się nie zmieniła.
-
-H2 zakładała narzut WebAssembly 1,2–3× względem tego samego kodu skompilowanego natywnie, co odpowiadało przedziałowi z prac Haasa i in. [P2] i Jangdy i in. [W1]. Pomiar rozdzielił dwie przyczyny. Operacje wykonywane w całości w silniku (zakres klucza, pełny skan, grupowanie, top-k, odtworzenie snapshotu) mają w WebAssembly 0,89–1,13 czasu natywnego, a po optymalizacjach 0,82–0,93. Narzut zostaje tylko w operacjach, które przenoszą dane przez granicę między JavaScriptem a modułem: odczyt po kluczu był 3,9 raza wolniejszy niż natywnie, po zmianach 2,7–3,6 raza. Wynik zgadza się z [P2] i nie zgadza się z [W1] (§5.1).
-
-H3 zakładała, że przy małych wynikach dominuje koszt przekazania danych, a wynik jako JSON jest szybszy od obiektów budowanych w Rust przez `js-sys`. Benchmark 1 to potwierdził (5,6 wobec 9,2 µs), a profil przypisał ścieżce obiektów 24% czasu na dekodowanie UTF-8 i 19% na kod sklejający. Optymalizacje poszły jednak w kierunku z DuckDB-Wasm [D1]: binarny bufor czytany przez JavaScript wprost z pamięci modułu. Po tej zmianie wynik binarny jest szybszy od JSON przy jednym wierszu (3,28 wobec 4,16 µs) i przy 10 000 wierszy (1,55 wobec 7,06 ms). Prace [P2] i [W1] tej granicy nie mierzą; [W1] uznaje koszt wywołań obsługiwanych przez JavaScript za pomijalny.
-
-H4 zakładała przewagę Flat-SQL nad SQLite w zapytaniach punktowych, agregacji i sortowaniu oraz słabość tam, gdzie SQLite korzysta z formatu stronicowego i indeksów pokrywających. Obie części opisują Gaffney i in. [D2], a Stonebraker i in. [S4] wyjaśniają, dlaczego silnik w pamięci bez bufora stron może być szybszy w odczytach. Po optymalizacjach Flat-SQL jest szybszy od obu wersji SQLite we wszystkich odczytach, a wolniejszy we wstawianiu, `UPDATE`, `DELETE`, snapshocie i odtworzeniu (§4.2).
-
-H5 zakładała, że przyrostowy dziennik zapisu z wyprzedzeniem (ang. *write-ahead log*, WAL), do którego każde zatwierdzenie dopisuje tylko zmienione wiersze, daje koszt niezależny od rozmiaru bazy, a eksport całej bazy rośnie z jej rozmiarem. Trwałe zatwierdzenie w IndexedDB kosztuje 0,36–0,40 ms, w sql.js 19,3 ms przy 100 000 wierszy, a eksport sql.js rośnie od 6,5 do 19,2 ms między 10 000 a 100 000 wierszy. Grupowanie zatwierdzeń z pracy DeWitta i in. [S1] obniża koszt do kilku mikrosekund na transakcję. Koszt przeniesiony na checkpoint potwierdza tezę Cao i in. [S10] o naiwnym snapshocie (§4.3).
-
-H6 zakładała pełną funkcjonalność offline i zbieżność replik. Testy end-to-end i test losowy z przesuniętymi zegarami, podziałami sieci i restartami ją potwierdziły. Wyniki odpowiadają tezom o trwałym logu zmian offline (Kistler i Satyanarayanan [C10], Go i in. [L27]) i o zbieżności rejestrów „ostatni zapis wygrywa” (Shapiro i in. [L2]), razem z ograniczeniem opisanym przez Graya i in. [C9] (§4.4).
-
-## 4. Tezy potwierdzone
-
-### 4.1 WebAssembly i granica z JavaScriptem
+### 3.1 WebAssembly i granica z JavaScriptem
 
 Haas i in. [P2] pokazali na jądrach PolyBenchC, że WebAssembly działa blisko szybkości kodu natywnego: 7 z 24 programów w granicy 10%, prawie wszystkie poniżej 2×. Flat-SQL mieści się w tym obrazie z zapasem, bo operacje wykonywane w silniku są w WebAssembly tak szybkie jak natywnie albo szybsze. Druga teza tej pracy, zwarta reprezentacja kodu, także się przenosi: moduł Flat-SQL ma po kompresji gzip 287 KiB i jest najmniejszy wśród silników SQL w WebAssembly (sql.js 331 KiB, SQLite WASM 583 KiB, wa-sqlite 821 KiB), a zimny start w przeglądarce trwa 49 ms. Trzecią tezę, że jedynym niedeterminizmem arytmetyki WebAssembly są wzorce bitów NaN, projekt zastosował: kodek zapisuje każdy NaN jednym wzorcem, a test 3.1 sprawdza, że te same dane dają te same bajty snapshotu, WAL i paczek zmian.
 
 Kohn i in. [D1] wskazali izolację pamięci modułu od sterty JavaScriptu jako główną przeszkodę dla bazy w przeglądarce i przekazują wyniki jako strumienie Apache Arrow czytane przez JavaScript wprost z pamięci modułu. Flat-SQL po tej samej zmianie (binarny format wyniku kodowany wprost z wierszy tabeli) pobiera 10 000 wierszy w przeglądarce w 1,59 ms zamiast 14,0 ms, a udział dekodowania UTF-8 w profilu spadł z 36% do 0,8%. Pobranie 10 000 wierszy jest teraz w WebAssembly szybsze niż natywnie (0,54–0,58), bo moduł nie kopiuje wierszy do wyniku pośredniego. Drugą tezę tej pracy, że silnik kolumnowy służy analityce i słabo radzi sobie z odczytami pojedynczych rekordów, potwierdza Benchmark 1: DuckDB-Wasm wykonuje pełny skan w 0,59 ms, ale odczyt po kluczu w 1,28 ms, a 100 000 pojedynczych wstawień w 42 s.
 
-### 4.2 Silniki odniesienia i model danych
+### 3.2 Silniki odniesienia i model danych
 
 Gaffney i in. [D2] opisują trzy źródła przewagi SQLite, które Benchmark 1 pokazał wprost. Indeks pokrywający odpowiadał na `COUNT(*)` po indeksie 6–8 razy szybciej, bo SQLite liczy wpisy indeksu bez czytania wierszy. Po zmianie, w której planer liczy wiersze długością zbioru kluczy w indeksie, Flat-SQL odpowiada w 1,90 µs, 33–36 razy szybciej od SQLite. Format stronicowy daje snapshot i odtworzenie jako kopię stron: sql.js zapisuje bazę w 1,54 ms i odtwarza w 1,19 ms, Flat-SQL po optymalizacjach w 22,6 ms i 46,4 ms. Ta przewaga pozostała, bo zniwelowałby ją dopiero format stronicowy. Instrukcja przygotowana kompilowana raz, wzorowana na SQLite, skróciła natywny odczyt po kluczu z 2,71 do 1,27 µs i liczbę alokacji z 26 do 6.
 
@@ -77,7 +65,7 @@ Armbrust i in. [M2] pokazali, że ograniczony koszt mają tylko zapytania, w kt�
 
 Litt i in. [D4] przyjmują dla lokalnej bazy w aplikacji budżet jednej klatki, 16,7 ms przy 60 Hz, i próg 100 ms, powyżej którego użytkownik zauważa opóźnienie. W przeglądarce, przy 100 000 wierszy, najdłuższy odczyt po optymalizacjach (grupowanie) trwa 9,38 ms, a ponowne otwarcie bazy z IndexedDB 81 ms. Jedynym wyjątkiem w prototypie był checkpoint, który blokował wątek główny na 40 ms, powyżej budżetu od około 40 000 wierszy. Po podziale kodowania na kroki najdłuższa pauza wynosi 2,6 ms (§4.3).
 
-### 4.3 Trwałość i odtwarzanie po awarii
+### 3.3 Trwałość i odtwarzanie po awarii
 
 DeWitt i in. [S1] opisali zatwierdzanie grupowe: jeden zapis logu utrwala wiele transakcji. Trwałe zatwierdzenie jednego wiersza w IndexedDB kosztuje we Flat-SQL 364 µs, a 1000 zatwierdzeń z jednym oczekiwaniem na trwałość 5,07 ms, czyli 5,1 µs na transakcję. Koszt trwałości rozkłada się na grupę zgodnie z tą pracą. W silnikach, które utrwalają każdą transakcję osobno, 1000 zatwierdzeń trwa od 0,36 s (Dexie.js) do 57 s (PGlite).
 
@@ -85,7 +73,7 @@ Cao i in. [S10] porównali algorytmy punktów kontrolnych stanu w pamięci i pok
 
 Pillai i in. [S8] znaleźli w dojrzałych aplikacjach błędy protokołów trwałości wynikające z kolejności, w jakiej system plików utrwala operacje, najczęściej brak `fsync` katalogu po utworzeniu albo zmianie nazwy pliku. Oba magazyny plikowe Flat-SQL miały błędy tej klasy. W magazynie natywnym test 1.1 na kodzie sprzed zmiany utracił tabelę z potwierdzonej transakcji, bo wpis pliku WAL w katalogu nie był utrwalony, a po pierwszej poprawce utracił transakcje sprzed checkpointu, bo obcięcie WAL zostało utrwalone przed zmianą nazwy snapshotu. Magazyn Node.js nie wykonywał żadnego `fsync`. Po poprawkach test 1.4 sprawdza wszystkie stany dysku, które model systemu plików dopuszcza po awarii, w stylu narzędzia ALICE z tej pracy, i każdy z nich odtwarza stan zatwierdzony. Eksperyment 1.2 uzupełnił pracę o Windows, którego ona nie obejmuje: wpisy katalogu utrwala `FlushFileBuffers` na uchwycie katalogu otwartym z prawem zapisu i flagą `FILE_FLAG_BACKUP_SEMANTICS`. Zatwierdzenie z `fsync` kosztuje 0,49 ms w Windows i 2,05 ms w Linuksie, bez niego 6–9 µs.
 
-### 4.4 Synchronizacja replik
+### 3.4 Synchronizacja replik
 
 Shapiro i in. [L2] dowodzą, że rejestr „ostatni zapis wygrywa” (ang. *Last-Writer-Wins*, LWW) jest bezkonfliktowym typem danych replikowanych (ang. *Conflict-free Replicated Data Type*, CRDT): scalanie przez wybór większego znacznika jest łączne, przemienne i idempotentne, więc repliki zbiegają się niezależnie od kolejności i powtórzeń dostarczenia. Test 2.3 sprawdził to w 1000 przebiegach z czterema urządzeniami: 199 795 zapisów, 61 505 usunięć i 58 461 rund synchronizacji, a po każdym przebiegu stan serwera i każdego urządzenia był równy wyroczni liczonej niezależnie od silnika. Kontrola negatywna potwierdziła warunek z tej samej pracy: bez porównania zmiany ze znacznikiem usunięcia (ang. *tombstone*) usunięty wiersz wracał.
 
@@ -101,29 +89,29 @@ Almeida [L28] opisuje synchronizację przez stan zmienionych elementów (ang. *d
 
 Kleppmann i in. [L1] wskazują, że magazyn przeglądarki bywa czyszczony razem z danymi strony. Projekt zastosował to ostrzeżenie: baza otwarta bez wskazania magazynu używa IndexedDB zamiast pamięci (test 1.6), i prosi przeglądarkę o magazyn trwały (test 1.7). Zachowania samej przeglądarki przy braku miejsca pomiar nie obejmował.
 
-### 4.5 Metodyka pomiarów
+### 3.5 Metodyka pomiarów
 
 Georges i in. [B1] pokazali, że w środowiskach z kompilatorem w czasie wykonania (ang. *just-in-time*, JIT) pojedynczy przebieg albo najlepszy wynik prowadzą do błędnych wniosków. Projekt dostarczył przykładu. Wyniki wstępne z jednym procesem na silnik dały narzut WebAssembly w operacjach wykonywanych w silniku 1,1–1,8×, zgodny z literaturą, a Benchmark 1 z dziesięcioma procesami na silnik dał 0,89–1,13×. W pomiarach optymalizacji ta sama operacja zmieniała czas o 12–28% zależnie od chwili, w której V8 podmieniał funkcje WebAssembly na wersje zoptymalizowane, choć zmieniony kod jej nie wykonywał.
 
 Raasveldt i in. [B3] wskazują, że autor benchmarku zna swój system lepiej niż porównywane, a sposób użycia cudzego API potrafi zmienić wynik bardziej niż różnica silników. Pierwsza wersja adaptera RxDB wymuszała ponowne wykonanie zapytania warunkiem na polu bez indeksu, przez co planer RxDB czytał całą kolekcję: zakres klucza trwał 2,9 s, po poprawce 30 ms. Sumy kontrolne wyników tego nie wykryły, bo odpowiedź była poprawna.
 
-## 5. Tezy niepotwierdzone
+## 4. Tezy niepotwierdzone
 
-### 5.1 Narzut WebAssembly względem kodu natywnego
+### 4.1 Narzut WebAssembly względem kodu natywnego
 
 Jangda i in. [W1] zmierzyli programy SPEC CPU skompilowane do WebAssembly i uruchomione przez Browsix-Wasm: średnio 1,55 raza wolniej w Chrome i 1,45 raza w Firefoksie, najwyżej 2,5 raza. Narzut przypisali większej liczbie dostępów do pamięci przy braku rejestrów, sprawdzaniu przepełnienia stosu przy każdym wywołaniu i większemu kodowi. Koszt wywołań obsługiwanych przez JavaScript uznali za pomijalny. Hipoteza H2 przyjęła ten przedział.
 
 We Flat-SQL żadna z tych dwóch tez się nie sprawdziła. Operacje wykonywane w całości w silniku mają w Benchmarku 1 0,89–1,13 czasu natywnego, a po optymalizacjach 0,82–0,93, czyli WebAssembly jest szybszy niż natywnie. Cały mierzalny narzut leży na granicy z JavaScriptem, którą praca pomija: odczyt po kluczu był 3,9 raza wolniejszy niż natywnie, a profil przypisał 24% czasu dekodowaniu UTF-8 i 19% kodowi sklejającemu. Po przeniesieniu wyniku do jednego bufora operacje przekazujące dużo danych naraz mają narzut bliski zeru (wstawienie jednym wywołaniem 1,02–1,05) albo są szybsze niż natywnie (pobranie 10 000 wierszy 0,54–0,58), a odczyt po kluczu, który przekracza granicę przy każdym wywołaniu, pozostał 2,7–3,6 raza wolniejszy.
 
-Różnica ma kilka możliwych przyczyn, których pomiar nie rozdziela. Praca dotyczy programów obliczeniowych z 2019 roku, kompilowanych z C przez Emscripten, w przeglądarkach z tamtego czasu; Flat-SQL to kod Rust, którego czas wyznaczają przejścia drzew i porównania wartości, mierzony w V8 z 2026 roku. Na `wasm32` wskaźniki mają 4 bajty, a wartość silnika zajmuje 16 bajtów zamiast 24, więc ten sam zbiór wierszy zajmuje mniej pamięci podręcznej procesora; tego wpływu nie mierzono osobno. Ocenę „niepotwierdzona” wzmacnia przebieg badań: wyniki wstępne z jednym procesem na silnik dały 1,1–1,8× i wyglądały na zgodne z tą pracą, a różnica zniknęła dopiero przy dziesięciu procesach (§4.5).
+Różnica ma kilka możliwych przyczyn, których pomiar nie rozdziela. Praca dotyczy programów obliczeniowych z 2019 roku, kompilowanych z C przez Emscripten, w przeglądarkach z tamtego czasu; Flat-SQL to kod Rust, którego czas wyznaczają przejścia drzew i porównania wartości, mierzony w V8 z 2026 roku. Na `wasm32` wskaźniki mają 4 bajty, a wartość silnika zajmuje 16 bajtów zamiast 24, więc ten sam zbiór wierszy zajmuje mniej pamięci podręcznej procesora; tego wpływu nie mierzono osobno. Ocenę „niepotwierdzona” wzmacnia przebieg badań: wyniki wstępne z jednym procesem na silnik dały 1,1–1,8× i wyglądały na zgodne z tą pracą, a różnica zniknęła dopiero przy dziesięciu procesach (§3.5).
 
-### 5.2 Poziomy optymalizacji kompilatora
+### 4.2 Poziomy optymalizacji kompilatora
 
 Yan i in. [W11] porównali WebAssembly i JavaScript w trzech przeglądarkach przy różnych poziomach optymalizacji i doszli do wniosku, że optymalizacje LLVM nie są dostrojone do WebAssembly, więc wyższy poziom nie zawsze daje szybszy kod. Z tego wyszła hipoteza, że moduł optymalizowany pod rozmiar (`opt-level = "s"` albo `"z"`) może być mniejszy bez straty czasu. Pomiar siedmiu wariantów kompilacji ją obalił. `opt-level = "s"` zmniejszył moduł o 17%, ale wydłużył wstawianie o 25%, zakres klucza o 40% i odtworzenie o 36%. `opt-level = "z"` zmniejszył moduł o 25% i wydłużył zakres klucza o 78%, a pełny skan o 48%. `opt-level = 2` był wolniejszy we wstawianiu o 9,5% i szybszy tylko w snapshocie (14,6%), a `wasm-opt -O4` nie dał zysku. W tym silniku `opt-level = 3` jest najszybszy i konfiguracja kompilacji została bez zmian.
 
 Druga teza tej pracy, że WebAssembly zużywa znacznie więcej pamięci niż JavaScript, pozostaje nierozstrzygnięta. Flat-SQL zajmuje po wczytaniu 100 000 wierszy 51,8 MiB pamięci liniowej, a ta sama tabela w czystym JavaScripcie (`Map`) 20,7 MiB sterty, ale SQLite WASM zajmuje 8,0 MiB, a sql.js 21,1 MiB. Zużycie wyznacza więc reprezentacja danych w silniku, której sama platforma nie narzuca. Pamięć liniowa nie maleje po zwolnieniu, co praca też opisuje, i tak ją mierzy benchmark. Zależności wyników od przeglądarki, trzeciej tezy pracy, nie sprawdzono, bo wszystkie pomiary wykonano w V8.
 
-## 6. Prace zastosowane bez sprawdzenia pomiarem
+## 5. Prace zastosowane bez sprawdzenia pomiarem
 
 | Praca | Co zastosowano | Dlaczego bez pomiaru |
 |---|---|---|
@@ -134,3 +122,81 @@ Druga teza tej pracy, że WebAssembly zużywa znacznie więcej pamięci niż Jav
 | [C3] Terry i in. | lokalne zapisy i serwer ustalający kolejność logu, z którego repliki pobierają zmiany | zbieżność tego protokołu sprawdza test 2.3, ale tezy samej pracy (procedury scalania aplikacji, zapisy wstępne i zatwierdzone) Flat-SQL nie realizuje |
 | [S6] Malviya i in. | fizyczny WAL zamiast logowania poleceń, bo te same wpisy służą synchronizacji, a odtworzenie nie zależy od zegara | logowania poleceń nie zbudowano, więc przewagi 1,5× nie da się porównać |
 | [V1] Cavoukian | prywatność jako ustawienie domyślne: dane zostają na urządzeniu, dopóki aplikacja nie włączy synchronizacji | zasada projektowa, niemierzalna |
+
+## 6. Własności bez pomiaru
+
+Część założeń dotyczy gwarancji i braków, których benchmark nie mierzy. Ocena w tabelach: zgodne (rozwiązanie odpowiada temu, co literatura uznaje za poprawne), częściowo (kierunek zgodny, ale z brakującym elementem), luka (literatura opisuje problem, którego projekt nie rozwiązuje).
+
+### 6.1 Izolacja i prywatność
+
+Założenie „przetwarzanie danych w izolowanym środowisku przeglądarki bez wysyłania ich na serwer” obejmuje trzy własności, które literatura rozdziela.
+
+| Własność | Literatura | Stan Flat-SQL | Ocena |
+|---|---|---|---|
+| Moduł nie zaszkodzi przeglądarce | [P2]: pamięć liniowa oddzielona od kodu i stosu środowiska uruchomieniowego | zapewnia przeglądarka | zgodne |
+| Błąd w module nie zaszkodzi danym modułu | [W2]: w pamięci liniowej nie ma kanarków stosu, losowania adresów ani stron ochronnych | rdzeń i wiązania WebAssembly bez `unsafe`, rdzeń bez zależności, więc klasy ataków z tej pracy w większości nie dotyczą kodu | zgodne |
+| Dane są chronione przed innymi | [L1] ideał 6: szyfrowanie end-to-end, serwer przechowuje tylko szyfrogram; [V1]: prywatność domyślnie i ochrona w całym cyklu życia danych | IndexedDB nie jest szyfrowana i jest dostępna dla każdego skryptu tej samej domeny; serwer synchronizacji dostaje dane jawnym tekstem i nie uwierzytelnia klientów | częściowo |
+
+Prywatność oznacza więc dziś minimalizację przesyłanych danych: zapytania wykonują się lokalnie, a synchronizacja jest opcjonalna, co odpowiada zasadzie prywatności domyślnej z [V1]. Ochrony kryptograficznej projekt nie ma. Szyfrowanie end-to-end paczek zmian jest możliwe, jeśli serwer stanie się przekaźnikiem zmian, których nie odczytuje (ideał 6 z [L1]): do rozstrzygnięcia konfliktu wystarczy jawny znacznik czasu i skrót klucza, a wartości mogą być zaszyfrowane. Wzorem są szyfrowane typy replikowane synchronizowane przez niezaufanych pośredników (Kuessner i in., 2022, praca poza rdzeniem). Kosztem byłaby utrata zapytań na serwerze i walidacji po stronie serwera dla zaszyfrowanych tabel.
+
+### 6.2 Ideały local-first
+
+| Ideał [L1] | Flat-SQL | Ocena | Uwagi z literatury |
+|---|---|---|---|
+| 1. Brak oczekiwania na odpowiedź | odczyt po kluczu 3,28 µs w przeglądarce, synchronicznie; najdłuższa pauza checkpointu 2,6 ms | zgodne | [D4]: budżet jednej klatki 16,7 ms na interakcję |
+| 2. Praca nie jest uwięziona na jednym urządzeniu | synchronizacja przez serwer, repliki zbieżne (test 2.3) | zgodne | [C9]: replikacja dwuwarstwowa, w której lokalna kopia zgłasza zmiany do węzła bazowego |
+| 3. Sieć jest opcjonalna | Service Worker, IndexedDB, trwały outbox, prośba o trwały magazyn (test 1.7), scenariusz offline w przeglądarce (test 2.5) | zgodne | wzorzec pracy bez połączenia z [C10]; [L1] ostrzega, że magazyn przeglądarki bywa czyszczony |
+| 4. Płynna współpraca | „ostatni zapis wygrywa” dla całego wiersza | częściowo | współbieżne zmiany różnych kolumn jednego wiersza: jedna ginie [C9]; scalanie na poziomie kolumn (Yu, Ignat, 2020, praca poza rdzeniem) |
+| 5. Długowieczność danych | formaty plików i paczek z nagłówkiem i numerem wersji, wspólne dla Rust i Node.js; snapshot poprzedniego formatu czytany przez nową wersję (test 2.4) | częściowo | brak zasad zgodności wersji schematu dla klientów długo pracujących offline ([P1] rozdz. 4) |
+| 6. Bezpieczeństwo i prywatność domyślnie | dane lokalne domyślnie | częściowo | §6.1 |
+| 7. Pełna kontrola użytkownika | eksport stanu jako snapshot, przełącznik synchronizacji w demo | częściowo | brak eksportu do pliku w otwartym formacie |
+
+### 6.3 Granice transakcji, usunięcia i unikalność klucza
+
+Lokalnie transakcja jest atomowa: dziennik wycofania i jedna ramka WAL. W synchronizacji tej granicy się nie zachowuje. Paczka zawiera do 1000 wpisów outboxu w kolejności numerów, a wiersz zmieniony ponownie przechodzi na koniec kolejki, więc zmiany jednej transakcji mogą trafić do różnych paczek i inne repliki mogą przez chwilę widzieć stan pośredni. Bailis i in. (2013, praca poza rdzeniem) pokazali, że widoczność wszystkich albo żadnego zapisu transakcji (ang. *Monotonic Atomic View*) da się zapewnić bez koordynacji. Helland [C7] przyjmuje jednak atomowość jednej encji, a Simba [L27], system synchronizacji tabel dla aplikacji mobilnych, świadomie daje atomowość tylko pojedynczego wiersza, bo atomowa synchronizacja wielu wierszy okazała się dla większości aplikacji zbędna i kosztowna. Flat-SQL daje dokładnie gwarancję Simby: transakcje są atomowe lokalnie, a między replikami atomowa jest zmiana pojedynczego wiersza.
+
+Znacznik usunięcia (ang. *tombstone*) chroni przed przywróceniem wiersza przez spóźnioną zmianę, zgodnie z [L2]; test 2.3 sprawdził, że bez niego usunięty wiersz wraca. Znaczników usunięcia silnik nie kasuje. Bezpiecznym kryterium jest stabilność przyczynowa, czyli chwila, w której wszystkie repliki potwierdziły znacznik [L28]; przy serwerze centralnym wystarczyłby najmniejszy potwierdzony kursor aktywnych klientów.
+
+Unikalność klucza głównego jest lokalna. Dwa urządzenia offline, które wstawią wiersz o tym samym kluczu, nie dostaną błędu, a po synchronizacji jeden wiersz zastąpi drugi. Kleppmann [P1, rozdz. 9] zaznacza, że ograniczenia unikalności między replikami wymagają konsensusu. Simba [L27] zgłasza konflikty aplikacji, a Coda [C10] unikała kolizji tymczasowymi identyfikatorami zastępowanymi przy reintegracji. W Flat-SQL aplikacja zapisująca offline musi używać kluczy bez kolizji, np. losowych identyfikatorów albo identyfikatora urządzenia w kluczu.
+
+### 6.4 Protokół synchronizacji
+
+| Element Flat-SQL | Odpowiednik w literaturze | Ocena |
+|---|---|---|
+| zapisy lokalne, serwer porządkujący log numerami przyjęcia | Bayou [C3]: zapisy do dowolnej repliki, serwer główny ustala kolejność | zgodne („ostatni zapis wygrywa” zamiast procedur scalania aplikacji) |
+| outbox w WAL przetrwa restart, kolejne zmiany wiersza scalane w jedną | Coda [C10]: trwały log zmian offline, w którym nowszy zapis unieważnia wcześniejsze wpisy; delta-state [L28] | zgodne |
+| ponowne dostarczenie paczki nie zmienia stanu | idempotencja wiadomości [C7], argument end-to-end [P1, rozdz. 12] | zgodne (test 2.3) |
+| kursor klienta, epoka serwera, pełny stan przy nieznanym kursorze | offsety konsumentów i strumień zmian ze snapshotem początkowym [P1, rozdz. 11] | zgodne |
+| log serwera tylko w pamięci, epoka losowana przy starcie | trwały log z offsetami [P1, rozdz. 11] | luka: każdy restart serwera wysyła wszystkim klientom pełny stan |
+| klient pyta serwer o zmiany w rosnących odstępach | [P1, rozdz. 12]: serwer sam powiadamia klientów o zmianach | częściowo |
+| serwer przyjmuje każdą zmianę | Gray i in. [C9]: właściciel kopii głównej zatwierdza zmiany wstępne według kryterium akceptacji; Bayou [C3]: sprawdzanie zależności | luka prototypu |
+| każdy klient dostaje całą bazę | Cimbiosys (Ramasubramanian i in., 2009, praca poza rdzeniem): replikacja częściowa z filtrem klienta | luka |
+
+### 6.5 Ewolucja schematu
+
+Kleppmann i in. [L1] opisują brak jednego obowiązującego schematu w replikach jako problem otwarty. W prototypie definicja tabeli otrzymana z innej repliki była pomijana, jeśli tabela o tej nazwie już istniała, więc dwie repliki, które offline utworzyły tę samą tabelę z innymi kolumnami, rozjeżdżały się trwale. Teraz odbiorca porównuje definicje i zgłasza różnicę jako jeden konflikt schematu z obiema definicjami (test 2.2), a wiersze drugiej definicji odrzuca. Dane urządzenia w konflikcie nie docierają do innych, dopóki aplikacja go nie rozwiąże. Tłumaczenie danych między wersjami schematu soczewkami (Cambria, Litt i in., 2021, praca poza rdzeniem) odrzucono na rzecz struktury tabel w kodzie aplikacji, w której zmiany polegają tylko na dokładaniu kolumn. Wersjonowanie schematu i migracje to kierunek rozwoju.
+
+### 6.6 Model danych bez złączeń
+
+Za płaskim modelem przemawiają trzy prace rdzenia. Helland [C7] uznaje encję z unikalnym kluczem za naturalny zakres serializowalności, poza który transakcje atomowe nie powinny sięgać. Armbrust i in. [M2] pokazują, że zapytania z limitem bez złączeń, albo ze złączeniem po unikalnym kluczu, mają koszt niezależny od rozmiaru bazy. Simba [L27] uznaje tabelę z wierszem jako jednostką synchronizacji za wystarczającą dla typowych aplikacji mobilnych. Przemysłowym odpowiednikiem jest język CQL w Cassandrze, czyli składnia SQL nad modelem klucz–wiersz (Stonebraker, Pavlo, 2024, praca poza rdzeniem).
+
+Przeciw przemawiają dwie obserwacje. Ta sama praca Stonebrakera i Pavlo odnotowuje, że systemy NoSQL niemal powszechnie dodały SQL ze złączeniami, a [M2] krytykuje języki, które dla skalowalności po prostu je usuwają. Litt i in. [D4] pokazują, że w aplikacji local-first znaczna część kodu interfejsu to złączenia i grupowania, a ich szybkość decyduje o responsywności; relacje wiele-do-wielu bez złączeń przenoszą pracę do aplikacji [P1, rozdz. 2].
+
+Granulacja replikacji nie zależy od języka zapytań: systemy replikujące tabele relacyjne przesyłają wiersze albo kolumny, a trudność sprawiają więzy integralności przy współbieżnych usunięciach. Brak złączeń uzasadniają więc prostota i przewidywalność planu oraz brak więzów między tabelami. Przewidywalny jest plan, który zawsze dotyczy jednej tabeli i jest widoczny w `EXPLAIN`; ograniczony koszt mają tylko odczyty po kluczu lub indeksie (§3.2).
+
+### 6.7 Przetwarzanie na brzegu sieci
+
+Flat-SQL wykonuje zapytania na urządzeniu użytkownika, czyli w najdalszym od chmury miejscu, jakie obejmuje definicja przetwarzania na brzegu sieci (ang. *edge computing*): zasoby obliczeniowe na drodze między źródłem danych a chmurą (Shi i in., 2016, praca poza rdzeniem). Prototyp ma jeden centralny serwer, który jest jednocześnie węzłem synchronizacji i bazą główną; węzłów brzegowych synchronizowanych z bazą główną jeszcze nie ma. W literaturze replikacji taki układ to replikacja dwuwarstwowa Graya i in. [C9], z węzłami bazowymi jako warstwą zatwierdzającą zmiany.
+
+Wynik H1 odpowiada temu, co przewiduje literatura: zapytanie przez sieć jest ograniczone od dołu czasem obiegu pakietu, więc przy RTT 20 ms już jedno zapytanie przekracza budżet klatki z [D4]. Pomiar pomija TLS, straty pakietów i zestawianie połączeń, więc jest dolnym ograniczeniem kosztu sieci. Zastrzeżenie w drugą stronę daje analiza wdrożeń: na wolnych urządzeniach lokalny odczyt z dysku bywa wolniejszy od sieci, dlatego Notion wysyła oba odczyty naraz i korzysta z szybszego ([use-cases.md](../research/use-cases.md)).
+
+## 7. Co projekt wnosi względem literatury
+
+Żaden pojedynczy mechanizm Flat-SQL nie jest nowy. Reguła „ostatni zapis wygrywa” na zegarze hybrydowym, WAL ze snapshotem, zatwierdzanie grupowe, outbox i log z kursorami mają dobrze opisane odpowiedniki, także w klasycznych pracach o pracy offline ([C3], [C9], [C10]). Wartość projektu leży w ich połączeniu i pomiarze:
+
+1. jeden rdzeń bez zależności i bez operacji wejścia/wyjścia, uruchamiany w ten sam sposób w przeglądarce, na serwerze i natywnie, co realizuje cel przenośności z [P2]; podobną drogą idzie Zeta-Lite [D5], ale bez przyrostowej trwałości i synchronizacji, za to z pełnym SQL i modułem około dziesięciu razy większym;
+2. pomiar kosztu granicy między JavaScriptem a WebAssembly dla silnika bazy danych, obszaru bez recenzowanych pomiarów, z wynikiem, że cały mierzalny narzut platformy leży na tej granicy (§4.1);
+3. pomiar przyrostowej trwałości w IndexedDB z zatwierdzaniem grupowym wobec eksportu całej bazy i wobec silników zapisujących strony;
+4. dialekt SQL ograniczony do encji pod kluczem, z synchronizacją wbudowaną w format WAL, w odróżnieniu od systemów, które dokładają warstwę replikacji do pełnej bazy relacyjnej (cr-sqlite, Teilen-SQL [X5]), i od Simby [L27], która jest usługą obok bazy.
+
+Te systemy zachowują pełny SQL i dokładają synchronizację. Flat-SQL rezygnuje z części SQL w zamian za prostszy silnik, mniejszy moduł i synchronizację wbudowaną w format danych.

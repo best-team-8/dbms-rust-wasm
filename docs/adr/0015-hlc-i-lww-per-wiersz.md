@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | przyjęta |
-| Data | 2026-10-06 (silnik, [architecture.md §5.1](../architecture.md)) |
+| Data | 2026-10-06 (silnik, [flatsql-core/README.md](../../crates/flatsql-core/README.md#synchronizacja)) |
 | Rodzaj | architektura |
 | Powiązane | ADR-0002, ADR-0004, ADR-0016, ADR-0017, ADR-0018; todo 1.1, 1.9; future 2.5, 12.3, 12.5, 12.6 |
 

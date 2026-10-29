@@ -33,10 +33,10 @@ Benchmark 2 zmierzył prototyp i wersję po optymalizacjach (tag `po-2.5`) na pr
 
 ## Konsekwencje
 
-- [benchmark-results.md §3.9](../research/benchmark-results.md#39-flat-sql-po-optymalizacjach-na-tle-innych-silników) podaje tabele w układzie Benchmarku 1 z miejscem Flat-SQL przed i po optymalizacjach; dane i wykresy: `docs/research/data/benchmark-2/engines.md`, `engines.json`, `figures/07`–`12`.
+- [benchmark-results.md §2.9](../research/benchmark-results.md#29-flat-sql-po-optymalizacjach-na-tle-innych-silników) podaje tabele w układzie Benchmarku 1 z miejscem Flat-SQL przed i po optymalizacjach; dane i wykresy: `docs/research/data/benchmark-2/engines.md`, `engines.json`, `figures/07`–`12`.
 - Wnioski o zimnym starcie wymagają uwzględnienia różnicy sesji (−11%); porównanie na przemian z prototypem pozostaje miarą zmiany samego silnika.
 - Następny pomiar wszystkich silników (np. po nowych optymalizacjach) mierzy w jednej sesji także wersję bieżącą.
 
 ## Źródła
 
-[B1], [B3]; [benchmark-results.md §3.9](../research/benchmark-results.md#39-flat-sql-po-optymalizacjach-na-tle-innych-silników), [wasm-engines-comparison.md](../research/wasm-engines-comparison.md).
+[B1], [B3]; [benchmark-results.md §2.9](../research/benchmark-results.md#29-flat-sql-po-optymalizacjach-na-tle-innych-silników), [wasm-engines-comparison.md](../research/wasm-engines-comparison.md).
