@@ -29,6 +29,6 @@ Wynik tego scenariusza opisuje [tests-results.md §2.5](../docs/research/tests-r
 |---|---|
 | `index.html`, `styles.css`, `icon.svg` | strona: konsola SQL, przykłady zapytań, panele magazynu, synchronizacji i dziennika |
 | `app.js` | logika: otwarcie bazy (`FlatDB`), synchronizacja (`SyncClient`), symulacja braku sieci, odchylenie zegara, konflikty schematu, blokada Web Locks dla wielu kart |
-| `sw.js` | Service Worker: pamięć podręczna plików aplikacji, mostu i modułu WebAssembly, dzięki której strona startuje bez serwera |
+| `sw.js` | Service Worker: pamięć podręczna plików aplikacji, mostu i modułu WebAssembly razem z plikami JavaScript wiązań (`pkg/snippets/`, odczytywanymi z importów `pkg/flatsql.js`), dzięki której strona startuje bez serwera już po pierwszej wizycie |
 
 W wielu kartach zapisuje tylko pierwsza: trzyma blokadę Web Locks, a kolejne pracują na kopii w pamięci z ostrzeżeniem ([bridge/README.md](../bridge/README.md#wiele-kart)).

@@ -22,11 +22,22 @@ const SHELL = [
   'pkg/flatsql_bg.wasm',
 ];
 
+// wasm-bindgen writes the JavaScript of the bindings to pkg/snippets/ under a
+// directory named by a hash, imported by pkg/flatsql.js, so the files are
+// found by reading its imports. They must be cached at install: the first
+// visit is not controlled by this worker, so the fetch handler never sees
+// them, and without them the engine does not load offline.
+async function snippets() {
+  const glue = await (await fetch('pkg/flatsql.js')).text();
+  const paths = [...glue.matchAll(/["']\.\/(snippets\/[^"']+)["']/g)].map((m) => `pkg/${m[1]}`);
+  return [...new Set(paths)];
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(SHELL))
+      .then(async (cache) => cache.addAll([...SHELL, ...(await snippets())]))
       .then(() => self.skipWaiting()),
   );
 });

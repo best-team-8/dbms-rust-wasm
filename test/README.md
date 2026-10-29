@@ -1,6 +1,6 @@
 # Testy end-to-end
 
-Testy w Node.js (`node:test`), które sprawdzają złożony system: moduł WebAssembly z `pkg/`, most JavaScript, magazyny i prawdziwy proces serwera synchronizacji. Uzupełniają testy rdzenia w [crates/flatsql-core/tests/](../crates/flatsql-core/tests/) tam, gdzie gwarancja zależy od mostu, magazynu albo sieci. Zachowania, których nie da się uruchomić w Node.js (Service Worker, prawdziwa IndexedDB), sprawdza się ręcznie w przeglądarce według opisu w [tests-results.md](../docs/research/tests-results.md).
+Testy w Node.js (`node:test`), które sprawdzają złożony system: moduł WebAssembly z `pkg/`, most JavaScript, magazyny i prawdziwy proces serwera synchronizacji. Uzupełniają testy rdzenia w [crates/flatsql-core/tests/](../crates/flatsql-core/tests/) tam, gdzie gwarancja zależy od mostu, magazynu albo sieci. Zachowania, których nie da się uruchomić w Node.js (praca Service Workera w przeglądarce, prawdziwa IndexedDB), sprawdza się ręcznie w przeglądarce według opisu w [tests-results.md](../docs/research/tests-results.md).
 
 ## Uruchomienie
 
@@ -27,6 +27,7 @@ node --test test/offline-sync.test.js
 | `fs-store.test.js` | 5 | `FsStore`: stany po awarii zbudowane z operacji na symulowanym systemie plików, `fsync` wyłączany dla WAL, otwarty plik WAL | [1.3](../docs/research/tests-results.md#13-utrwalanie-zapisów-w-magazynie-plikowym-nodejs), [1.4](../docs/research/tests-results.md#14-wszystkie-stany-po-awarii-dopuszczone-przez-model) |
 | `offline-sync.test.js` | 7 | praca offline z prawdziwym serwerem: zapisy przy wyłączonym serwerze, restart aplikacji z oczekującymi zmianami, ponowne połączenie, konflikt edycji, zapisy przez `/api/query` | [scenariusz §6.2](../docs/research/benchmark-scenario.md#62-testy-end-to-end-nodejs-testoffline-synctestjs) |
 | `clock.test.js` | 2 | urządzenie z błędnym zegarem: wstrzymanie synchronizacji i nowe znaczniki po poprawie zegara | [2.1](../docs/research/tests-results.md#21-granica-dryfu-zegara) |
+| `web.test.js` | 1 | aplikacja demo: Service Worker zapisuje przy instalacji wszystkie pliki ładowane przez stronę, także pliki JavaScript wiązań z `pkg/snippets/` | [2.5](../docs/research/tests-results.md#25-praca-offline-w-aplikacji-demo) |
 
 Pomocnicze moduły w `support/`:
 
