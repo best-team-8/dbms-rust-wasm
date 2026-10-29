@@ -1,0 +1,11 @@
+# Node.js v24.21.0, 29.10.2026, Windows 11; każdy wariant dwa razy w osobnych procesach (różnica byłaby wypisana pod wierszem)
+## v2-optymalizacja (bench/versions/v2-optymalizacja)
+one-transaction: 1.1 -> 51.8 MiB, 100000 rows (25000 rows 11.3, 50000 rows 21.4, 75000 rows 33.5, 100000 rows 41.6, after COMMIT 51.8, WAL of the transaction 5.1)
+transactions-of-10000: 1.1 -> 25.4 MiB, 100000 rows
+transactions-of-1000: 1.1 -> 21.8 MiB, 100000 rows
+restored-from-snapshot: 1.1 -> 22.8 MiB, 100000 rows (snapshot 4.0)
+## v1-prototyp (bench/versions/v1-prototyp)
+one-transaction: 1.1 -> 73.3 MiB, 100000 rows (25000 rows 15.1, 50000 rows 29.0, 75000 rows 47.8, 100000 rows 55.8, after COMMIT 73.3, WAL of the transaction 5.1)
+transactions-of-10000: 1.1 -> 45.9 MiB, 100000 rows
+transactions-of-1000: 1.1 -> 42.3 MiB, 100000 rows
+restored-from-snapshot: 1.1 -> 45.6 MiB, 100000 rows (snapshot 5.3)

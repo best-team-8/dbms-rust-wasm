@@ -14,6 +14,8 @@ Dokument określa, jak projektować, przeprowadzać i opisywać testy poprawnoś
 
 Test, który mierzy czas, jest benchmarkiem. Jeśli poprawka ma koszt wydajnościowy (np. dodatkowe utrwalenie pliku), test sprawdza tylko jej poprawność, a koszt mierzy benchmark.
 
+Wyjątkiem jest eksperyment diagnostyczny: deterministyczny pomiar zasobu, który wyjaśnia wynik benchmarku, ale wykracza poza jego procedurę, np. rozmiar pamięci liniowej w kolejnych chwilach wczytywania danych. Pamięć liniowa rośnie całymi stronami po 64 KiB, więc ten sam kod daje w każdym uruchomieniu te same rozmiary. Taki pomiar odpowiada na pytanie o zachowanie silnika, a nie o koszt na danej maszynie, i jest opisany razem z testami (§4.4).
+
 ## 2. Poziomy testów
 
 | Poziom | Gdzie | Zakres |
@@ -22,6 +24,7 @@ Test, który mierzy czas, jest benchmarkiem. Jeśli poprawka ma koszt wydajnośc
 | Testy end-to-end | Node.js, `test/*.test.js` | moduł WASM, most JS, magazyn plikowy, prawdziwy serwer HTTP |
 | Sprawdzenia w przeglądarce | ręczne, w aplikacji demo | zachowania zależne od przeglądarki (IndexedDB, trwały magazyn, Service Worker), których nie da się uruchomić w Node.js |
 | Eksperymenty platformowe | jednorazowy program lub test | zachowanie systemu operacyjnego albo systemu plików, od którego zależy implementacja |
+| Eksperymenty diagnostyczne | skrypt Node.js w `docs/research/data/tests/` | zachowanie silnika, którego benchmark nie rozdziela, np. z czego składa się zajęta pamięć |
 
 Test umieszcza się na najniższym poziomie, który obejmuje sprawdzany mechanizm. Sprawdzenie ręczne wymaga opisu krok po kroku, tak żeby inna osoba mogła je powtórzyć.
 
@@ -59,6 +62,15 @@ Symulacja nie obejmuje rzeczywistej utraty zasilania ani błędów sprzętu i op
 - **Deterministyczny format** – te same dane logiczne dają identyczne bajty snapshotu i paczek zmian, niezależnie od kolejności operacji i reprezentacji wartości w pamięci.
 - **Zgodność formatu** – plik zapisany przez poprzednią wersję daje się odczytać, a plik niepoprawny jest odrzucany z błędem.
 
+### 4.4 Zużycie pamięci
+
+- **Pomiar w trakcie operacji** – rozmiar pamięci liniowej odczytany w kilku chwilach jednej operacji (np. co 25 000 wstawionych wierszy, przed i po zatwierdzeniu). Pamięć liniowa nie maleje, więc rozmiar po operacji jest jej szczytem, a przyrost między dwiema chwilami wskazuje krok, który go wytworzył.
+- **Warianty różniące się jednym czynnikiem** – te same dane wczytane jedną transakcją, transakcjami różnej wielkości i przez odtworzenie ze snapshotu. Różnica wariantów oddziela pamięć zajmowaną przez dane od pamięci zostawionej przez sposób wczytania.
+- **Kontrola powtarzalności** – każdy wariant dwa razy w osobnych procesach; różne rozmiary oznaczają, że pomiar zależy od czegoś poza kodem, i unieważniają wynik.
+- **Obie wersje silnika** – ten sam skrypt na prototypie i na wersji po optymalizacjach pokazuje, które składniki zmieniły optymalizacje.
+
+Status takiego pomiaru to *eksperyment*: nie ma kryterium zaliczenia, a wynikiem są liczby i wskazana przyczyna.
+
 ## 5. Opis testu
 
 Każdy test albo grupa testów odpowiadająca na jedno pytanie ma opis w [tests-results.md](tests-results.md). Dokument zaczyna się środowiskiem (§6) i tabelą zbiorczą (test – pytanie – status), a opisy są pogrupowane według obszarów z §4.
@@ -74,7 +86,7 @@ Każdy test albo grupa testów odpowiadająca na jedno pytanie ma opis w [tests-
 | Wpływ na projekt | co zmieniono w kodzie lub w dokumentacji w wyniku testu |
 | Ograniczenia | czego wynik nie dowodzi i jaki test mógłby to uzupełnić |
 
-**Status:** *zaliczony* – gwarancja potwierdzona w całym modelu awarii; *częściowy* – potwierdzona w części modelu, brakująca część jest w ograniczeniach; *niezaliczony* – test obalił gwarancję. Wynik negatywny zostaje w dokumencie razem z przyczyną i dalszym postępowaniem.
+**Status:** *zaliczony* – gwarancja potwierdzona w całym modelu awarii; *częściowy* – potwierdzona w części modelu, brakująca część jest w ograniczeniach; *niezaliczony* – test obalił gwarancję; *eksperyment* – pomiar bez kryterium zaliczenia (§1, §4.4). Wynik negatywny zostaje w dokumencie razem z przyczyną i dalszym postępowaniem.
 
 Opis ma się dać przenieść do pracy bez przeróbek: odwołuje się do literatury przez identyfikatory z [indeksu](../references/README.md), do kodu przez plik i nazwę testu, a nie odwołuje się do rejestru decyzji ani list zadań. Komentarz w kodzie testu jest krótki i opisuje scenariusz.
 

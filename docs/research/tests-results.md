@@ -1,6 +1,6 @@
 # Wyniki testów poprawności
 
-Opisy testów poprawności Flat-SQL i ich wyniki, przygotowane według [metodyki testów](tests-methodology.md). Każdy opis odpowiada na jedno pytanie o gwarancję silnika: trwałość zatwierdzonych danych, zbieżność replik albo stały format danych. Testy uruchamiane przy każdej zmianie wymienia też [benchmark-scenario.md §6](benchmark-scenario.md#6-walidacja-local-first-w-warunkach-offline-h6); tutaj opisano je pełniej, razem z modelem awarii, kontrolą negatywną i ograniczeniami.
+Opisy testów poprawności Flat-SQL i ich wyniki, przygotowane według [metodyki testów](tests-methodology.md). Każdy opis odpowiada na jedno pytanie o gwarancję silnika: trwałość zatwierdzonych danych, zbieżność replik albo stały format danych. Eksperymenty diagnostyczne (§4) odpowiadają na pytanie o zachowanie silnika, którego benchmark nie rozdziela. Testy uruchamiane przy każdej zmianie wymienia też [benchmark-scenario.md §6](benchmark-scenario.md#6-walidacja-local-first-w-warunkach-offline-h6); tutaj opisano je pełniej, razem z modelem awarii, kontrolą negatywną i ograniczeniami.
 
 ## Środowisko
 
@@ -43,6 +43,7 @@ Wynik każdego testu podaje datę i commit (przez temat), na którym go uzyskano
 | [3.9](#39-wiele-zestawów-parametrów-jednym-wywołaniem) `executing_for_many_sets_gives_the_rows_and_wal_of_executing_for_each`, `the_sets_are_one_statement`, `rows_of_all_sets_get_stamps_from_one_clock_reading`, `executeMany writes the rows of every parameter array as one statement`, `FlatDB.executeMany is a write…` | Czy instrukcja wykonana jednym wywołaniem dla wielu zestawów parametrów daje te same wiersze i WAL co wykonanie dla każdego zestawu, stosuje się w całości albo wcale i przekazuje każdy typ wartości jak `execute`? | zaliczony |
 | [3.10](#310-krótkie-teksty-w-wartości) `text_is_kept_in_place_up_to_the_size_of_a_value`, testy losowe z §3.2–§3.3 i §3.6 z tekstami obu postaci | Czy tekst trzymany w wartości albo na stercie ma tę samą równość, porządek i skrót, także gdy obie postaci spotykają się w indeksach, porównaniach i grupach? | zaliczony |
 | [3.11](#311-snapshot-kodowany-krokami) `a_snapshot_in_steps_is_the_snapshot_of_its_start`, `a_schema_change_starts_the_snapshot_again_after_the_transaction`, `a_clock_rebase_starts_the_snapshot_again`, `steps_need_a_snapshot_begun_outside_a_transaction`, `a checkpoint is encoded in steps while writes go on…`, `IndexedDbStore keeps the snapshot as a Blob…` | Czy snapshot kodowany krokami, z zapisami między krokami, jest snapshotem stanu z chwili rozpoczęcia i razem z późniejszym WAL odtwarza bieżący stan? | zaliczony |
+| [4.1](#41-szczyt-pamięci-przy-wczytaniu-w-jednej-transakcji) `docs/research/data/tests/memory-peak/memory-peak.mjs` | Ile pamięci liniowej zajmuje baza 100 000 wierszy zależnie od sposobu wczytania i z czego składa się szczyt przy wczytaniu jedną transakcją? | eksperyment |
 
 ## 1. Trwałość i odtwarzanie po awarii
 
@@ -383,3 +384,34 @@ Każda zmiana wysyłana między replikami ma znacznik z hybrydowego zegara logic
 | Wynik | Zaliczony, 20 przebiegów testu losowego. 28.10.2026, środowisko z początku dokumentu, commit „core/bridge: encode checkpoints in steps”. |
 | Wpływ na projekt | Wycofanie `UPDATE` przestało zmieniać wersję katalogu. |
 | Ograniczenia | Test mostu działa w Node.js na `MemoryStore`; pauza w przeglądarce jest mierzona benchmarkiem, nie testem. |
+
+## 4. Zużycie pamięci
+
+Silnik WebAssembly dostaje od przeglądarki jeden ciągły obszar pamięci, tzw. pamięć liniową, który może tylko powiększać. Pamięć zwolniona przez silnik wraca do jego alokatora i służy kolejnym alokacjom, ale obszar się nie zmniejsza, więc dla przeglądarki i systemu pozostaje zajęty do zamknięcia strony. Benchmark mierzy rozmiar tego obszaru po wczytaniu danych jedną transakcją, czyli łącznie ze szczytem z wczytywania.
+
+### 4.1 Szczyt pamięci przy wczytaniu w jednej transakcji
+
+| Element | Zawartość |
+|---|---|
+| Pytanie | Ile pamięci liniowej zajmuje baza 100 000 wierszy zależnie od sposobu wczytania i z czego składa się szczyt przy wczytaniu jedną transakcją? |
+| Uzasadnienie | W benchmarku Flat-SQL po wczytaniu 100 000 wierszy jedną transakcją zajmował 73,3 MiB w prototypie i 51,8 MiB po optymalizacjach, wobec 21,1 MiB w sql.js i 8,0 MiB w SQLite WASM, przy snapshocie tych samych danych o rozmiarze około 4–5 MiB. Benchmark nie rozdziela pamięci zajmowanej przez dane od pamięci, którą transakcja zajęła na czas wczytywania. |
+| Założenia | Tabela, indeks i wiersze z obciążenia benchmarku (`bench/suite.js`), przygotowany `INSERT` wykonywany wiersz po wierszu, Node.js, bez synchronizacji. Mierzony jest rozmiar `WebAssembly.Memory` modułu; sterty JavaScript pomiar nie obejmuje. |
+| Procedura | Skrypt `docs/research/data/tests/memory-peak/memory-peak.mjs`, cztery warianty: jedna transakcja z odczytem rozmiaru co 25 000 wierszy, przed i po `COMMIT`; transakcje po 10 000 i po 1000 wierszy; odtworzenie ze snapshotu zrobionego w osobnym procesie, tak że proces pomiaru zawiera tylko odtworzoną bazę. Każdy wariant dwa razy w osobnych procesach, na obu wersjach silnika. Polecenie: `node docs/research/data/tests/memory-peak/memory-peak.mjs bench/versions/v2-optymalizacja` (oraz `bench/versions/v1-prototyp`). Rozmiar wpisu dziennika wycofania na wasm32 (80 B) sprawdzono kompilatorem. |
+| Kontrola negatywna | Oba procesy każdego wariantu dały identyczne rozmiary w obu wersjach, więc pomiar zależy tylko od kodu. Wariant jednej transakcji odtwarza wynik benchmarku (73,3 i 51,8 MiB), co potwierdza, że skrypt mierzy tę samą wielkość. |
+| Wynik | Eksperyment, tabela pod opisem i plik `results.txt` w katalogu skryptu. 29.10.2026, Node.js 24.21.0, środowisko z początku dokumentu, wersje z tagów `v1-prototyp` i `v2-optymalizacja`. Po optymalizacjach baza wczytana transakcjami po 1000 wierszy zajmuje 21,8 MiB, a odtworzona ze snapshotu 22,8 MiB, czyli tyle co sql.js. Wczytanie jedną transakcją dokłada 30 MiB. Około 20 MiB narasta w trakcie wstawiania: dziennik wycofania ma wpis 80 B na każdy wiersz (około 8 MiB, po podwojeniach wektora 10 MiB), a zakodowane operacje WAL 5,1 MiB w wektorze o pojemności do 8 MiB; przy każdym podwojeniu stara i nowa kopia istnieją jednocześnie. Pomiar nie rozdziela tych dwóch składników. Pozostałe 10,2 MiB dokłada samo zatwierdzenie, które kopiuje zakodowane operacje do ramki z nagłówkiem, a ramkę do bufora wyjściowego WAL, więc przez chwilę w pamięci są trzy kopie po 5,1 MiB. W prototypie zatwierdzenie dokładało 17,5 MiB, bo przenosiło też wpis outboksu każdego wiersza. |
+| Wpływ na projekt | Wynik benchmarku opisuje pamięć po wczytaniu jedną transakcją, a rozmiar samej bazy podaje się obok niego. Wskazano dwie zmiany silnika: ramkę WAL kodowaną od razu w buforze wyjściowym, z nagłówkiem uzupełnianym przy zatwierdzeniu (oczekiwany spadek około 10 MiB), oraz wstawienie do pustego klucza bez wpisu w dzienniku wycofania (do 10 MiB). Aplikacja, która wczytuje dużo danych naraz, może już teraz dzielić je na transakcje po kilka tysięcy wierszy, kosztem atomowości całego wczytania. |
+| Ograniczenia | Jedno obciążenie z krótkimi tekstami i liczbami; przy długich tekstach udział dziennika wycofania i WAL jest inny. Pomiar w Node.js; w przeglądarce rozmiar pamięci liniowej jest ten sam (tabela pamięci benchmarku), ale tam go tym skryptem nie sprawdzano. Udział narzutu alokatora i pustych miejsc po zwolnionych blokach nie jest mierzony osobno. |
+
+| Wariant (100 000 wierszy) | Prototyp | Po optymalizacjach |
+|---|---:|---:|
+| jedna transakcja: po 25 000 wierszy | 15,1 MiB | 11,3 MiB |
+| jedna transakcja: po 50 000 wierszy | 29,0 MiB | 21,4 MiB |
+| jedna transakcja: po 100 000 wierszy, przed `COMMIT` | 55,8 MiB | 41,6 MiB |
+| jedna transakcja: po `COMMIT` | 73,3 MiB | 51,8 MiB |
+| transakcje po 10 000 wierszy | 45,9 MiB | 25,4 MiB |
+| transakcje po 1000 wierszy | 42,3 MiB | 21,8 MiB |
+| odtworzenie ze snapshotu | 45,6 MiB | 22,8 MiB |
+| rozmiar snapshotu | 5,3 MiB | 4,0 MiB |
+| WAL transakcji wczytującej | 5,1 MiB | 5,1 MiB |
+
+Pamięć przed wczytaniem: 1,1 MiB w obu wersjach.
