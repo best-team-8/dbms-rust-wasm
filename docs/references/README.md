@@ -80,7 +80,7 @@ Kryterium rdzenia ([ADR-0031](../adr/0031-rdzen-literatury-wedlug-cytowan-w-prac
 | 5. Metodyka badań | [B1], [B3] | [Q5], [Q7] |
 | 6.1–6.3 Wyniki H1–H3 | H1: [L1], [D4]; H2: [P2], [W1] (niepotwierdzona); H3: [D1] | – |
 | 6.4–6.6 Wyniki H4–H5, zimny start i pamięć | H4: [D2], [S4], [D5]; H5: [S1], [D5]; pamięć i rozmiar: [W11], [P2], [B3] | [Q1] |
-| 7. Optymalizacja silnika | 7.2: [W1]; 7.3: [D2]; 7.4: [S4], [S6]; 7.5: [D1], [D5]; 7.6: [W11] (niepotwierdzona); checkpoint (jeśli todo 2.6): [S10], [D4] | – |
+| 7. Optymalizacja silnika | 7.2 wykonanie zapytań: [D2]; 7.3 zapis i aktualizacja: [S4], [S6], [C10], [L28]; 7.4 granica JS↔WASM: [D1], [D5]; 7.5 składowanie i odtwarzanie: [S10], [D4] (checkpoint wobec 16 ms), [W11] (pamięć); 7.6 konfiguracja kompilacji: [W11] (niepotwierdzona); 7.7 zestawienie: [W1] (narzut WebAssembly po optymalizacjach) | – |
 | 8.1–8.2 Awarie zapisu, zbieżność replik | [S8]; [L2], [L28], [C2] | – |
 | 8.4–8.5 Scenariusz offline, granice gwarancji | [L1], [C10]; [C7], [L27], [C9] | [Q1]–[Q4] |
 | 9.4 Ograniczenia | [C9] (utracone aktualizacje), [L1] (ewolucja schematu), [P1] rozdz. 9 (unikalność między replikami) | – |
