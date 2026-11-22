@@ -187,7 +187,7 @@ Opcje magazynu, trwałości i synchronizacji opisuje [most JavaScript](bridge/RE
 | Jak mierzono i jakie są wyniki? | [metodyka](docs/research/benchmark-scenario.md), [benchmarki](docs/research/benchmark-results.md), [optymalizacje](docs/research/optimization-results.md) |
 | Co z tego wynika? | [wnioski z badań](docs/research/conclusions.md) |
 | Czy silnik dotrzymuje gwarancji trwałości i zbieżności? | [testy](docs/testing/README.md) |
-| Co zrobiono i co dalej? | [praca inżynierska](docs/management/todo.md), [na później](docs/management/future.md) |
+| Co zrobiono i co dalej? | [zrobione](docs/management/done.md), [na później](docs/management/future.md) |
 | Jaki był pierwotny pomysł na produkt? | [prezentacja projektu](docs/presentation/v1.pdf) |
 
 ## Ograniczenia

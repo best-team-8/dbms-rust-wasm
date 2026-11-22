@@ -32,7 +32,7 @@ Prototypowy serwer trzyma jedną bazę dla wszystkich klientów, przyjmuje każd
 
 ## Konsekwencje
 
-- Kolejność prac: przestrzenie i trwały log, potem magazyn paczek, potem silnik dla przestrzeni, na końcu reguły. Szczegóły: [projekt docelowego serwera](../management/sync-server-target.md).
+- Kolejność prac: przestrzenie i trwały log, potem magazyn paczek, potem silnik dla przestrzeni, na końcu reguły. Zadania: [na później](../management/future.md#serwer-synchronizacji).
 - Każda paczka przechodzi przez backend. Aplikacje bez backendu muszą postawić bramkę.
 
 ## Historia

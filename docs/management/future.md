@@ -150,27 +150,38 @@ Porównywanie odcisków zakresów kluczy zamiast wysyłania pełnego stanu. Tylk
 
 ## Serwer synchronizacji
 
-Projekt docelowy opisują [decyzja 0024](../adr/0024-serwer-synchronizacji.md) i [projekt docelowego serwera](sync-server-target.md). Zadania są w kolejności wdrażania.
+Docelowy serwer synchronizacji to osobna usługa obok backendu aplikacji. Przechowuje zmiany z lokalnych baz i oddaje je innym urządzeniom, które mają dostęp do tych samych danych. Nie zna użytkowników, nie zawiera logiki biznesowej i nie jest główną bazą aplikacji. Synchronizacja pozostaje opcją: `FlatDB` działa bez serwera. Uzasadnienie: [decyzja 0024](../adr/0024-serwer-synchronizacji.md).
+
+Reguły biznesowe pisze programista w backendzie. Serwer daje mu trzy opcjonalne mechanizmy: tabele tylko do odczytu dla klientów, webhook sprawdzający zmiany przed przyjęciem oraz odczyt i zapis danych przestrzeni przez `/api/query`. Wszystkie wymagają trybu z silnikiem. Zadania są w kolejności wdrażania.
 
 ### [M] Trwały log synchronizacji
 
-Dziś log jest tylko w pamięci, więc każdy restart serwera wysyła wszystkim pełny stan. Zapis logu i kursorów w katalogu danych, osobno dla każdej przestrzeni. Epoka zmienia się tylko po utracie logu. Literatura: Kleppmann (2017, rozdz. 11); Kistler i Satyanarayanan (1992).
+Dziś log jest tylko w pamięci, więc każdy restart serwera wysyła wszystkim pełny stan. Zapis logu i kursorów w katalogu danych, osobno dla każdej przestrzeni. Epoka zmienia się tylko po utracie logu. Skrócenie logu zastępuje stare paczki punktem startowym, czyli pełnym stanem bazy w formacie paczki. Urządzenie z kursorem sprzed skrócenia dostaje punkt startowy i resztę logu. Miejsce zapisu jest wymienne: dysk, magazyn obiektów (na przykład S3) albo tabela w bazie SQL backendu. Literatura: Kleppmann (2017, rozdz. 11); Kistler i Satyanarayanan (1992).
 
-### [M] Przestrzenie i tryby pracy
+### [M] Przestrzenie
 
-Osobna baza dla użytkownika, zespołu albo rozgrywki, ładowana przy pierwszym żądaniu i zwalniana po bezczynności. Tryb magazynu paczek jako domyślny, tryb z silnikiem jako opcja. Przestrzenie współdzielone z listą członków sprawdzaną w backendzie. Po: trwały log.
+Przestrzeń to osobna baza z dowolną liczbą tabel: dane jednej osoby (`user-42`), zespołu (`team-7`), jednej rozgrywki (`game-1234`) albo dane wspólne dla wszystkich (`shop` z cennikiem). Powstaje przy pierwszej synchronizacji, jest ładowana przy pierwszym żądaniu i zwalniana po bezczynności. Wszystkie urządzenia jednego użytkownika używają tej samej przestrzeni, ale każde ma własną kopię bazy, kolejkę zmian i kursor. Członkostwo w przestrzeni współdzielonej sprawdza backend. Zapytanie działa w obrębie jednej przestrzeni. Dlatego dane porównywane między użytkownikami, na przykład ranking, trzyma baza backendu albo wspólna przestrzeń, do której pisze tylko backend. Po: trwały log.
+
+### [M] Tryby pracy przestrzeni
+
+Każda przestrzeń ma jeden z dwóch trybów. Tryb ustala konfiguracja serwera przy tworzeniu przestrzeni, na przykład według wzorca nazwy. Protokół jest w obu trybach ten sam. Dzisiejszy prototyp to tryb z silnikiem z jedną bazą dla wszystkich.
+
+- Magazyn paczek, tryb domyślny. Serwer dopisuje paczki do logu i oddaje je od kursora, bez czytania treści. W pamięci trzyma prawie nic, więc skaluje się jak przechowywanie plików. Tylko w nim możliwe jest szyfrowanie end-to-end. Pasuje do danych jednej osoby: notatek albo zapisu gry jednoosobowej, w którym oszust oszukuje tylko siebie.
+- Tryb z silnikiem, opcja. Przestrzeń ma na serwerze własną bazę Flat-SQL, do której serwer stosuje paczki. Otwarte bazy aktywnych przestrzeni zajmują pamięć. W zamian serwer rozumie wiersze, więc może zmiany sprawdzać, odrzucać i filtrować. Pasuje do danych wspólnych: cennika, kas, danych zespołu, gry wieloosobowej.
+
+Magazyn paczek nie składa stanu z paczek, bo złożenie „stary stan + paczka” wymaga rozstrzygania konfliktów, czyli silnika. Z tego samego powodu urządzenia wysyłają zmiany, a nie całą bazę: stan wysłany później nadpisałby zmiany innego urządzenia. Zmiana trybu istniejącej przestrzeni wymaga przekształcenia danych. Do ustalenia: jak skracać log w magazynie paczek, skoro serwer nie złoży z niego punktu startowego. Literatura: Gray i in. (1996). Po: przestrzenie.
 
 ### [M] Uwierzytelnianie przez bramkę backendu
 
-Serwer nasłuchuje tylko w sieci wewnętrznej, przestrzeń bierze z nagłówka ustawionego przez backend i odrzuca żądania bez klucza bramki. `/api/query` dostępne tylko z bramki, z możliwością wyłączenia. Dziś wykonuje dowolny SQL bez logowania i nie wolno go wystawiać publicznie. Po: przestrzenie.
+Serwer nie ma publicznego portu i słucha tylko w sieci wewnętrznej. Bramką jest backend aplikacji, napisany w dowolnym języku. Backend sprawdza sesję użytkownika, wybiera przestrzeń, do której użytkownik ma dostęp, i przekazuje paczkę bez czytania jej. Nazwę przestrzeni i klucz bramki podaje w nagłówkach. Kursor i epoka z odpowiedzi serwera wracają przez bramkę do urządzenia. Klucz bramki to losowy ciąg znany backendowi i serwerowi, który nigdy nie trafia do przeglądarki. Serwer odrzuca żądania bez niego, co chroni przed przypadkowym wystawieniem serwera. `/api/query` dostępne tylko z bramki, z możliwością wyłączenia. Dziś wykonuje dowolny SQL bez logowania i nie wolno go wystawiać publicznie. Cały ruch synchronizacji przechodzi przez backend, więc aplikacja bez backendu musi postawić bramkę. Po: przestrzenie.
 
 ### [M] Tabele tylko do odczytu dla klientów
 
-Lista tabel w konfiguracji przestrzeni. Serwer odrzuca paczki klientów, które je zmieniają, a lokalny zapis do takiej tabeli kończy się błędem. Zapisuje je tylko backend. Podstawa dla cenników, katalogów, flag i rankingów. Po: przestrzenie.
+Lista tabel w konfiguracji przestrzeni, na przykład cennik w przestrzeni `shop`. Serwer odrzuca paczki urządzeń, które je zmieniają, a lokalny zapis do takiej tabeli kończy się błędem. Zapisuje je tylko backend przez `/api/query`, a urządzenia czytają je lokalnie, także offline. Zamyka obejście, w którym użytkownik zmienia lokalną kopię w narzędziach przeglądarki. Podstawa dla cenników, katalogów, flag i rankingów. Po: tryby pracy przestrzeni.
 
 ### [M] Webhook do backendu
 
-Przed przyjęciem paczki serwer wysyła zmiany jako JSON (stan przed i po), a backend odpowiada listą odrzuconych. Przykład formatu jest w [projekcie docelowego serwera](sync-server-target.md). Literatura: Gray i in. (1996). Po: przestrzenie.
+Przed przyjęciem paczki serwer pyta backend, które zmiany odrzucić. Wysyła identyfikator paczki i jej zmiany jako JSON: operację, tabelę, klucz oraz stan wiersza przed zmianą i po niej. Stan przed zmianą zna tylko baza serwera, dlatego webhook wymaga trybu z silnikiem. Backend odpowiada listą odrzuconych zmian z powodem, a pusta lista oznacza przyjęcie wszystkich. Odrzucenie dotyczy pojedynczych wierszy i odrzucone zmiany nie są zapisywane. Gdy backend nie odpowie w limicie czasu, paczka nie jest przyjęta i zostaje w kolejce urządzenia. Identyfikator paczki pozwala backendowi zwrócić tę samą decyzję przy ponowieniu. Przydaje się w kasach (stan magazynu, ceny), w danych zespołu (uprawnienia) i w grach wieloosobowych (oszustwa). W aplikacjach osobistych jest zbędny. Pomiar: liczba żądań do backendu i opóźnienie przyjęcia paczki przy wielu aktywnych urządzeniach. Literatura: Gray i in. (1996). Po: tryby pracy przestrzeni.
 
 ### [M] Kompensacja odrzuconych zmian
 
@@ -178,7 +189,7 @@ Serwer odsyła poprawną wartość z nowszym znacznikiem, żeby urządzenie wró
 
 ### [M] Zamiary zatwierdzane przez backend
 
-Klient dopisuje wiersz ze statusem „oczekujący” (zamówienie, ruch w grze, zakup). Backend sprawdza go i zmienia status na „zatwierdzony” albo „odrzucony” z powodem. Interfejs pokazuje stan wstępny do czasu zatwierdzenia. Płatności zawsze zatwierdza serwer. Literatura: Gray i in. (1996); Terry i in. (1995). Po: tabele tylko do odczytu, webhook.
+Klient dopisuje wiersz ze statusem „oczekujący” (zamówienie, ruch w grze, zakup za walutę z gry). Backend sprawdza go i zmienia status na „zatwierdzony” albo „odrzucony” z powodem. Interfejs pokazuje stan wstępny do czasu zatwierdzenia. Płatności prawdziwymi pieniędzmi zostają poza synchronizacją: obsługuje je backend, zawsze online. Literatura: Gray i in. (1996); Terry i in. (1995). Po: tabele tylko do odczytu, webhook.
 
 ### [L] Replikacja częściowa
 
@@ -186,7 +197,7 @@ Klient deklaruje swój zakres danych (przestrzeń roboczą, region, listę pacje
 
 ### [M] Skala serwera
 
-Limit baz w pamięci i zrzucanie nieużywanych. Przypisanie użytkowników do wielu instancji serwera. Monitoring: liczba klientów, rozmiar logu, czas rund, liczba odrzuconych zmian i konfliktów.
+Wszystkie otwarte bazy jednego procesu w trybie z silnikiem dzielą 4 GiB pamięci modułu WebAssembly, a pojedyncza przestrzeń musi zmieścić się w pamięci. Potrzebny jest limit baz w pamięci i zrzucanie nieużywanych, przypisanie przestrzeni do wielu instancji serwera oraz monitoring: liczba klientów, rozmiar logu, czas rund, liczba odrzuconych zmian i konfliktów. Dla dużych przestrzeni wspólnych potrzebna jest replikacja częściowa. Pomiar: pamięć serwera w obu trybach przy wielu przestrzeniach.
 
 ## Bezpieczeństwo
 

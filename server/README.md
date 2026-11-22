@@ -1,6 +1,6 @@
 # server – serwer synchronizacji i węzeł edge
 
-Serwer Node.js z tym samym modułem WebAssembly co przeglądarka. Pełni trzy role: węzeł synchronizacji, do którego klienci wysyłają i z którego pobierają paczki zmian, zdalne API zapytań używane w badaniach jako model Cloud-First oraz serwer plików aplikacji demonstracyjnej. To prototyp: wystarcza do walidacji pracy offline, ale nie ma uwierzytelniania ani podziału danych między użytkowników, więc nasłuchuje tylko na `127.0.0.1`. Docelowy serwer synchronizacji opisuje [projekt docelowego serwera](../docs/management/sync-server-target.md).
+Serwer Node.js z tym samym modułem WebAssembly co przeglądarka. Pełni trzy role: węzeł synchronizacji, do którego klienci wysyłają i z którego pobierają paczki zmian, zdalne API zapytań używane w badaniach jako model Cloud-First oraz serwer plików aplikacji demonstracyjnej. To prototyp: wystarcza do walidacji pracy offline, ale nie ma uwierzytelniania ani podziału danych między użytkowników, więc nasłuchuje tylko na `127.0.0.1`.
 
 ## Uruchomienie
 
@@ -53,4 +53,4 @@ Testy end-to-end uruchamiają prawdziwy proces serwera i klientów `FlatDB` + `S
 
 ## Ograniczenia
 
-Log synchronizacji jest tylko w pamięci, więc każdy restart serwera wysyła wszystkim klientom pełny stan. Restart bez katalogu danych usuwa też bazę serwera: zmiany wierszy tabel, których serwer już nie zna, są odrzucane, a klient potwierdza je bez zgłoszenia konfliktu, więc zostają tylko na urządzeniu ([test pracy offline](../docs/testing/offline-work.md)). Pozostałe ograniczenia: jedna baza dla wszystkich klientów, brak uwierzytelniania i reguł, nagłówek CORS `*`. Dalszy rozwój: [projekt docelowego serwera](../docs/management/sync-server-target.md).
+Log synchronizacji jest tylko w pamięci, więc każdy restart serwera wysyła wszystkim klientom pełny stan. Restart bez katalogu danych usuwa też bazę serwera: zmiany wierszy tabel, których serwer już nie zna, są odrzucane, a klient potwierdza je bez zgłoszenia konfliktu, więc zostają tylko na urządzeniu ([test pracy offline](../docs/testing/offline-work.md)). Pozostałe ograniczenia: jedna baza dla wszystkich klientów, brak uwierzytelniania i reguł, nagłówek CORS `*`. Dalszy rozwój: [na później](../docs/management/future.md#serwer-synchronizacji).
