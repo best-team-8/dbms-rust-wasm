@@ -17,11 +17,11 @@ Strona jest pod adresem <http://127.0.0.1:8080>. Parametr `?durability=strict|re
 ## Scenariusz demonstracji
 
 1. Kliknij „Dane: ekwipunek gry” (2000 przedmiotów w jednej transakcji) i wybierz zapytanie z listy „Przykłady”; czas wykonania jest pokazywany w mikrosekundach.
-2. Zaznacz „Symuluj brak sieci” i wykonaj kilka `INSERT` lub `UPDATE`: zmiany czekają w outboksie, a po odznaczeniu zostają wysłane.
+2. Zaznacz „Symuluj brak sieci” i wykonaj kilka `INSERT` lub `UPDATE`: zmiany czekają w kolejce zmian, a po odznaczeniu zostają wysłane.
 3. Prawdziwa praca offline: uruchom serwer z katalogiem danych (`npm run start:persistent`), bo `npm start` trzyma bazę serwera w pamięci i restart ją usuwa ([server/README.md](../server/README.md#ograniczenia)). Zatrzymaj serwer (`Ctrl+C`) i odśwież stronę. Aplikacja startuje z pamięci podręcznej Service Workera, dane wczytuje z IndexedDB, a zapisy działają. Po ponownym uruchomieniu serwera oczekujące zmiany są wysyłane bez udziału użytkownika.
 4. Otwórz stronę w drugiej przeglądarce albo w oknie prywatnym, żeby zobaczyć replikację między klientami.
 
-Wynik tego scenariusza opisuje [tests-results.md §2.5](../docs/research/tests-results.md#25-praca-offline-w-aplikacji-demo).
+Wynik tego scenariusza opisuje [test pracy offline](../docs/testing/offline-work.md).
 
 ## Struktura
 

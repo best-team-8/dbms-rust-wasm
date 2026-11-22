@@ -189,4 +189,4 @@ EXPLAIN SELECT * FROM inventory WHERE player = 'ayla' AND qty > 1;
 
 ## 8. Czego język nie ma
 
-`CASE`, podzapytań, złączeń, indeksów złożonych i unikalnych. Złączenia i więzy między tabelami są poza modelem z definicji; `CASE` i pozostałe rozszerzenia opisuje [docs/future/README.md §1.1](../../../../docs/future/README.md#11-rdzeń-silnika).
+`CASE`, podzapytań, złączeń, indeksów złożonych i unikalnych. Złączenia i więzy między tabelami są poza modelem z definicji; `CASE` i pozostałe rozszerzenia opisuje [na później](../../../../docs/management/future.md).

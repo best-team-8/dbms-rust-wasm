@@ -1,6 +1,6 @@
 # Benchmark 1: dane
 
-Surowe wyniki pomiaru prototypu Flat-SQL (tag `v1-prototyp`) według [metodyki](../../benchmark-scenario.md). Opis wyników: [benchmark-results.md §1](../../benchmark-results.md#1-benchmark-1-prototyp-przed-optymalizacjami).
+Surowe wyniki pomiaru prototypu Flat-SQL (tag `v1-prototyp`) według [metodyki](../../benchmark-scenario.md). Opis wyników: [wyniki benchmarków](../../benchmark-results.md#benchmark-1-prototyp-na-tle-innych-silników).
 
 | Ścieżka | Zawartość |
 |---|---|
@@ -10,7 +10,7 @@ Surowe wyniki pomiaru prototypu Flat-SQL (tag `v1-prototyp`) według [metodyki](
 | `tables.md` | wszystkie tabele: mediana z 10 uruchomień, w nawiasie kwartyle; zgodność sum kontrolnych |
 | `summary.json` | wartości zagregowane, także średnia z 95% przedziałem ufności i współczynnik zmienności |
 | `figures/` | wykresy SVG do pracy |
-| `analysis/` | skrypty i wyniki analizy słabych stron: plany zapytań (`explain`), pamięć według sposobu wczytania (`memory`), profil V8 odczytu po kluczu (`profile`), natywne rozbicie kosztów silnika i liczba alokacji na operację (`cost-split`, pakiet Rust z programami `cost-split` i `allocations`; opis: [benchmark-results.md §1.12](../../benchmark-results.md#112-rozbicie-kosztów-silnika-pomiar-pomocniczy)) |
+| `analysis/` | skrypty i wyniki analizy słabych stron: plany zapytań (`explain`), pamięć według sposobu wczytania (`memory`), profil V8 odczytu po kluczu (`profile`), natywne rozbicie kosztów silnika i liczba alokacji na operację (`cost-split`, pakiet Rust z programami `cost-split` i `allocations`; opis: [wyniki benchmarków](../../benchmark-results.md#rozbicie-kosztów-silnika)) |
 
 Odtworzenie tabel i wykresów:
 

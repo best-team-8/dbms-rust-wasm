@@ -27,8 +27,8 @@ flowchart LR
 - Snapshot to pełny obraz zatwierdzonego stanu: tabele, znaczniki usunięcia, definicje indeksów, outbox, zegar, LSN i identyfikator repliki, z sumą CRC32. Indeksów się nie zapisuje; odbudowuje się je przy wczytaniu, hurtowo z wierszy pogrupowanych według wartości.
 - Odtwarzanie to wczytanie snapshotu i odtworzenie ramek WAL o LSN większym niż w snapshocie. Ramki starsze są pomijane, co obsługuje awarię między zapisaniem snapshotu a wyczyszczeniem WAL.
 - Urwany zapis: odczyt WAL zatrzymuje się na pierwszej niekompletnej ramce albo ramce z błędną sumą; wszystko przed nią jest poprawne. `RecoveryReport` podaje liczbę odrzuconych bajtów, a host od razu wykonuje checkpoint, żeby śmieci nie zostały przed nowymi ramkami.
-- Operacje w WAL są fizyczne i idempotentne (`Put` to pełny wiersz, `Delete` to klucz), więc odtworzenie nie zależy od wyniku wcześniejszych zapytań ([ADR-0009](../../../../docs/adr/0009-wal-fizyczny-i-snapshot.md)).
-- Checkpoint może kodować snapshot krokami (`snapshot_begin`, `snapshot_step`, `snapshot_finish`). Snapshot jest stanem z chwili rozpoczęcia: zanim zapis zmieni wiersz, do którego kroki jeszcze nie doszły, rdzeń zachowuje jego poprzedni stan. Zmiana schematu albo przestawienie zegara rozpoczyna kodowanie od nowa ([ADR-0049](../../../../docs/adr/0049-checkpoint-krokami.md)).
+- Operacje w WAL są fizyczne i idempotentne (`Put` to pełny wiersz, `Delete` to klucz), więc odtworzenie nie zależy od wyniku wcześniejszych zapytań.
+- Checkpoint może kodować snapshot krokami (`snapshot_begin`, `snapshot_step`, `snapshot_finish`). Snapshot jest stanem z chwili rozpoczęcia: zanim zapis zmieni wiersz, do którego kroki jeszcze nie doszły, rdzeń zachowuje jego poprzedni stan. Zmiana schematu albo przestawienie zegara rozpoczyna kodowanie od nowa.
 
 ## Magazyny
 
@@ -39,9 +39,9 @@ flowchart LR
 | `FileStorage` (Rust) | natywnie (CLI) | dopisanie do `wal.fsql` i `fsync` (wyłączalny: `--no-fsync`) | `snapshot.fsql.tmp` i `fsync`, zmiana nazwy, `fsync` katalogu, obcięcie WAL i `fsync`; zawsze synchronizowany |
 | `FsStore` (JavaScript) | Node.js (serwer) | dopisanie do `wal.fsql` przez otwarty uchwyt i `fsync` (wyłączalny: `fsync: false`) | jak `FileStorage`; `meta.json` (identyfikator repliki, kursor synchronizacji) przez plik tymczasowy, `fsync` i zmianę nazwy |
 
-Format plików jest wspólny dla Rust i Node.js, więc katalog danych serwera można otworzyć w CLI ([ADR-0011](../../../../docs/adr/0011-przenosny-format-plikow.md)). Wybór magazynu w przeglądarce opisuje [bridge/README.md](../../../../bridge/README.md#magazyny).
+Format plików jest wspólny dla Rust i Node.js, więc katalog danych serwera można otworzyć w CLI. Wybór magazynu w przeglądarce opisuje [bridge/README.md](../../../../bridge/README.md#magazyny).
 
-Kolejność kroków checkpointu na plikach. Zmiana nazwy pliku jest operacją na katalogu i trafia na dysk dopiero po `fsync` katalogu, a system plików może utrwalić obcięcie WAL wcześniej niż zmianę nazwy. Po awarii zostałby wtedy stary snapshot z pustym WAL. Dlatego WAL jest obcinany dopiero po `fsync` katalogu, a katalog jest synchronizowany także po utworzeniu pliku WAL. W Windows katalog da się zsynchronizować tylko przez uchwyt otwarty z prawem zapisu i flagą `FILE_FLAG_BACKUP_SEMANTICS`; w Node.js to `open(dir, 'r+')`, a w Linuksie `'r'`, bo otwarcie katalogu do zapisu kończy się tam błędem `EISDIR` ([ADR-0033](../../../../docs/adr/0033-checkpoint-plikowy-fsync-katalogu.md), [eksperyment](../../../../docs/research/tests-results.md#12-eksperyment-synchronizacja-katalogu-w-windows)).
+Kolejność kroków checkpointu na plikach. Zmiana nazwy pliku jest operacją na katalogu i trafia na dysk dopiero po `fsync` katalogu, a system plików może utrwalić obcięcie WAL wcześniej niż zmianę nazwy. Po awarii zostałby wtedy stary snapshot z pustym WAL. Dlatego WAL jest obcinany dopiero po `fsync` katalogu, a katalog jest synchronizowany także po utworzeniu pliku WAL. W Windows katalog da się zsynchronizować tylko przez uchwyt otwarty z prawem zapisu i flagą `FILE_FLAG_BACKUP_SEMANTICS`; w Node.js to `open(dir, 'r+')`, a w Linuksie `'r'`, bo otwarcie katalogu do zapisu kończy się tam błędem `EISDIR` ([decyzja 0018](../../../../docs/adr/0018-checkpoint.md), [eksperyment](../../../../docs/testing/crash-recovery.md)).
 
 Wyłączenie `fsync` dotyczy tylko zatwierdzeń: po awarii mogą zniknąć ostatnie transakcje, ale checkpoint jest synchronizowany zawsze, więc starsze dane są bezpieczne. W `FsStore` bez `fsync` nie jest też synchronizowany `meta.json`; urwany plik jest przy otwarciu traktowany jak pusty. Utracony kursor oznacza pełne pobranie stanu z serwera, a utracony identyfikator repliki nowy identyfikator dla dalszych zmian.
 
@@ -81,10 +81,15 @@ Paczka zmian wysyłana przy synchronizacji:
 
 Konkatenacja paczek jest poprawną paczką, więc serwer przekazuje zapisane paczki bez ponownego kodowania.
 
+## Decyzje
+
+- [WAL i snapshot we własnym, przenośnym formacie](../../../../docs/adr/0016-wal-i-snapshot.md)
+- [checkpoint krokami, a na plikach z utrwaleniem katalogu](../../../../docs/adr/0018-checkpoint.md)
+
 ## Testy
 
-Odtwarzanie po ucięciu WAL w każdym bajcie, wszystkie stany po awarii dopuszczone przez model systemu plików, snapshot krokami i deterministyczny format: [tests/README.md](../../tests/README.md), opisy wyników w [tests-results.md §1](../../../../docs/research/tests-results.md#1-trwałość-i-odtwarzanie-po-awarii).
+Odtwarzanie po ucięciu WAL w każdym bajcie, wszystkie stany po awarii dopuszczone przez model systemu plików, snapshot krokami i deterministyczny format: [tests/README.md](../../tests/README.md), opisy wyników w [testy](../../../../docs/testing/README.md).
 
 ## Ograniczenia
 
-Checkpoint koduje całą bazę, a otwarcie bazy dekoduje cały snapshot w jednym wywołaniu. Kierunki: odtwarzanie krokami, szybsza suma CRC32, magazyn OPFS w Web Workerze ([docs/future/README.md §1.2](../../../../docs/future/README.md#12-warstwa-składowania)).
+Checkpoint koduje całą bazę, a otwarcie bazy dekoduje cały snapshot w jednym wywołaniu. Kierunki: odtwarzanie krokami, szybsza suma CRC32, magazyn OPFS w Web Workerze ([na później](../../../../docs/management/future.md)).

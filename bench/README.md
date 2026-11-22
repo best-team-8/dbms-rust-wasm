@@ -1,13 +1,13 @@
 # Odtworzenie badań
 
-Ten katalog zawiera narzędzie, którym zmierzono Flat-SQL i silniki odniesienia. Instrukcja prowadzi przez trzy poziomy sprawdzenia, od kilku sekund do kilku godzin: odtworzenie tabel i wykresów z zapisanych wyników, krótki pomiar kontrolny i pełne powtórzenie pomiarów. Metodykę (hipotezy, obciążenie, statystykę, zagrożenia dla trafności) opisuje [scenariusz badawczy](../docs/research/benchmark-scenario.md), a wyniki [benchmark-results.md](../docs/research/benchmark-results.md). Testy poprawności uruchamia się osobno: `cargo test --workspace` i `npm test` ([tests-results.md](../docs/research/tests-results.md)).
+Ten katalog zawiera narzędzie, którym zmierzono Flat-SQL i silniki odniesienia. Instrukcja prowadzi przez trzy poziomy sprawdzenia, od kilku sekund do kilku godzin: odtworzenie tabel i wykresów z zapisanych wyników, krótki pomiar kontrolny i pełne powtórzenie pomiarów. Metodykę (hipotezy, obciążenie, statystykę, zagrożenia dla trafności) opisuje [scenariusz badawczy](../docs/research/benchmark-scenario.md), a wyniki [benchmark-results.md](../docs/research/benchmark-results.md). Testy poprawności uruchamia się osobno: `cargo test --workspace` i `npm test` ([testy](../docs/testing/README.md)).
 
 ## Co zmierzono
 
 | Pomiar | Co porównuje | Wyniki |
 |---|---|---|
-| Benchmark 1 | prototyp Flat-SQL i 12 innych silników oraz konfiguracji (sql.js, SQLite WASM, wa-sqlite, PGlite, DuckDB-Wasm, AlaSQL, Dexie.js, PouchDB, RxDB, czysty JavaScript) w Node.js, w przeglądarce i natywnie | [benchmark-results.md §1](../docs/research/benchmark-results.md#1-benchmark-1-prototyp-przed-optymalizacjami), dane: [data/benchmark-1/](../docs/research/data/benchmark-1/) |
-| Benchmark 2 | prototyp i wersję po optymalizacjach, wszystkie konfiguracje Flat-SQL, na przemian tym samym narzędziem; silników odniesienia nie mierzono ponownie | [benchmark-results.md §2](../docs/research/benchmark-results.md#2-benchmark-2-wersja-po-optymalizacjach), dane: [data/benchmark-2/](../docs/research/data/benchmark-2/) |
+| Benchmark 1 | prototyp Flat-SQL i 12 innych silników oraz konfiguracji (sql.js, SQLite WASM, wa-sqlite, PGlite, DuckDB-Wasm, AlaSQL, Dexie.js, PouchDB, RxDB, czysty JavaScript) w Node.js, w przeglądarce i natywnie | [wyniki Benchmarku 1](../docs/research/benchmark-results.md#benchmark-1-prototyp-na-tle-innych-silników), dane: [data/benchmark-1/](../docs/research/data/benchmark-1/) |
+| Benchmark 2 | prototyp i wersję po optymalizacjach, wszystkie konfiguracje Flat-SQL, na przemian tym samym narzędziem; silników odniesienia nie mierzono ponownie | [wyniki Benchmarku 2](../docs/research/benchmark-results.md#benchmark-2-prototyp-i-wersja-po-optymalizacjach), dane: [data/benchmark-2/](../docs/research/data/benchmark-2/) |
 
 Każdy pomiar to tabela 100 000 wierszy i 10 powtórzeń w nowych procesach, a wynikiem jest mediana z kwartylami. Wszystkie silniki muszą zwrócić te same wyniki zapytań: narzędzie liczy sumę kontrolną każdej odpowiedzi.
 
@@ -165,12 +165,12 @@ Tabele trafiają do `bench/versions/v1-prototyp/bench/results/benchmark-1/tables
 
 | Wynik | Opis | Dane | Polecenie |
 |---|---|---|---|
-| Benchmark 1: tabele i wykresy | [benchmark-results.md §1](../docs/research/benchmark-results.md#1-benchmark-1-prototyp-przed-optymalizacjami) | [data/benchmark-1/](../docs/research/data/benchmark-1/) | `make-report.mjs` |
-| rozbicie kosztów silnika | [§1.12](../docs/research/benchmark-results.md#112-rozbicie-kosztów-silnika-pomiar-pomocniczy) | [data/benchmark-1/analysis/](../docs/research/data/benchmark-1/analysis/) | [data/benchmark-1/README.md](../docs/research/data/benchmark-1/README.md) |
-| Benchmark 2: prototyp a wersja po optymalizacjach | [§2](../docs/research/benchmark-results.md#2-benchmark-2-wersja-po-optymalizacjach) | [data/benchmark-2/](../docs/research/data/benchmark-2/), wykresy 01–06 | `make-report.mjs` |
-| Benchmark 2: na tle silników z Benchmarku 1 | [§2.9](../docs/research/benchmark-results.md#29-flat-sql-po-optymalizacjach-na-tle-innych-silników) | `engines.md`, wykresy 07–12 | `engines-report.mjs` |
+| Benchmark 1: tabele i wykresy | [wyniki Benchmarku 1](../docs/research/benchmark-results.md#benchmark-1-prototyp-na-tle-innych-silników) | [data/benchmark-1/](../docs/research/data/benchmark-1/) | `make-report.mjs` |
+| rozbicie kosztów silnika | [rozbicie kosztów](../docs/research/benchmark-results.md#rozbicie-kosztów-silnika) | [data/benchmark-1/analysis/](../docs/research/data/benchmark-1/analysis/) | [data/benchmark-1/README.md](../docs/research/data/benchmark-1/README.md) |
+| Benchmark 2: prototyp a wersja po optymalizacjach | [wyniki Benchmarku 2](../docs/research/benchmark-results.md#benchmark-2-prototyp-i-wersja-po-optymalizacjach) | [data/benchmark-2/](../docs/research/data/benchmark-2/), wykresy 01–06 | `make-report.mjs` |
+| Benchmark 2: na tle silników z Benchmarku 1 | [na tle innych silników](../docs/research/benchmark-results.md#wersja-po-optymalizacjach-na-tle-innych-silników) | `engines.md`, wykresy 07–12 | `engines-report.mjs` |
 | pojedyncze optymalizacje | [optimization-results.md](../docs/research/optimization-results.md) | [data/optimization/](../docs/research/data/optimization/) | [data/optimization/README.md](../docs/research/data/optimization/README.md) |
-| testy poprawności | [tests-results.md](../docs/research/tests-results.md) | – | `cargo test --workspace`, `npm test` |
+| testy poprawności | [testy](../docs/testing/README.md) | – | `cargo test --workspace`, `npm test` |
 
 ## Typowe problemy
 
