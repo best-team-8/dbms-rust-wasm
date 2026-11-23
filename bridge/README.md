@@ -37,13 +37,13 @@ W Node.js importuje się `bridge/node.js` i podaje magazyn jawnie: `FlatDB.open(
 
 ## Magazyny
 
-Magazyn wybiera aplikacja opcją `store` w `FlatDB.open`. Bez niej w przeglądarce baza trafia do `IndexedDbStore(name)` (opcja `name`, domyślnie `'default'`), więc dane przetrwają odświeżenie strony. Poza przeglądarką magazynu domyślnego nie ma i `FlatDB.open()` bez `store` kończy się błędem, żeby dane nie zostały po cichu tylko w pamięci ([ADR-0034](../docs/adr/0034-magazyn-domyslny-indexeddb-jawny-wybor-poza-przegladarka.md)). Zapis WAL i checkpoint w każdym magazynie opisuje [storage/README.md](../crates/flatsql-core/src/storage/README.md#magazyny).
+Magazyn wybiera aplikacja opcją `store` w `FlatDB.open`. Bez niej w przeglądarce baza trafia do `IndexedDbStore(name)` (opcja `name`, domyślnie `'default'`), więc dane przetrwają odświeżenie strony. Poza przeglądarką magazynu domyślnego nie ma i `FlatDB.open()` bez `store` kończy się błędem, żeby dane nie zostały po cichu tylko w pamięci. Zapis WAL i checkpoint w każdym magazynie opisuje [storage/README.md](../crates/flatsql-core/src/storage/README.md#magazyny).
 
-Magazynem domyślnym jest IndexedDB, a OPFS tylko opcją, bo Flat-SQL czyta z pamięci, a na dysk zapisuje tylko małe ramki WAL. Wolne są obliczenia (kodowanie snapshotu, odtwarzanie bazy), których szybszy dysk nie przyspieszy, a szybki interfejs OPFS działa tylko w Web Workerze. IndexedDB pozwala też zapisać snapshot i wyczyścić WAL w jednej transakcji ([ADR-0012](../docs/adr/0012-indexeddb-domyslnie-opfs-jako-opcja.md)).
+Magazynem domyślnym jest IndexedDB, a OPFS tylko opcją, bo Flat-SQL czyta z pamięci, a na dysk zapisuje tylko małe ramki WAL. Wolne są obliczenia (kodowanie snapshotu, odtwarzanie bazy), których szybszy dysk nie przyspieszy, a szybki interfejs OPFS działa tylko w Web Workerze. IndexedDB pozwala też zapisać snapshot i wyczyścić WAL w jednej transakcji.
 
 ## Zatwierdzanie grupowe i checkpoint
 
-`FlatDB.exec()` zwraca wynik synchronicznie. Jeśli transakcja wytworzyła bajty WAL, `FlatDB` planuje `flush()` w najbliższym mikrozadaniu, więc wszystkie zatwierdzenia z jednego obrotu pętli zdarzeń trafiają do IndexedDB jednym zapisem (ang. *group commit*; test: 101 zatwierdzeń, 1 zapis) ([ADR-0010](../docs/adr/0010-group-commit-w-przegladarce.md)). `await db.flush()` gwarantuje, że wszystko zatwierdzone do tej chwili jest trwałe. Operacje na magazynie są wykonywane w jednej kolejce, a checkpoint jest bezpieczny wobec zapisów wykonywanych w trakcie, bo rozstrzyga LSN.
+`FlatDB.exec()` zwraca wynik synchronicznie. Jeśli transakcja wytworzyła bajty WAL, `FlatDB` planuje `flush()` w najbliższym mikrozadaniu, więc wszystkie zatwierdzenia z jednego obrotu pętli zdarzeń trafiają do IndexedDB jednym zapisem (ang. *group commit*; test: 101 zatwierdzeń, 1 zapis). `await db.flush()` gwarantuje, że wszystko zatwierdzone do tej chwili jest trwałe. Operacje na magazynie są wykonywane w jednej kolejce, a checkpoint jest bezpieczny wobec zapisów wykonywanych w trakcie, bo rozstrzyga LSN.
 
 Checkpoint zaczyna się, gdy WAL przekroczy `checkpointBytes` (domyślnie 1 MiB). Nie blokuje strony na czas kodowania snapshotu: `FlatDB` koduje go krokami po `checkpointStepRows` wierszy (domyślnie 4096) z obrotem pętli zdarzeń między krokami, a najdłuższa pauza przy 100 000 wierszy wynosi 2,6 ms.
 
@@ -63,7 +63,7 @@ Magazyn strony jest domyślnie „najlepszej staranności” (ang. *best-effort*
 
 ## Tryby działania w przeglądarce
 
-Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego wątek i magazyn wybiera aplikacja przy otwarciu bazy ([ADR-0013](../docs/adr/0013-watek-glowny-domyslnie-worker-jako-opcja.md)). SQLite z trwałością w przeglądarce musi działać w Web Workerze, bo jego magazyn czyta strony z dysku synchronicznie z wnętrza silnika.
+Silnik nie wykonuje operacji wejścia/wyjścia i nie wie, w którym wątku działa, dlatego wątek i magazyn wybiera aplikacja przy otwarciu bazy. SQLite z trwałością w przeglądarce musi działać w Web Workerze, bo jego magazyn czyta strony z dysku synchronicznie z wnętrza silnika.
 
 | | Wątek główny (domyślny) | Web Worker (opcja) |
 |---|---|---|
@@ -85,10 +85,17 @@ Kolejność kroków rundy zapewnia idempotencję: (1) wysłanie paczki z outboxu
 
 Zegar serwera jest wzorcem. Klient mierzy odchylenie swojego zegara z nagłówka `X-Server-Time` (przed pierwszą wysyłką przez `/sync/time`). Gdy odchylenie przekracza 60 s albo serwer odrzucił zmiany za dryf, klient wstrzymuje synchronizację: nie potwierdza paczki, nie pobiera zmian, przechodzi w stan `clock` i zgłasza zdarzenie `clock`. Po poprawieniu zegara `FlatDB.rebaseClock()` nadaje nowe znaczniki niewysłanym zmianom „z przyszłości”, wykonuje checkpoint i synchronizacja rusza dalej. Konflikty schematu zgłasza zdarzenie `conflict`. Protokół HTTP: [server/README.md](../server/README.md#protokół-synchronizacji).
 
+## Decyzje
+
+- [silnik w głównym wątku strony, Web Worker jako opcja](../docs/adr/0007-watek-glowny-domyslnie.md)
+- [IndexedDB jako magazyn domyślny](../docs/adr/0008-magazyn-domyslny.md)
+- [zatwierdzanie grupowe](../docs/adr/0017-zatwierdzanie-grupowe.md)
+- [granica dryfu zegara](../docs/adr/0020-granica-dryfu-zegara.md)
+
 ## Testy
 
 Testy mostu działają w Node.js na zbudowanym `pkg/`, z IndexedDB symulowaną w pamięci: [test/README.md](../test/README.md).
 
 ## Ograniczenia
 
-Zapisuje tylko jedna karta przeglądarki; tryb Web Worker jest dziś konfiguracją mierzoną w benchmarku, bez gotowego API. Kierunki: [docs/future/README.md §1.3](../docs/future/README.md#13-moduł-webassembly-i-most-javascript).
+Zapisuje tylko jedna karta przeglądarki; tryb Web Worker jest dziś konfiguracją mierzoną w benchmarku, bez gotowego API. Dalszy rozwój: [na później](../docs/management/future.md).

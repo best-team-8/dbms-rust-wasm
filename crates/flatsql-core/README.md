@@ -72,7 +72,7 @@ flowchart TB
 
 Typ `Value` (`Null`, `Bool`, `Int`, `Float`, `Text`) ma porządek całkowity: liczby porównuje się numerycznie bez względu na typ, NaN jest na końcu, więc wartość może być kluczem drzewa. Krótkie teksty mieszczą się w samej wartości, dłuższe są na stercie. Koercja przy zapisie do kolumny jest bezstratna (`2.0` do `INT` tak, `2.5` nie).
 
-Planer wybiera ścieżkę dostępu na podstawie koniunkcji `WHERE` w kolejności: wyszukanie po kluczu głównym, wiele kluczy (`IN`), indeks (`=`, `IN`), zakres klucza, zakres indeksu, pełny przegląd. Wykrywa warunki sprzeczne (`id > 5 AND id < 5`, `= NULL`) i zwraca maskę koniunktów, które ścieżka gwarantuje, więc wykonawca liczy tylko pozostałe ([ADR-0040](../../docs/adr/0040-warunek-gwarantowany-przez-sciezke-dostepu.md)). `COUNT(*)` z warunkiem przejętym w całości przez ścieżkę liczy wiersze bez ich czytania, przy indeksie jako długość zbioru kluczy wartości.
+Planer wybiera ścieżkę dostępu na podstawie koniunkcji `WHERE` w kolejności: wyszukanie po kluczu głównym, wiele kluczy (`IN`), indeks (`=`, `IN`), zakres klucza, zakres indeksu, pełny przegląd. Wykrywa warunki sprzeczne (`id > 5 AND id < 5`, `= NULL`) i zwraca maskę koniunktów, które ścieżka gwarantuje, więc wykonawca liczy tylko pozostałe. `COUNT(*)` z warunkiem przejętym w całości przez ścieżkę liczy wiersze bez ich czytania, przy indeksie jako długość zbioru kluczy wartości.
 
 ```text
 EXPLAIN SELECT category, COUNT(*) FROM items WHERE price > 10 AND id BETWEEN 100 AND 200 GROUP BY category
@@ -84,31 +84,31 @@ SELECT FROM items
   OUTPUT:    category, COUNT(*)
 ```
 
-Instrukcja przygotowana kompiluje się przy `prepare`: nazwy kolumn są rozwiązane, parametry zostają odwołaniami, a ścieżka dostępu jest wybrana albo przygotowana jako szablon wypełniany wartością parametru. Postać skompilowana jest ważna dla wersji katalogu, w której powstała; każda zmiana schematu, także wycofana i odebrana z innej repliki, wymusza ponowną kompilację ([ADR-0041](../../docs/adr/0041-plan-w-instrukcji-przygotowanej.md), [ADR-0042](../../docs/adr/0042-wyrazenia-kompilowane-warianty-i-domkniecia.md)).
+Instrukcja przygotowana kompiluje się przy `prepare`: nazwy kolumn są rozwiązane, parametry zostają odwołaniami, a ścieżka dostępu jest wybrana albo przygotowana jako szablon wypełniany wartością parametru. Postać skompilowana jest ważna dla wersji katalogu, w której powstała; każda zmiana schematu, także wycofana i odebrana z innej repliki, wymusza ponowną kompilację.
 
 ## Transakcje
 
-- Każda instrukcja zmieniająca dane działa w transakcji: niejawnej (autocommit) albo jawnej (`BEGIN … COMMIT/ROLLBACK`). Instrukcje wykonują się szeregowo ([ADR-0008](../../docs/adr/0008-transakcje-undo-log-wykonanie-szeregowe.md)).
+- Każda instrukcja zmieniająca dane działa w transakcji: niejawnej (autocommit) albo jawnej (`BEGIN … COMMIT/ROLLBACK`). Instrukcje wykonują się szeregowo.
 - Każda zmiana wiersza i schematu zapisuje wpis w dzienniku wycofania. Błąd w połowie instrukcji (np. dzielenie przez zero w 500. wierszu `UPDATE`) cofa tylko tę instrukcję, także wewnątrz jawnej transakcji.
 - Operacje są kodowane do bufora transakcji w chwili wykonania; przy `COMMIT` cały bufor staje się jedną ramką WAL, a wpisy outboxu stają się widoczne dla synchronizacji. `ROLLBACK` nie zostawia śladu w WAL.
-- `UPDATE` zmienia wiersz w miejscu, przepisuje tylko przypisane kolumny i dotyka tylko indeksów zmienionych kolumn; zegar jest odczytywany raz na instrukcję ([ADR-0044](../../docs/adr/0044-update-w-miejscu-jeden-odczyt-zegara.md)).
+- `UPDATE` zmienia wiersz w miejscu, przepisuje tylko przypisane kolumny i dotyka tylko indeksów zmienionych kolumn; zegar jest odczytywany raz na instrukcję.
 - Snapshot, eksport outboxu i przyjmowanie zmian zdalnych są zabronione w trakcie jawnej transakcji, bo widziałyby niezatwierdzony stan.
 
 ## Synchronizacja
 
 Model danych synchronizacji:
 
-- Każda zmiana ma znacznik `Stamp { time, node }`: `time` z hybrydowego zegara logicznego (ang. *Hybrid Logical Clock*, HLC), czyli milisekundy czasu fizycznego przesunięte o 16 bitów z licznikiem logicznym, a `node` to losowy identyfikator repliki. Zegar nigdy się nie cofa i przyjmuje nowsze znaczniki innych replik ([ADR-0015](../../docs/adr/0015-hlc-i-lww-per-wiersz.md)).
-- Granica dryfu (`MAX_DRIFT_MS`, 60 s): znacznik dalszy niż 60 s przed zegarem odbiorcy nie jest przyjmowany, a zmiana jest odrzucana (`ApplyReport.clock_drift`). Własna historia (snapshot, WAL) jest przyjmowana bez granicy. Zmiany zrobione, gdy zegar urządzenia się spieszył, po jego poprawieniu dostają nowe znaczniki (`rebase_clock`) ([ADR-0035](../../docs/adr/0035-granica-dryfu-zegara-wstrzymanie-i-nowe-znaczniki.md)).
+- Każda zmiana ma znacznik `Stamp { time, node }`: `time` z hybrydowego zegara logicznego (ang. *Hybrid Logical Clock*, HLC), czyli milisekundy czasu fizycznego przesunięte o 16 bitów z licznikiem logicznym, a `node` to losowy identyfikator repliki. Zegar nigdy się nie cofa i przyjmuje nowsze znaczniki innych replik.
+- Granica dryfu (`MAX_DRIFT_MS`, 60 s): znacznik dalszy niż 60 s przed zegarem odbiorcy nie jest przyjmowany, a zmiana jest odrzucana (`ApplyReport.clock_drift`). Własna historia (snapshot, WAL) jest przyjmowana bez granicy. Zmiany zrobione, gdy zegar urządzenia się spieszył, po jego poprawieniu dostają nowe znaczniki (`rebase_clock`).
 - Reguła „ostatni zapis wygrywa” (ang. *last-writer-wins*, LWW) dla wiersza: zmiana zdalna jest stosowana tylko wtedy, gdy jej znacznik jest większy od znacznika wiersza albo jego znacznika usunięcia, żeby spóźniony `UPDATE` nie przywrócił usuniętego wiersza.
-- Konflikt schematu: definicja tabeli z innej repliki, różna od lokalnej, nie jest stosowana, a wiersze tej definicji są odrzucane. `ApplyReport.conflicts` podaje jedną pozycję na tabelę: obie definicje, liczbę odrzuconych zmian i rodzaj różnicy ([ADR-0036](../../docs/adr/0036-jawne-konflikty-schematu-przed-wersjami-struktury.md)).
-- Między replikami atomowa jest zmiana pojedynczego wiersza, nie cała transakcja ([ADR-0018](../../docs/adr/0018-atomowosc-wiersza-miedzy-replikami.md)).
+- Konflikt schematu: definicja tabeli z innej repliki, różna od lokalnej, nie jest stosowana, a wiersze tej definicji są odrzucane. `ApplyReport.conflicts` podaje jedną pozycję na tabelę: obie definicje, liczbę odrzuconych zmian i rodzaj różnicy.
+- Między replikami atomowa jest zmiana pojedynczego wiersza, nie cała transakcja.
 
 Outbox, czyli kolejka zmian do wysłania:
 
-- Outbox wierszy jest prowadzony od włączenia synchronizacji (`enable_sync`); krok jest zapisany w WAL i w snapshocie. Włączenie oznacza każdy wiersz i znacznik usunięcia jako oczekujący, więc pierwsza wysyłka zawiera cały stan. Baza bez synchronizacji nie płaci za outbox ([ADR-0043](../../docs/adr/0043-outbox-po-wlaczeniu-synchronizacji.md)).
+- Outbox wierszy jest prowadzony od włączenia synchronizacji (`enable_sync`); krok jest zapisany w WAL i w snapshocie. Włączenie oznacza każdy wiersz i znacznik usunięcia jako oczekujący, więc pierwsza wysyłka zawiera cały stan. Baza bez synchronizacji nie płaci za outbox.
 - Zmiana wiersza zapisuje w outboksie tylko odwołanie `(tabela, klucz) → seq`; eksport czyta bieżący stan wiersza, więc 100 kolejnych `UPDATE` jednego wiersza wysyła jedną zmianę. Zmiany schematu są przechowywane w całości.
-- Każda lokalna operacja w WAL niesie numer `seq`, a potwierdzenie serwera jest zapisywane w WAL jako `Ack(seq)`. Outbox odbudowuje się przy odtwarzaniu i przetrwa zamknięcie aplikacji offline ([ADR-0016](../../docs/adr/0016-outbox-w-wal.md)).
+- Każda lokalna operacja w WAL niesie numer `seq`, a potwierdzenie serwera jest zapisywane w WAL jako `Ack(seq)`. Outbox odbudowuje się przy odtwarzaniu i przetrwa zamknięcie aplikacji offline.
 - Zmiany otrzymane z serwera trafiają do WAL z `seq = 0`, więc nie wracają do outboxu.
 
 Protokół HTTP między klientem a serwerem opisuje [server/README.md](../../server/README.md), a format paczki zmian [storage/README.md](src/storage/README.md#formaty-binarne).
@@ -117,12 +117,14 @@ Protokół HTTP między klientem a serwerem opisuje [server/README.md](../../ser
 
 | Decyzja | Uzasadnienie | Koszt |
 |---|---|---|
-| wymagany klucz główny, bez złączeń ([ADR-0004](../../docs/adr/0004-dialekt-flat-sql-bez-zlaczen.md)) | wiersz adresowany kluczem, replikacja per klucz, prosty i przewidywalny plan | zapytania wielotabelowe składa aplikacja |
-| dane w pamięci ([ADR-0006](../../docs/adr/0006-dane-w-pamieci.md)) | odczyty w mikrosekundach, prosty silnik | rozmiar bazy ograniczony pamięcią; odtwarzanie wolniejsze niż w formacie stronicowym |
-| rdzeń bez wejścia/wyjścia i bez zależności ([ADR-0005](../../docs/adr/0005-rdzen-rust-bez-io-i-zaleznosci.md)) | ten sam kod wszędzie, trwałość nie blokuje zapytań, mały moduł (268 KiB po kompresji gzip) | host musi odbierać WAL; własny parser, kodek i CRC |
-| fizyczny WAL i snapshot ([ADR-0009](../../docs/adr/0009-wal-fizyczny-i-snapshot.md)) | proste odtwarzanie, koszt zatwierdzenia proporcjonalny do zmiany | checkpoint koduje całą bazę |
-| LWW na znacznikach HLC ze znacznikami usunięcia | zbieżność bez koordynacji, praca offline | konflikt rozstrzygany dla całego wiersza; znaczniki usunięcia nie są kasowane |
-| cel `wasm32` bez memory64 ([ADR-0007](../../docs/adr/0007-wasm32-bez-memory64.md)) | szybszy dostęp do pamięci w przeglądarce | najwyżej 4 GiB pamięci modułu |
+| wymagany klucz główny, bez złączeń ([decyzja 0004](../../docs/adr/0004-dialekt-bez-zlaczen.md)) | wiersz adresowany kluczem, replikacja per klucz, prosty i przewidywalny plan | zapytania wielotabelowe składa aplikacja |
+| dane w pamięci ([decyzja 0006](../../docs/adr/0006-dane-w-pamieci.md)) | odczyty w mikrosekundach, prosty silnik | rozmiar bazy ograniczony pamięcią; odtwarzanie wolniejsze niż w formacie stronicowym |
+| rdzeń bez wejścia/wyjścia i bez zależności ([decyzja 0005](../../docs/adr/0005-rdzen-rust-bez-io.md)) | ten sam kod wszędzie, trwałość nie blokuje zapytań, mały moduł (268 KiB po kompresji gzip) | host musi odbierać WAL; własny parser, kodek i CRC |
+| fizyczny WAL i snapshot ([decyzja 0016](../../docs/adr/0016-wal-i-snapshot.md)) | proste odtwarzanie, koszt zatwierdzenia proporcjonalny do zmiany | checkpoint koduje całą bazę |
+| „ostatni zapis wygrywa” na zegarze hybrydowym, ze znacznikami usunięcia ([decyzja 0019](../../docs/adr/0019-ostatni-zapis-wygrywa.md)) | zbieżność bez koordynacji, praca offline | konflikt rozstrzygany dla całego wiersza; znaczniki usunięcia nie są kasowane |
+| cel `wasm32` bez memory64 ([decyzja 0006](../../docs/adr/0006-dane-w-pamieci.md)) | szybszy dostęp do pamięci w przeglądarce | najwyżej 4 GiB pamięci modułu |
+
+Pozostałe decyzje rdzenia: [transakcje](../../docs/adr/0011-transakcje-szeregowe.md), [plan kompilowany w instrukcji](../../docs/adr/0012-plan-kompilowany-w-instrukcji.md), [ścieżka zapisu](../../docs/adr/0013-sciezka-zapisu.md), [krótkie teksty w wartości](../../docs/adr/0014-krotkie-teksty-w-wartosci.md), [granica dryfu zegara](../../docs/adr/0020-granica-dryfu-zegara.md), [kolejka zmian](../../docs/adr/0021-kolejka-zmian.md), [konflikty schematu](../../docs/adr/0023-struktura-tabel-w-kodzie.md).
 
 ## Budowanie i testy
 
@@ -142,4 +144,4 @@ Testy integracyjne i co sprawdzają: [tests/README.md](tests/README.md). Testy j
 
 ## Ograniczenia
 
-Rozwiązywanie konfliktów tylko dla całego wiersza, unikalność klucza głównego tylko lokalnie, brak `CASE`, podzapytań i indeksów złożonych. Kierunki rozwoju rdzenia: [docs/future/README.md §1.1](../../docs/future/README.md#11-rdzeń-silnika).
+Rozwiązywanie konfliktów tylko dla całego wiersza, unikalność klucza głównego tylko lokalnie, brak `CASE`, podzapytań i indeksów złożonych. Kierunki rozwoju rdzenia: [na później](../../docs/management/future.md).

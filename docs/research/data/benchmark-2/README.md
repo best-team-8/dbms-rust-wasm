@@ -1,6 +1,6 @@
 # Benchmark 2: dane
 
-Surowe wyniki pomiaru prototypu Flat-SQL (tag `v1-prototyp`) razem z wersją po optymalizacjach (tag `v2-optymalizacja`) według tej samej [metodyki](../../benchmark-scenario.md) co Benchmark 1. Opis wyników: [benchmark-results.md §2](../../benchmark-results.md#2-benchmark-2-wersja-po-optymalizacjach), miejsce wersji po optymalizacjach wśród silników z Benchmarku 1: [§2.9](../../benchmark-results.md#29-flat-sql-po-optymalizacjach-na-tle-innych-silników).
+Surowe wyniki pomiaru prototypu Flat-SQL (tag `v1-prototyp`) razem z wersją po optymalizacjach (tag `v2-optymalizacja`) według tej samej [metodyki](../../benchmark-scenario.md) co Benchmark 1. Opis wyników: [wyniki benchmarków](../../benchmark-results.md#benchmark-2-prototyp-i-wersja-po-optymalizacjach), miejsce wersji po optymalizacjach wśród silników z Benchmarku 1: [wyniki benchmarków](../../benchmark-results.md#wersja-po-optymalizacjach-na-tle-innych-silników).
 
 | Ścieżka | Zawartość |
 |---|---|

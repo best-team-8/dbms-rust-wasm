@@ -98,7 +98,7 @@ const label = (id) => (id === 'flatsql-native' ? 'Flat-SQL natywnie' : ENGINES[i
 const ROWS = (b1Manifest.options?.rows ?? 100000).toLocaleString('pl-PL');
 
 // Role of every configuration with respect to Flat-SQL, after the comparison
-// of engines (docs/research/wasm-engines-comparison.md, §4 and §5). Related
+// of engines (docs/research/engines-and-use-cases.md). Related
 // engines solve the same problem: SQL in WebAssembly for the operational data
 // of an application (sql.js, SQLite WASM, wa-sqlite) or a local-first store
 // with synchronisation competing for offline applications (PouchDB, RxDB).
