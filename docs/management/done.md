@@ -49,3 +49,7 @@ Każda optymalizacja była mierzona przed zmianą i po niej. Wyniki: [optymaliza
 - [M] Checkpoint kodowany krokami ([decyzja 0018](../adr/0018-checkpoint.md)).
 - [S] Porównanie ustawień kompilacji; konfiguracja bez zmian ([decyzja 0009](../adr/0009-ustawienia-kompilacji.md)).
 - [M] Ponowny pomiar obu wersji tym samym narzędziem (Benchmark 2).
+
+## Repozytorium
+
+- [S] Przygotowanie repozytorium do upublicznienia: brak licencji i zastrzeżenie praw autorskich w README, tekst pracy i strony tytułowe usunięte z repozytorium i z historii.
