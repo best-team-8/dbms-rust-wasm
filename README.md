@@ -221,3 +221,9 @@ Opcje magazynu, trwałości i synchronizacji opisuje [most JavaScript](bridge/RE
 | replikacja częściowa | klient przechowuje tylko potrzebną mu część bazy |
 | granica JavaScript–WebAssembly | koszt przekazywania parametrów i wyników między JavaScriptem a modułem WebAssembly |
 | nagłówki izolacji (COOP i COEP) | nagłówki HTTP, które izolują stronę; wymagane między innymi przez wątki WebAssembly |
+
+## Prawa autorskie
+
+© 2026 Patryk Piotrowski. Wszelkie prawa zastrzeżone.
+
+Repozytorium nie ma licencji. Kod i dokumentację można przeglądać. Kopiowanie, używanie i rozwijanie wymaga zgody autora, także przy kontynuacji projektu w innej pracy dyplomowej. O zgodę można poprosić w zgłoszeniu na GitHubie.
