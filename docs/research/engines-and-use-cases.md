@@ -54,7 +54,7 @@ Analiza wdrożeń z 18 października 2026 objęła około 25 projektów korzysta
 | Rozszerzenia przeglądarki | SmrutiCortex | słabe | wyszukiwanie pełnotekstowe |
 | Pamięć asystentów | projekty na PGlite z pgvector, Zeta-Lite | mocne dla kategorii, nie dla Flat-SQL | wektory, wyszukiwanie pełnotekstowe, gałęzie bazy |
 
-Najbliższym odpowiednikiem architektury Flat-SQL jest Actual Budget: SQLite w przeglądarce, zegar hybrydowy i własny serwer synchronizacji. To dowód, że taka architektura działa produkcyjnie. Najmocniejsze dowody potrzeby pracy offline dają aplikacje terenowe.
+Najbliższym odpowiednikiem architektury Flat-SQL jest Actual Budget: lokalna baza SQLite, zegar hybrydowy i własny serwer synchronizacji. To dowód, że taka architektura działa produkcyjnie. Najmocniejsze dowody potrzeby pracy offline dają aplikacje terenowe.
 
 Wszystkie braki w tabeli wynikają z niedojrzałości projektu, a nie z jego koncepcji. Granicą koncepcji są: dialekt bez złączeń, dane w pamięci, przetwarzanie wierszy zamiast kolumn i wykonanie w jednym wątku.
 
@@ -101,7 +101,7 @@ Przy porównaniu wersji po optymalizacjach silniki „pokrewne” to te, które 
 - Silniki: [SQLite WASM i zapis danych](https://sqlite.org/wasm/doc/tip/persistence.md), [sql.js](https://github.com/sql-js/sql.js), [wa-sqlite](https://github.com/rhashimoto/wa-sqlite), [PGlite](https://pglite.dev), [DuckDB-Wasm](https://duckdb.org/2021/10/29/duckdb-wasm), [GlueSQL](https://github.com/gluesql/gluesql), [Turso w przeglądarce](https://turso.tech/blog/introducing-turso-in-the-browser), [AlaSQL](https://github.com/AlaSQL/alasql), [Dexie.js](https://dexie.org), [RxDB](https://rxdb.info), [PouchDB](https://pouchdb.com)
 - Warstwy synchronizacji: [cr-sqlite](https://github.com/vlcn-io/cr-sqlite), [ElectricSQL](https://electric-sql.com), [PowerSync](https://www.powersync.com)
 - Notion: [How we sped up Notion in the browser with WASM SQLite](https://www.notion.com/blog/how-we-sped-up-notion-in-the-browser-with-wasm-sqlite)
-- Actual Budget: [localfirst.fm #7 – James Long](https://metacast.app/podcast/localfirst-fm/0uiP5YFv/7---james-long-actual-budget-hybrid-logical-clocks-and-absurd-sql/BSZTYxzt)
+- Actual Budget: [James Long, „Actual: Using CRDTs in the Wild” (2019)](https://archive.jlongster.com/using-crdts-in-the-wild), [localfirst.fm #7 – James Long](https://www.localfirst.fm/7)
 - Linear: [Reverse Linear Sync Engine Study](https://docsearch.algolia.com/mcp/docs/repo/wzhudev/reverse-linear-sync-engine)
 - Productlane: [Moving to Zero](https://feedback.clerk.com/blog/zero-migration)
 - Community Health Toolkit: [Overview of CHT Components](https://docs.communityhealthtoolkit.org/core/overview/), [Data Flows for Analytics](https://docs.communityhealthtoolkit.org/core/overview/data-flows-for-analytics)

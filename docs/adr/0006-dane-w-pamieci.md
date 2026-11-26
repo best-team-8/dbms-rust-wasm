@@ -1,7 +1,7 @@
 # 0006. Cała baza w pamięci, moduł 32-bitowy
 
 - Status: obowiązuje
-- Ostatnia zmiana: 2026-10-20
+- Ostatnia zmiana: 2026-11-26
 
 ## Kontekst
 
@@ -12,13 +12,14 @@ Zapytania mają działać lokalnie i bez czekania (decyzja 0001), także w głó
 1. Cała baza jest w pamięci modułu. Wiersze leżą w drzewie uporządkowanym po kluczu głównym (`BTreeMap`). Indeks dodatkowy to mapa „wartość → zbiór kluczy”. Indeksów nie zapisuje się na dysk, tylko buduje przy wczytaniu bazy.
 2. Dysk służy wyłącznie trwałości (decyzja 0016).
 3. Silnik zostaje przy 32-bitowym WebAssembly (`wasm32`), bez memory64.
+4. Docelowa baza to dane jednego użytkownika na jednym urządzeniu, od kilku tysięcy do około 100 000 wierszy. Przy tym rozmiarze mierzy się wymagania wydajności.
 
 ## Uzasadnienie
 
 - Bazy w pamięci są szybkie głównie dlatego, że nie kodują danych do formatu dyskowego przy każdym dostępie. Trwałość zapewniają log i snapshot (Kleppmann, 2017, rozdz. 3; DeWitt i in., 1984).
 - Silnik w pamięci wykonujący transakcje w jednym wątku nie płaci za blokady ani bufor stron (Stonebraker i in., 2007).
 - Przy adresach 32-bitowych przeglądarka sprawdza granice pamięci sprzętowo, praktycznie za darmo. Przy 64-bitowych musi sprawdzać każdy dostęp programowo, co średnio podwaja jego koszt (Döllerer i Engelke, 2024).
-- Docelowe dane są o rzędy wielkości mniejsze niż 4 GiB. Baza 100 000 wierszy zajmuje około 52 MiB. Na telefonie przeglądarka zamknie kartę, zanim zabraknie adresów.
+- Docelowe dane są o rzędy wielkości mniejsze niż 4 GiB. Baza 100 000 wierszy zajmuje 21,8 MiB, a po wczytaniu jedną transakcją około 52 MiB. Na telefonie przeglądarka zamknie kartę, zanim zabraknie adresów.
 
 ## Odrzucone warianty
 
@@ -35,3 +36,4 @@ Zapytania mają działać lokalnie i bez czekania (decyzja 0001), także w głó
 
 - 2026-10-06: dane w pamięci od pierwszej wersji silnika.
 - 2026-10-20: dopisano rezygnację z memory64.
+- 2026-11-26: dopisano docelowy rozmiar bazy, bo wymagania mierzono tylko przy 100 000 wierszy.
